@@ -4,8 +4,27 @@ import { Input } from "@/components/ui/input";
 import { ShieldIcon } from "./ShieldIcon";
 import { ScanPhase, PhaseStatus } from "./ScanPhase";
 import { RiskScore } from "./RiskScore";
-import { Search, ExternalLink, RotateCcw } from "lucide-react";
+import { Search, ExternalLink, RotateCcw, AlertCircle, Settings } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+
+interface PhaseResult {
+  name: string;
+  score: number;
+  maxScore: number;
+  status: "safe" | "warning" | "danger";
+  error?: string;
+  [key: string]: unknown;
+}
+
+interface ScanResponse {
+  url: string;
+  timestamp: string;
+  phases: Record<string, PhaseResult>;
+  totalScore: number;
+  maxTotalScore: number;
+  percentage: number;
+  overallStatus: "safe" | "warning" | "danger";
+}
 
 interface ScanResult {
   phase: string;
@@ -16,15 +35,17 @@ interface ScanResult {
 }
 
 const SCAN_PHASES = [
-  { name: "Whitelist Check", description: "Checking trusted domains", maxScore: 0 },
-  { name: "Blacklist Check", description: "Scanning known threat database", maxScore: 0 },
-  { name: "VirusTotal", description: "URL reputation analysis", maxScore: 40 },
-  { name: "AbuseIPDB", description: "IP threat intelligence", maxScore: 50 },
-  { name: "URLhaus", description: "Malware database lookup", maxScore: 45 },
-  { name: "Domain Age", description: "Registration date verification", maxScore: 30 },
-  { name: "SSL Analysis", description: "Certificate validation", maxScore: 25 },
-  { name: "Heuristics", description: "Pattern & typosquatting detection", maxScore: 50 },
+  { key: "virusTotal", name: "VirusTotal Analysis", description: "URL reputation analysis", maxScore: 25 },
+  { key: "abuseIPDB", name: "AbuseIPDB Check", description: "IP threat intelligence", maxScore: 15 },
+  { key: "ssl", name: "SSL Certificate", description: "Certificate validation", maxScore: 15 },
+  { key: "domainAge", name: "Domain Analysis", description: "Domain pattern analysis", maxScore: 10 },
+  { key: "content", name: "Content Analysis", description: "Phishing indicator scan", maxScore: 15 },
+  { key: "redirects", name: "Redirect Analysis", description: "Redirect chain inspection", maxScore: 10 },
+  { key: "securityHeaders", name: "Security Headers", description: "Header configuration check", maxScore: 10 },
 ];
+
+// Default to localhost, but can be configured
+const BACKEND_URL = "http://localhost:3001";
 
 export function URLScanner() {
   const [url, setUrl] = useState("");
@@ -33,53 +54,102 @@ export function URLScanner() {
   const [currentPhase, setCurrentPhase] = useState(-1);
   const [results, setResults] = useState<ScanResult[]>([]);
   const [totalScore, setTotalScore] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const [backendConnected, setBackendConnected] = useState<boolean | null>(null);
 
   const getOverallStatus = (score: number): "scanning" | "safe" | "warning" | "danger" => {
     if (scanning) return "scanning";
-    if (score >= 70) return "danger";
-    if (score >= 40) return "warning";
+    if (score < 50) return "danger";
+    if (score < 80) return "warning";
     return "safe";
   };
 
-  const simulateScan = async () => {
+  const checkBackendHealth = async () => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/health`);
+      if (response.ok) {
+        setBackendConnected(true);
+        return true;
+      }
+      setBackendConnected(false);
+      return false;
+    } catch {
+      setBackendConnected(false);
+      return false;
+    }
+  };
+
+  const performRealScan = async () => {
     if (!url) return;
-    
+
     setScanning(true);
     setScanComplete(false);
     setResults([]);
     setCurrentPhase(-1);
     setTotalScore(0);
+    setError(null);
 
-    const newResults: ScanResult[] = [];
-    let runningScore = 0;
-
-    for (let i = 0; i < SCAN_PHASES.length; i++) {
-      setCurrentPhase(i);
-      await new Promise(resolve => setTimeout(resolve, 400 + Math.random() * 300));
-      
-      // Simulate random scores (in real implementation, this comes from API)
-      const phase = SCAN_PHASES[i];
-      const isThreat = Math.random() > 0.8;
-      const score = phase.maxScore > 0 ? (isThreat ? Math.floor(Math.random() * phase.maxScore * 0.8) : 0) : 0;
-      
-      const status: PhaseStatus = score > 0 
-        ? (score >= phase.maxScore * 0.5 ? "failed" : "warning") 
-        : "passed";
-
-      newResults.push({
-        phase: phase.name,
-        status,
-        score,
-        maxScore: phase.maxScore,
-      });
-
-      runningScore += score;
-      setResults([...newResults]);
-      setTotalScore(Math.min(100, Math.round((runningScore / 310) * 100)));
+    // Check backend connection first
+    const isConnected = await checkBackendHealth();
+    if (!isConnected) {
+      setError("Backend server not running. Start the server with: cd backend && npm start");
+      setScanning(false);
+      return;
     }
 
-    setScanning(false);
-    setScanComplete(true);
+    // Animate through phases while waiting for results
+    const phaseAnimation = async () => {
+      for (let i = 0; i < SCAN_PHASES.length; i++) {
+        setCurrentPhase(i);
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+    };
+
+    try {
+      // Start phase animation and API call in parallel
+      const [scanResponse] = await Promise.all([
+        fetch(`${BACKEND_URL}/api/scan`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url }),
+        }).then(res => res.json() as Promise<ScanResponse>),
+        phaseAnimation(),
+      ]);
+
+      // Process results
+      const newResults: ScanResult[] = SCAN_PHASES.map(phase => {
+        const phaseResult = scanResponse.phases[phase.key];
+        if (!phaseResult) {
+          return {
+            phase: phase.name,
+            status: "warning" as PhaseStatus,
+            score: 0,
+            maxScore: phase.maxScore,
+          };
+        }
+
+        const status: PhaseStatus = 
+          phaseResult.status === "danger" ? "failed" :
+          phaseResult.status === "warning" ? "warning" : "passed";
+
+        return {
+          phase: phase.name,
+          status,
+          score: phaseResult.score,
+          maxScore: phaseResult.maxScore,
+        };
+      });
+
+      setResults(newResults);
+      setTotalScore(scanResponse.percentage);
+      setCurrentPhase(SCAN_PHASES.length);
+      setScanComplete(true);
+    } catch (err) {
+      console.error("Scan error:", err);
+      setError("Failed to complete scan. Check if backend server is running.");
+    } finally {
+      setScanning(false);
+    }
   };
 
   const resetScan = () => {
@@ -89,16 +159,40 @@ export function URLScanner() {
     setResults([]);
     setCurrentPhase(-1);
     setTotalScore(0);
+    setError(null);
   };
 
   const getPhaseStatus = (index: number): PhaseStatus => {
     if (results[index]) return results[index].status;
     if (index === currentPhase) return "running";
+    if (index < currentPhase) return "passed";
     return "pending";
   };
 
   return (
     <div className="w-full max-w-4xl mx-auto">
+      {/* Backend Status Indicator */}
+      {backendConnected === false && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-card p-4 mb-4 border-warning/50 bg-warning/10"
+        >
+          <div className="flex items-start gap-3">
+            <Settings className="w-5 h-5 text-warning mt-0.5" />
+            <div className="flex-1">
+              <h4 className="font-semibold text-warning">Backend Server Required</h4>
+              <p className="text-sm text-muted-foreground mt-1">
+                To perform real security scans, run the local backend server:
+              </p>
+              <pre className="mt-2 p-2 bg-background/50 rounded text-xs font-mono overflow-x-auto">
+                cd backend && npm install && npm start
+              </pre>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       {/* URL Input Section */}
       <motion.div 
         className="glass-card p-6 mb-8"
@@ -124,7 +218,7 @@ export function URLScanner() {
             <Button
               variant="hero"
               size="xl"
-              onClick={simulateScan}
+              onClick={performRealScan}
               disabled={!url || scanning}
               className="min-w-[160px]"
             >
@@ -153,6 +247,23 @@ export function URLScanner() {
           )}
         </div>
       </motion.div>
+
+      {/* Error Display */}
+      <AnimatePresence>
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="glass-card p-4 mb-8 border-danger/50 bg-danger/10"
+          >
+            <div className="flex items-center gap-3">
+              <AlertCircle className="w-5 h-5 text-danger" />
+              <p className="text-danger">{error}</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Results Section */}
       <AnimatePresence>

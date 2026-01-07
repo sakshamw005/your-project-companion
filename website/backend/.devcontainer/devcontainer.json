@@ -1,0 +1,25 @@
+{
+  "name": "Guardian Link Backend",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:20",
+  "forwardPorts": [3001],
+  "postCreateCommand": "npm install",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash"
+      },
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "ms-vscode.makefile-tools",
+        "GitHub.copilot"
+      ]
+    }
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/sqlite3:1": {}
+  },
+  "mounts": [
+    "source=${localEnv:HOME}${localEnv:USERPROFILE}/.ssh,target=/home/node/.ssh,readonly"
+  ],
+  "remoteUser": "node"
+}

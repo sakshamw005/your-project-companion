@@ -144,6 +144,25 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 });
 
+// Periodic health check to detect extension reload
+let extensionHealthy = true;
+setInterval(() => {
+  chrome.runtime.sendMessage(
+    { action: 'diagnosticTest' },
+    (response) => {
+      if (chrome.runtime.lastError) {
+        if (!extensionHealthy) {
+          console.log('🔄 Extension is back online, reloading page...');
+          window.location.reload();
+        }
+        extensionHealthy = false;
+      } else {
+        extensionHealthy = true;
+      }
+    }
+  );
+}, 5000);
+
 
 // Listen for registration requests from popup
 window.addEventListener('message', (event) => {
@@ -235,35 +254,55 @@ function analyzeAndHandle(url, context, event) {
   // Show loading overlay
   showLoadingOverlay(url);
 
-  chrome.runtime.sendMessage(
-    {
-      action: 'analyzeURL',
-      url: url,
-      context: context
-    },
-    (decision) => {
-      analysisInProgress.delete(url);
-      removeLoadingOverlay();
+  try {
+    chrome.runtime.sendMessage(
+      {
+        action: 'analyzeURL',
+        url: url,
+        context: context
+      },
+      (decision) => {
+        analysisInProgress.delete(url);
+        removeLoadingOverlay();
 
-      if (!decision) {
-        console.error('❌ No decision received');
-        return;
+        // Check if extension context is still valid
+        if (chrome.runtime.lastError) {
+          console.error('⚠️ Extension error:', chrome.runtime.lastError.message);
+          if (chrome.runtime.lastError.message.includes('Extension context invalidated')) {
+            console.log('🔄 Extension was reloaded. Reloading page...');
+            window.location.reload();
+          }
+          return;
+        }
+
+        if (!decision) {
+          console.error('❌ No decision received');
+          return;
+        }
+
+        console.log(`📊 Decision: ${decision.verdict} (${decision.riskLevel}) Score: ${decision.score}`);
+
+        if (decision.verdict === 'BLOCK') {
+          console.log('🚨 BLOCKING URL');
+          showWarningPage(decision);
+        } else if (decision.verdict === 'WARN') {
+          console.log('⚠️ WARN - Showing notification');
+          showWarningNotification(decision);
+        } else {
+          console.log('✅ ALLOW - Navigating');
+          navigateToURL(url);
+        }
       }
-
-      console.log(`📊 Decision: ${decision.verdict} (${decision.riskLevel}) Score: ${decision.score}`);
-
-      if (decision.verdict === 'BLOCK') {
-        console.log('🚨 BLOCKING URL');
-        showWarningPage(decision);
-      } else if (decision.verdict === 'WARN') {
-        console.log('⚠️ WARN - Showing notification');
-        showWarningNotification(decision);
-      } else {
-        console.log('✅ ALLOW - Navigating');
-        navigateToURL(url);
-      }
+    );
+  } catch (error) {
+    analysisInProgress.delete(url);
+    removeLoadingOverlay();
+    console.error('❌ Failed to send message to background:', error.message);
+    if (error.message.includes('Extension context invalidated')) {
+      console.log('🔄 Extension context invalidated. Reloading...');
+      window.location.reload();
     }
-  );
+  }
 }
 
 // ==================== BLOCK FUNCTION ====================

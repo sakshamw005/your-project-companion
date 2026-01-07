@@ -1,0 +1,75 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2026-01-04",
+  "source": "GuardianLink Internal Blacklist",
+  "blacklist": [
+    {
+      "domain": "fake-amazon.tk",
+      "reason": "Known phishing site",
+      "severity": "CRITICAL",
+      "dateAdded": "2026-01-01"
+    },
+    {
+      "domain": "paypa1.xyz",
+      "reason": "PayPal typosquatting",
+      "severity": "CRITICAL",
+      "dateAdded": "2026-01-01"
+    },
+    {
+      "domain": "goog1e-secure.top",
+      "reason": "Google phishing",
+      "severity": "CRITICAL",
+      "dateAdded": "2026-01-01"
+    },
+    {
+      "domain": "microsoft-verify.tk",
+      "reason": "Microsoft verification scam",
+      "severity": "CRITICAL",
+      "dateAdded": "2026-01-02"
+    },
+    {
+      "domain": "apple-update.xyz",
+      "reason": "Apple update scam",
+      "severity": "CRITICAL",
+      "dateAdded": "2026-01-02"
+    },
+    {
+      "domain": "banking-secure.top",
+      "reason": "Generic banking phishing",
+      "severity": "HIGH",
+      "dateAdded": "2026-01-02"
+    },
+    {
+      "domain": "confirm-identity.work",
+      "reason": "Identity verification scam",
+      "severity": "HIGH",
+      "dateAdded": "2026-01-02"
+    },
+    {
+      "domain": "reward-claim.party",
+      "reason": "Reward scam",
+      "severity": "HIGH",
+      "dateAdded": "2026-01-02"
+    },
+    {
+      "domain": "urgent-action.download",
+      "reason": "Generic urgency phishing",
+      "severity": "HIGH",
+      "dateAdded": "2026-01-02"
+    },
+    {
+      "domain": "click-here-now.stream",
+      "reason": "Clickbait phishing",
+      "severity": "MEDIUM",
+      "dateAdded": "2026-01-03"
+    }
+  ],
+  "suspiciousTLDs": [
+    "tk", "xyz", "top", "work", "download",
+    "stream", "review", "science", "party",
+    "faith", "webcam", "trade", "gdn",
+    "accountant", "fitness", "loan", "properties"
+  ],
+  "newlyRegisteredThreshold": 30,
+  "notes": "This blacklist is maintained locally. In production, it would sync with cloud-based threat intelligence."
+}

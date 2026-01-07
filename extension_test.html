@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🛡️ GuardianLink Extension Test Page</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .section {
+            margin-bottom: 40px;
+        }
+
+        .section h2 {
+            font-size: 1.5em;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section p {
+            color: #666;
+            margin-bottom: 15px;
+            line-height: 1.6;
+        }
+
+        .link-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 12px;
+            margin-top: 15px;
+        }
+
+        .link-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            transition: all 0.3s ease;
+        }
+
+        .link-card:hover {
+            transform: translateX(5px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .link-card.safe {
+            border-left-color: #10b981;
+            background: #f0fdf4;
+        }
+
+        .link-card.warn {
+            border-left-color: #f59e0b;
+            background: #fffbf0;
+        }
+
+        .link-card.block {
+            border-left-color: #ef4444;
+            background: #fef2f2;
+        }
+
+        .link-card a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+            word-break: break-all;
+        }
+
+        .link-card.warn a {
+            color: #f59e0b;
+        }
+
+        .link-card.block a {
+            color: #ef4444;
+        }
+
+        .link-card a:hover {
+            text-decoration: underline;
+        }
+
+        .link-label {
+            font-size: 0.85em;
+            color: #999;
+            margin-top: 8px;
+        }
+
+        .instructions {
+            background: #e0e7ff;
+            border: 2px solid #667eea;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+
+        .instructions h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .instructions ol {
+            margin-left: 20px;
+            line-height: 1.8;
+            color: #333;
+        }
+
+        .console-section {
+            background: #1e1e1e;
+            color: #00ff00;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            margin-top: 30px;
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #333;
+        }
+
+        .console-section h3 {
+            color: #ff6b6b;
+            margin-bottom: 10px;
+        }
+
+        .log-entry {
+            margin: 5px 0;
+            padding: 3px 0;
+            border-bottom: 1px solid #333;
+        }
+
+        .log-success { color: #10b981; }
+        .log-warn { color: #f59e0b; }
+        .log-error { color: #ef4444; }
+        .log-info { color: #3b82f6; }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-clear {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-clear:hover {
+            background: #dc2626;
+        }
+
+        footer {
+            background: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .emoji {
+            font-size: 1.2em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🛡️ GuardianLink Extension Test Page</h1>
+            <p>Click links below to test the extension's URL analysis</p>
+        </header>
+
+        <div class="content">
+            <div class="instructions">
+                <h3>📋 How to Test:</h3>
+                <ol>
+                    <li>Open DevTools: Press <kbd>F12</kbd> on this page</li>
+                    <li>Go to the <strong>Console</strong> tab</li>
+                    <li>Click any link below</li>
+                    <li>Watch the console for GuardianLink logs</li>
+                    <li>See how the extension analyzes each URL</li>
+                </ol>
+            </div>
+
+            <!-- SAFE URLs -->
+            <div class="section">
+                <h2><span class="emoji">🟢</span> Safe URLs (Should navigate normally)</h2>
+                <p>These are trusted, well-known websites. The extension should allow them without warnings.</p>
+                <div class="link-group">
+                    <div class="link-card safe">
+                        <a href="https://www.google.com" target="_blank">Google</a>
+                        <div class="link-label">Major search engine</div>
+                    </div>
+                    <div class="link-card safe">
+                        <a href="https://www.github.com" target="_blank">GitHub</a>
+                        <div class="link-label">Code repository</div>
+                    </div>
+                    <div class="link-card safe">
+                        <a href="https://stackoverflow.com" target="_blank">Stack Overflow</a>
+                        <div class="link-label">Developer community</div>
+                    </div>
+                    <div class="link-card safe">
+                        <a href="https://www.wikipedia.org" target="_blank">Wikipedia</a>
+                        <div class="link-label">Encyclopedia</div>
+                    </div>
+                    <div class="link-card safe">
+                        <a href="https://www.amazon.com" target="_blank">Amazon</a>
+                        <div class="link-label">E-commerce</div>
+                    </div>
+                    <div class="link-card safe">
+                        <a href="https://www.youtube.com" target="_blank">YouTube</a>
+                        <div class="link-label">Video platform</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- WARN URLs -->
+            <div class="section">
+                <h2><span class="emoji">🟡</span> Suspicious URLs (Should show warning)</h2>
+                <p>These URLs have suspicious patterns. The extension should show a warning notification.</p>
+                <div class="link-group">
+                    <div class="link-card warn">
+                        <a href="https://bit.ly/xyz123" target="_blank">bit.ly/xyz123</a>
+                        <div class="link-label">URL shortener - less transparent</div>
+                    </div>
+                    <div class="link-card warn">
+                        <a href="https://tinyurl.com/test" target="_blank">tinyurl.com</a>
+                        <div class="link-label">URL shortener - hides real URL</div>
+                    </div>
+                    <div class="link-card warn">
+                        <a href="https://suspicious-domain.tk" target="_blank">suspicious-domain.tk</a>
+                        <div class="link-label">Free TLD (.tk) - higher risk</div>
+                    </div>
+                    <div class="link-card warn">
+                        <a href="https://js.do/code" target="_blank">js.do/code</a>
+                        <div class="link-label">Code hosting with obscure domain</div>
+                    </div>
+                    <div class="link-card warn">
+                        <a href="https://example.ru/test" target="_blank">example.ru</a>
+                        <div class="link-label">Russian domain (.ru) - elevated risk</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BLOCK URLs -->
+            <div class="section">
+                <h2><span class="emoji">🔴</span> Dangerous URLs (Should be blocked)</h2>
+                <p>These URLs contain blacklisted keywords. The extension should block and show warning page.</p>
+                <div class="link-group">
+                    <div class="link-card block">
+                        <a href="https://malware-site.ru" target="_blank">malware-site.ru</a>
+                        <div class="link-label">Malware distribution site</div>
+                    </div>
+                    <div class="link-card block">
+                        <a href="https://phishing-page.com" target="_blank">phishing-page.com</a>
+                        <div class="link-label">Phishing attack page</div>
+                    </div>
+                    <div class="link-card block">
+                        <a href="https://trojan-download.com" target="_blank">trojan-download.com</a>
+                        <div class="link-label">Trojan horse distribution</div>
+                    </div>
+                    <div class="link-card block">
+                        <a href="https://ransomware-tool.xyz" target="_blank">ransomware-tool.xyz</a>
+                        <div class="link-label">Ransomware distribution</div>
+                    </div>
+                    <div class="link-card block">
+                        <a href="https://virus-download.net" target="_blank">virus-download.net</a>
+                        <div class="link-label">Virus distribution site</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CONSOLE OUTPUT -->
+            <div class="section">
+                <h2><span class="emoji">📊</span> Live Console Output</h2>
+                <p>Open DevTools (F12) and go to the Console tab to see logs like this:</p>
+                <div class="console-section">
+                    <h3>Expected Output When Clicking a Blocked Link:</h3>
+                    <div class="log-entry log-info">🔗 Link clicked: https://malware-site.ru</div>
+                    <div class="log-entry log-info">🔍 Analyzing click: https://malware-site.ru</div>
+                    <div class="log-entry log-info">🚀 STARTING ANALYSIS: https://malware-site.ru</div>
+                    <div class="log-entry log-info">📋 PHASE 2: Checking local blacklist...</div>
+                    <div class="log-entry log-error">🚨 BLACKLIST HIT - Score: 95</div>
+                    <div class="log-entry log-info">🧠 PHASE 6: Heuristic analysis...</div>
+                    <div class="log-entry log-warn">⚠️ Heuristic Score: 45</div>
+                    <div class="log-entry log-info">📊 PHASE 8: Normalized Score: 100</div>
+                    <div class="log-entry log-success">✅ VERDICT: BLOCK</div>
+                    <div class="log-entry log-error">🚨 BLOCKING URL</div>
+                    <div class="log-entry log-info">📄 Preparing warning page</div>
+                    <div class="log-entry log-info">🔗 Navigating to warning page</div>
+                </div>
+            </div>
+
+            <div class="button-group">
+                <button class="btn-primary" onclick="openAllSafe()">📂 Open All Safe Links</button>
+                <button class="btn-primary" onclick="openAllWarn()">📂 Open All Suspicious Links</button>
+                <button class="btn-primary" onclick="openAllBlock()">📂 Open All Dangerous Links</button>
+                <button class="btn-clear" onclick="clearLogs()">🗑️ Clear Console</button>
+            </div>
+
+            <div class="section" style="margin-top: 40px;">
+                <h2><span class="emoji">❓</span> Troubleshooting</h2>
+                <p><strong>No GuardianLink logs in console?</strong></p>
+                <ul style="margin-left: 20px; margin-top: 10px; color: #666; line-height: 1.8;">
+                    <li>✅ Make sure extension is enabled in chrome://extensions</li>
+                    <li>✅ Reload the extension (click refresh icon)</li>
+                    <li>✅ Open DevTools BEFORE clicking links</li>
+                    <li>✅ Check if links have proper href attributes</li>
+                </ul>
+            </div>
+        </div>
+
+        <footer>
+            <p>🛡️ GuardianLink Extension Test Suite | Open Console (F12) to see detailed logs</p>
+        </footer>
+    </div>
+
+    <script>
+        function openAllSafe() {
+            const urls = [
+                'https://www.google.com',
+                'https://www.github.com',
+                'https://stackoverflow.com',
+                'https://www.wikipedia.org',
+                'https://www.amazon.com',
+                'https://www.youtube.com'
+            ];
+            urls.forEach(url => window.open(url, '_blank'));
+        }
+
+        function openAllWarn() {
+            const urls = [
+                'https://bit.ly/xyz123',
+                'https://tinyurl.com/test',
+                'https://suspicious-domain.tk',
+                'https://js.do/code',
+                'https://example.ru/test'
+            ];
+            urls.forEach(url => window.open(url, '_blank'));
+        }
+
+        function openAllBlock() {
+            const urls = [
+                'https://malware-site.ru',
+                'https://phishing-page.com',
+                'https://trojan-download.com',
+                'https://ransomware-tool.xyz',
+                'https://virus-download.net'
+            ];
+            urls.forEach(url => window.open(url, '_blank'));
+        }
+
+        function clearLogs() {
+            console.clear();
+            console.log('%c🗑️ Console cleared', 'color: #10b981; font-size: 14px; font-weight: bold;');
+        }
+
+        // Log page load
+        console.log('%c🛡️ GuardianLink Test Page Loaded', 'color: #667eea; font-size: 16px; font-weight: bold;');
+        console.log('%cClick any link above and watch the logs here for GuardianLink analysis', 'color: #666;');
+        console.log('%cOpen DevTools > Application > Local Storage to see extension data', 'color: #666;');
+    </script>
+</body>
+</html>

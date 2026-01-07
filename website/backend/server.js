@@ -17,6 +17,11 @@ const db = new sqlite3.Database(process.env.DATABASE_URL || './guardianlink.db')
 
 // Initialize database tables
 db.serialize(() => {
+  // Drop old scans table if it exists with wrong schema
+  db.run(`DROP TABLE IF EXISTS scans`, (err) => {
+    if (err) console.log('Note: scans table did not exist');
+  });
+  
   // Users table
   db.run(`CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
@@ -28,10 +33,10 @@ db.serialize(() => {
     last_login DATETIME
   )`);
 
-  // Scan history
+  // Scan history - user_id can be NULL for public scans
   db.run(`CREATE TABLE IF NOT EXISTS scans (
     id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL,
+    user_id TEXT,
     url TEXT NOT NULL,
     scan_result TEXT,
     status TEXT DEFAULT 'pending',
@@ -39,10 +44,10 @@ db.serialize(() => {
     FOREIGN KEY(user_id) REFERENCES users(id)
   )`);
 
-  // Extension sessions (for real-time sync)
+  // Extension sessions (for real-time sync) - user_id can be NULL for public extension usage
   db.run(`CREATE TABLE IF NOT EXISTS extension_sessions (
     id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL,
+    user_id TEXT,
     extension_token TEXT UNIQUE,
     device_info TEXT,
     last_activity DATETIME,
@@ -54,9 +59,13 @@ db.serialize(() => {
 // ========== MIDDLEWARE ==========
 const allowedOrigins = [
   "http://localhost:3000",
-  "http://localhost:3002",
+  "http://localhost:3001",
+  "http://localhost:5173",
+  "http://localhost:5174",
   "http://127.0.0.1:3000",
-  "http://127.0.0.1:3002"
+  "http://127.0.0.1:3001",
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:5174"
 ];
 
 app.use(cors({
@@ -179,6 +188,17 @@ app.get('/api/extension/verify', verifyExtensionToken, (req, res) => {
 async function scanWithVirusTotal(url) {
   const apiKey = process.env.VIRUSTOTAL_API_KEY;
   
+  if (!apiKey) {
+    console.warn('⚠️ VirusTotal API key not configured');
+    return { 
+      error: 'API key not configured', 
+      score: 0, 
+      maxScore: 25,
+      status: 'warning',
+      available: false 
+    };
+  }
+  
   try {
     // First, submit the URL for scanning
     const submitResponse = await fetch('https://www.virustotal.com/api/v3/urls', {
@@ -192,7 +212,19 @@ async function scanWithVirusTotal(url) {
     
     const submitData = await submitResponse.json();
     
+    // Check for API key errors
     if (submitData.error) {
+      const errorMsg = submitData.error.message || JSON.stringify(submitData.error);
+      if (errorMsg.includes('API key') || errorMsg.includes('Invalid') || errorMsg.includes('Unauthorized')) {
+        console.error('❌ VirusTotal API key error:', errorMsg);
+        return { 
+          error: 'Invalid or expired API key', 
+          score: 0, 
+          maxScore: 25,
+          status: 'warning',
+          available: false 
+        };
+      }
       console.error('VirusTotal submit error:', submitData.error);
       return { error: submitData.error.message, score: 0, maxScore: 25 };
     }
@@ -291,6 +323,17 @@ async function scanWithVirusTotal(url) {
 async function checkWithAbuseIPDB(domain) {
   const apiKey = process.env.ABUSEIPDB_API_KEY;
   
+  if (!apiKey) {
+    console.warn('⚠️ AbuseIPDB API key not configured');
+    return { 
+      error: 'API key not configured', 
+      score: 15, 
+      maxScore: 15,
+      status: 'warning',
+      available: false 
+    };
+  }
+  
   try {
     // First resolve domain to IP using DNS lookup
     const dns = require('dns').promises;
@@ -315,8 +358,19 @@ async function checkWithAbuseIPDB(domain) {
     const data = await response.json();
     
     if (data.errors) {
+      const errorMsg = data.errors[0]?.detail || JSON.stringify(data.errors);
+      if (errorMsg.includes('API key') || errorMsg.includes('Invalid') || errorMsg.includes('Unauthorized')) {
+        console.error('❌ AbuseIPDB API key error:', errorMsg);
+        return { 
+          error: 'Invalid or expired API key', 
+          score: 15, 
+          maxScore: 15,
+          status: 'warning',
+          available: false 
+        };
+      }
       console.error('AbuseIPDB error:', data.errors);
-      return { error: data.errors[0]?.detail, score: 0, maxScore: 15 };
+      return { error: errorMsg, score: 0, maxScore: 15 };
     }
     
     const abuseScore = data.data?.abuseConfidenceScore || 0;
@@ -669,9 +723,20 @@ async function checkWithGoogleSafeBrowsing(url) {
     const data = await response.json();
     
     if (data.error) {
+      const errorMsg = data.error.message || JSON.stringify(data.error);
+      if (errorMsg.includes('API key') || errorMsg.includes('INVALID_ARGUMENT') || errorMsg.includes('Invalid')) {
+        console.error('❌ Google Safe Browsing API key error:', errorMsg);
+        return { 
+          error: 'Invalid or expired API key', 
+          score: 10, 
+          maxScore: 15,
+          status: 'warning',
+          available: false 
+        };
+      }
       console.error('Google Safe Browsing error:', data.error);
       return { 
-        error: data.error.message, 
+        error: errorMsg, 
         score: 10, 
         maxScore: 15,
         status: 'warning'

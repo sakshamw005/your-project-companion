@@ -43,6 +43,9 @@ function loadLogs() {
   chrome.storage.local.get(['guardianlink_logs', 'guardianlink_blacklist'], (data) => {
     allLogs = data.guardianlink_logs || [];
     
+    console.log('📊 Dashboard loaded logs:', allLogs.length, 'entries');
+    console.log('Latest logs:', allLogs.slice(-3).map(l => ({ url: l.url, verdict: l.verdict })));
+
     // Sort by timestamp (newest first)
     allLogs.sort((a, b) => {
       const timeA = new Date(a.timestamp || 0).getTime();
@@ -58,16 +61,42 @@ function loadLogs() {
 
 // Update statistics
 function updateStats() {
-  const blocked = allLogs.filter(log => log.verdict === 'BLOCK').length;
-  const warned = allLogs.filter(log => log.verdict === 'WARN').length;
-  const total = allLogs.length;
+  // Filter to only include logs from the last 24 hours
+  const twentyFourHoursAgo = Date.now() - (24 * 60 * 60 * 1000);
+  const recentLogs = allLogs.filter(log => {
+    try {
+      const logTime = new Date(log.timestamp).getTime();
+      return logTime > twentyFourHoursAgo;
+    } catch {
+      return false;
+    }
+  });
+  
+  const blocked = recentLogs.filter(log => log.verdict === 'BLOCK').length;
+  const warned = recentLogs.filter(log => log.verdict === 'WARN').length;
+  const allowed = recentLogs.filter(log => log.verdict === 'ALLOW').length;
 
   document.getElementById('blockedCount').textContent = blocked;
   document.getElementById('warnedCount').textContent = warned;
-  document.getElementById('allowedCount').textContent = total;
+  document.getElementById('allowedCount').textContent = allowed;
 }
 
 // Display logs in table
+// Helper functions
+function truncateUrl(url, maxLength) {
+  if (!url || typeof url !== 'string') return 'N/A';
+  return url.length > maxLength ? url.substring(0, maxLength) + '...' : url;
+}
+
+function formatTime(timestamp) {
+  try {
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  } catch (e) {
+    return 'N/A';
+  }
+}
+
 function displayLogs(logs) {
   const container = document.getElementById('logContainer');
   
@@ -81,25 +110,43 @@ function displayLogs(logs) {
     return;
   }
 
-  container.innerHTML = logs.map((log, index) => `
-    <div class="log-row" onclick="showDetails(${index})">
-      <div class="url-cell" title="${log.url}">
-        ${truncateUrl(log.url, 40)}
+  container.innerHTML = logs.map((log, index) => {
+    // Add null checks for log properties
+    const verdict = log.verdict || 'UNKNOWN';
+    const riskLevel = log.riskLevel || 'UNKNOWN';
+    const url = log.url || 'Unknown URL';
+    const score = log.combinedScore !== undefined ? log.combinedScore : (log.score !== undefined ? log.score : 'N/A');
+    
+    return `
+      <div class="log-row" data-log-index="${index}">
+        <div class="url-cell" title="${url}">
+          ${truncateUrl(url, 40)}
+        </div>
+        <div>
+          <span class="verdict-badge verdict-${verdict.toLowerCase()}">
+            ${verdict}
+          </span>
+        </div>
+        <div>
+          <span class="risk-badge risk-${riskLevel.toLowerCase()}">
+            ${riskLevel}
+          </span>
+        </div>
+        <div>${typeof score === 'number' ? score.toFixed(1) : score}/100</div>
+        <div class="timestamp">${formatTime(log.timestamp)}</div>
       </div>
-      <div>
-        <span class="verdict-badge verdict-${log.verdict.toLowerCase()}">
-          ${log.verdict}
-        </span>
-      </div>
-      <div>
-        <span class="risk-badge risk-${log.riskLevel.toLowerCase()}">
-          ${log.riskLevel}
-        </span>
-      </div>
-      <div>${(log.combinedScore || 0).toFixed(1)}/100</div>
-      <div class="timestamp">${formatTime(log.timestamp)}</div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
+  
+  // Add event listeners to log rows
+  const logRows = document.querySelectorAll('.log-row');
+  logRows.forEach(row => {
+    row.style.cursor = 'pointer';
+    row.addEventListener('click', (e) => {
+      const index = parseInt(row.getAttribute('data-log-index'));
+      showDetails(index);
+    });
+  });
 }
 
 // Filter logs by verdict

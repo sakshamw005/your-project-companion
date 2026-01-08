@@ -12,6 +12,10 @@ const heuristicsManager = require('./lib/heuristicsManager');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// ========== SCAN RESULTS CACHE ==========
+const scanResults = new Map(); // Store scan results by scanId
+const scanStartTimes = new Map(); // Track when scans started
+
 // ========== DATABASE SETUP ==========
 const db = new sqlite3.Database(process.env.DATABASE_URL || './guardianlink.db');
 
@@ -919,186 +923,395 @@ app.post('/api/scan', async (req, res) => {
     return res.status(400).json({ error: 'URL is required' });
   }
 
-  // Phase 1: Whitelist check (fast)
-  const whitelistMatch = rulesManager.isWhitelisted(url);
-  if (whitelistMatch) {
-    console.log(`Whitelist hit for ${url} (source: ${whitelistMatch.source || 'local'}) - skipping checks`);
-    const results = {
-      url,
-      timestamp: new Date().toISOString(),
-      phases: {
-        whitelist: { name: 'Whitelist Check', score: 100, maxScore: 100, status: 'safe', reason: 'Whitelisted domain', evidence: whitelistMatch }
-      },
-      totalScore: 100,
-      maxTotalScore: 100,
-      percentage: 100,
-      overallStatus: 'safe'
-    };
-    return res.json(results);
-  }
-
-  // Phase 2: Local blacklist (fast)
-  const blacklistMatch = rulesManager.isBlacklisted(url);
-  if (blacklistMatch) {
-    console.log(`Local blacklist hit for ${url} (source: ${blacklistMatch.source || 'local'}) - blocked`);
-    const results = {
-      url,
-      timestamp: new Date().toISOString(),
-      phases: {
-        localBlacklist: { name: 'Local Blacklist', score: 0, maxScore: 100, status: 'danger', reason: 'Blacklisted', evidence: blacklistMatch }
-      },
-      totalScore: 0,
-      maxTotalScore: 100,
-      percentage: 0,
-      overallStatus: 'danger'
-    };
-    return res.json(results);
-  }
-  
   const scanId = crypto.randomUUID();
   
   console.log(`\n🔍 Scan ${scanId} started for: ${url} (from ${source || 'website'})`);
   
-  // Store scan as pending (no user_id - public access)
-  db.run(
-    'INSERT INTO scans (id, user_id, url, status) VALUES (?, ?, ?, ?)',
-    [scanId, null, url, 'pending'],
-    (err) => {
-      if (err) console.error('Failed to log scan:', err);
-    }
-  );
-  
-  const results = {
+  // === Store initial state IMMEDIATELY in cache ===
+  scanResults.set(scanId, {
+    status: 'processing',
     scanId,
     url,
-    timestamp: new Date().toISOString(),
-    phases: {},
-    source: source || 'website'
-  };
-  
-try {
-  const [
-    virusTotal,
-    abuseIPDB,
-    ssl,
-    domainAge,
-    content,
-    redirects,
-    securityHeaders,
-    whois,
-    googleSafeBrowsing
-  ] = await Promise.all([
-    scanWithVirusTotal(url),
-    checkWithAbuseIPDB(url),
-    checkSSL(url),
-    checkDomainAge(url),
-    analyzeContent(url),
-    analyzeRedirects(url),
-    checkSecurityHeaders(url),
-    fetchWhois(url),
-    checkWithGoogleSafeBrowsing(url)
-  ]);
-
-  results.phases = {
-    virusTotal: { name: 'VirusTotal Analysis', ...virusTotal },
-    abuseIPDB: { name: 'AbuseIPDB Check', ...abuseIPDB },
-    ssl: { name: 'SSL Certificate', ...ssl },
-    domainAge: { name: 'Domain Analysis', ...domainAge },
-    content: { name: 'Content Analysis', ...content },
-    redirects: { name: 'Redirect Analysis', ...redirects },
-    securityHeaders: { name: 'Security Headers', ...securityHeaders },
-    whois: { name: 'WHOIS Lookup', ...whois },
-    googleSafeBrowsing: { name: 'Google Safe Browsing', ...googleSafeBrowsing }
-  };
-
-  
-  // Add WHOIS data (if available)
-  results.phases.whois = { name: 'WHOIS Lookup', ...whois };
-
-  // Evaluate heuristics against the gathered context
-  const heuristicsResult = heuristicsManager.evaluate(url, {
-    ssl,
-    content,
-    abuseIPDB,
-    redirects,
-    securityHeaders,
-    whois,
-    domain: (() => { try { return new URL(url).hostname; } catch { return url; } })()
+    startedAt: new Date().toISOString(),
+    message: 'Scan started'
   });
-
-  results.phases.heuristics = { name: 'Heuristic Rules', ...heuristicsResult };
   
+  // === IMMEDIATE RESPONSE - Don't wait for full scan ===
+  res.json({
+    status: 'processing',
+    scanId: scanId,
+    message: 'Scan started in background',
+    timestamp: new Date().toISOString()
+  });
+  
+  // === Process scan in background ===
+  processScanInBackground(url, scanId, source);
+});
+
+/**
+ * Check if URL is a search engine
+ */
+function isSearchEngine(url) {
+  try {
+    const urlObj = new URL(url);
+    const hostname = urlObj.hostname;
+    
+    const searchEngines = [
+      'bing.com',
+      'google.com/search',
+      'yahoo.com/search',
+      'duckduckgo.com',
+      'startpage.com',
+      'ecosia.org'
+    ];
+    
+    return searchEngines.some(engine => hostname.includes(engine));
+  } catch (e) {
+    return false;
+  }
+}
+
+/**
+ * Process scan in background and store results
+ */
+async function processScanInBackground(url, scanId, source) {
+  try {
+    // Update status to show processing has started
+    scanResults.set(scanId, {
+      ...scanResults.get(scanId),
+      status: 'in_progress',
+      message: 'Running security checks...',
+      updatedAt: new Date().toISOString()
+    });
+    
+    // Phase 1: Whitelist check (fast)
+    const whitelistMatch = rulesManager.isWhitelisted(url);
+    if (whitelistMatch) {
+      console.log(`✅ Whitelist hit for ${url} - returning safe`);
+      const result = {
+        scanId,
+        url,
+        verdict: 'ALLOW',
+        score: 100,
+        riskLevel: 'SAFE',
+        timestamp: new Date().toISOString(),
+        phases: {
+          whitelist: { name: 'Whitelist Check', score: 100, maxScore: 100, status: 'safe', reason: 'Whitelisted domain', evidence: whitelistMatch }
+        },
+        totalScore: 100,
+        maxTotalScore: 100,
+        percentage: 100,
+        overallStatus: 'safe',
+        source: source || 'website'
+      };
+      
+      scanResults.set(scanId, {
+        ...result,
+        completed: true,
+        completedAt: new Date().toISOString()
+      });
+      
+      // Store in database
+      db.run(
+        'UPDATE scans SET status = ?, scan_result = ? WHERE id = ?',
+        ['completed', JSON.stringify(result), scanId],
+        (err) => { if (err) console.error('Failed to save scan:', err); }
+      );
+      
+      return;
+    }
+
+    // Phase 2: Search engine detection (safe engines, no analysis needed)
+    if (isSearchEngine(url)) {
+      console.log(`🔍 Search engine detected: ${url} - returning safe`);
+      const result = {
+        scanId,
+        url,
+        verdict: 'ALLOW',
+        score: 100,
+        riskLevel: 'SAFE',
+        timestamp: new Date().toISOString(),
+        phases: {
+          searchEngine: { 
+            name: 'Search Engine Detection', 
+            score: 100, 
+            maxScore: 100, 
+            status: 'safe', 
+            reason: 'Search engine domain',
+            evidence: 'Automatically allowed for browsing'
+          }
+        },
+        totalScore: 100,
+        maxTotalScore: 100,
+        percentage: 100,
+        overallStatus: 'safe',
+        source: source || 'website'
+      };
+      
+      scanResults.set(scanId, {
+        ...result,
+        completed: true,
+        completedAt: new Date().toISOString()
+      });
+      
+      // Store in database
+      db.run(
+        'UPDATE scans SET status = ?, scan_result = ? WHERE id = ?',
+        ['completed', JSON.stringify(result), scanId],
+        (err) => { if (err) console.error('Failed to save scan:', err); }
+      );
+      
+      return;
+    }
+
+    // Phase 3: Local blacklist (fast)
+    const blacklistMatch = rulesManager.isBlacklisted(url);
+    if (blacklistMatch) {
+      console.log(`🚫 Blacklist hit for ${url} - returning blocked`);
+      const result = {
+        scanId,
+        url,
+        verdict: 'BLOCK',
+        score: 0,
+        riskLevel: 'CRITICAL',
+        timestamp: new Date().toISOString(),
+        phases: {
+          localBlacklist: { name: 'Local Blacklist', score: 0, maxScore: 100, status: 'danger', reason: 'Blacklisted domain', evidence: blacklistMatch }
+        },
+        totalScore: 0,
+        maxTotalScore: 100,
+        percentage: 0,
+        overallStatus: 'danger',
+        source: source || 'website'
+      };
+      
+      scanResults.set(scanId, {
+        ...result,
+        completed: true,
+        completedAt: new Date().toISOString()
+      });
+      
+      // Store in database
+      db.run(
+        'UPDATE scans SET status = ?, scan_result = ? WHERE id = ?',
+        ['completed', JSON.stringify(result), scanId],
+        (err) => { if (err) console.error('Failed to save scan:', err); }
+      );
+      
+      return;
+    }
+
+    // Store scan as pending in database
+    db.run(
+      'INSERT INTO scans (id, user_id, url, status) VALUES (?, ?, ?, ?)',
+      [scanId, null, url, 'pending'],
+      (err) => { if (err) console.error('Failed to log scan:', err); }
+    );
+    
+    // Record start time
+    scanStartTimes.set(scanId, Date.now());
+    
+    // === Full analysis (all phases) ===
+    const [
+      virusTotal,
+      abuseIPDB,
+      ssl,
+      domainAge,
+      content,
+      redirects,
+      securityHeaders,
+      whois,
+      googleSafeBrowsing
+    ] = await Promise.all([
+      scanWithVirusTotal(url),
+      checkWithAbuseIPDB(url),
+      checkSSL(url),
+      checkDomainAge(url),
+      analyzeContent(url),
+      analyzeRedirects(url),
+      checkSecurityHeaders(url),
+      fetchWhois(url),
+      checkWithGoogleSafeBrowsing(url)
+    ]);
+
+    const phases = {
+      virusTotal: { name: 'VirusTotal Analysis', ...virusTotal },
+      abuseIPDB: { name: 'AbuseIPDB Check', ...abuseIPDB },
+      ssl: { name: 'SSL Certificate', ...ssl },
+      domainAge: { name: 'Domain Analysis', ...domainAge },
+      content: { name: 'Content Analysis', ...content },
+      redirects: { name: 'Redirect Analysis', ...redirects },
+      securityHeaders: { name: 'Security Headers', ...securityHeaders },
+      whois: { name: 'WHOIS Lookup', ...whois },
+      googleSafeBrowsing: { name: 'Google Safe Browsing', ...googleSafeBrowsing }
+    };
+
+    // Evaluate heuristics
+    const heuristicsResult = heuristicsManager.evaluate(url, {
+      ssl,
+      content,
+      abuseIPDB,
+      redirects,
+      securityHeaders,
+      whois,
+      domain: (() => { try { return new URL(url).hostname; } catch { return url; } })()
+    });
+
+    phases.heuristics = { name: 'Heuristic Rules', ...heuristicsResult };
+    
     // Calculate total score
     let totalScore = 0;
     let maxTotalScore = 0;
     
-    for (const phase of Object.values(results.phases)) {
+    for (const phase of Object.values(phases)) {
       totalScore += phase.score || 0;
       maxTotalScore += phase.maxScore || 0;
     }
     
-    results.totalScore = totalScore;
-    results.maxTotalScore = maxTotalScore;
-    results.percentage = Math.round((totalScore / maxTotalScore) * 100);
+    const percentage = Math.round((totalScore / maxTotalScore) * 100);
+    let overallStatus = 'safe';
+    let verdict = 'ALLOW';
+    let riskLevel = 'SAFE';
     
-    // Determine overall status
-    if (results.percentage >= 80) {
-      results.overallStatus = 'safe';
-    } else if (results.percentage >= 50) {
-      results.overallStatus = 'warning';
+    if (percentage >= 80) {
+      overallStatus = 'safe';
+      verdict = 'ALLOW';
+      riskLevel = 'SAFE';
+    } else if (percentage >= 50) {
+      overallStatus = 'warning';
+      verdict = 'WARN';
+      riskLevel = 'MEDIUM';
     } else {
-      results.overallStatus = 'danger';
+      overallStatus = 'danger';
+      verdict = 'BLOCK';
+      riskLevel = 'CRITICAL';
     }
     
-    // Store completed scan
+    const result = {
+      scanId,
+      url,
+      verdict,
+      score: percentage,
+      riskLevel,
+      timestamp: new Date().toISOString(),
+      phases,
+      totalScore,
+      maxTotalScore,
+      percentage,
+      overallStatus,
+      source: source || 'website'
+    };
+    
+    // Store completed result
+    scanResults.set(scanId, {
+      ...result,
+      completed: true,
+      completedAt: new Date().toISOString()
+    });
+    
+    // Store in database
     db.run(
       'UPDATE scans SET status = ?, scan_result = ? WHERE id = ?',
-      ['completed', JSON.stringify(results), scanId],
-      (err) => {
-        if (err) console.error('Failed to save scan result:', err);
-      }
+      ['completed', JSON.stringify(result), scanId],
+      (err) => { if (err) console.error('Failed to save scan:', err); }
     );
     
-    // Detailed score breakdown logging
+    const elapsedMs = Date.now() - scanStartTimes.get(scanId);
     console.log(`\n${'='.repeat(60)}`);
     console.log(`✅ SCAN COMPLETE: ${scanId}`);
     console.log(`URL: ${url}`);
-    console.log(`Overall Score: ${results.percentage}% (${results.overallStatus.toUpperCase()})`);
-    console.log(`${'='.repeat(60)}`);
-    console.log('📊 PHASE BREAKDOWN:');
-    
-    for (const [phaseKey, phaseData] of Object.entries(results.phases)) {
-      const score = phaseData.score || 0;
-      const maxScore = phaseData.maxScore || 0;
-      const status = phaseData.status || 'unknown';
-      const percentage = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
-      
-      console.log(`  ├─ ${phaseData.name}`);
-      console.log(`  │  Score: ${score}/${maxScore} (${percentage}%) - ${status.toUpperCase()}`);
-      
-      if (phaseData.findings && Array.isArray(phaseData.findings)) {
-        phaseData.findings.forEach(finding => {
-          console.log(`  │  └─ ${finding}`);
-        });
-      }
-      if (phaseData.reason) {
-        console.log(`  │  └─ ${phaseData.reason}`);
-      }
-      if (phaseData.threats) {
-        console.log(`  │  └─ Threats: ${phaseData.threats}`);
-      }
-      if (phaseData.error) {
-        console.log(`  │  └─ Error: ${phaseData.error}`);
-      }
-    }
+    console.log(`Overall Score: ${percentage}% (${overallStatus.toUpperCase()})`);
+    console.log(`Verdict: ${verdict}`);
+    console.log(`Time: ${elapsedMs}ms`);
     console.log(`${'='.repeat(60)}\n`);
     
-    res.json(results);
   } catch (error) {
-    console.error('Scan error:', error);
-    db.run('UPDATE scans SET status = ? WHERE id = ?', ['failed', scanId]);
-    res.status(500).json({ error: 'Scan failed', scanId });
+    console.error(`❌ Scan ${scanId} failed:`, error.message);
+    
+    const errorResult = {
+      scanId,
+      url,
+      error: error.message,
+      completed: true,
+      completedAt: new Date().toISOString(),
+      verdict: 'ALLOW', // Default to allow on error
+      score: 100,
+      riskLevel: 'SAFE'
+    };
+    
+    scanResults.set(scanId, errorResult);
+    
+    // Store error in database
+    db.run(
+      'UPDATE scans SET status = ?, scan_result = ? WHERE id = ?',
+      ['error', JSON.stringify(errorResult), scanId],
+      (err) => { if (err) console.error('Failed to save error:', err); }
+    );
   }
+}
+
+/**
+ * Poll for scan results
+ */
+app.get('/api/scan/result/:scanId', (req, res) => {
+  const { scanId } = req.params;
+  
+  console.log(`📊 Poll request for scan: ${scanId}`);
+  
+  const result = scanResults.get(scanId);
+  
+  // Return "not_found" status instead of 404 - helps extension handle gracefully
+  if (!result) {
+    console.log(`⚠️ Scan ${scanId} not found in cache (not ready yet)`);
+    return res.json({ 
+      status: 'not_found',
+      scanId,
+      message: 'Scan entry not yet in cache (too early)'
+    });
+  }
+  
+  // Still processing - return current status
+  if (!result.completed) {
+    const status = result.status || 'in_progress';
+    console.log(`⏳ Scan ${scanId} still ${status}`);
+    return res.json({
+      status: status,
+      scanId,
+      message: result.message || 'Scan in progress',
+      updatedAt: result.updatedAt
+    });
+  }
+  
+  if (result.error) {
+    console.log(`❌ Scan ${scanId} errored: ${result.error}`);
+    return res.json({
+      status: 'error',
+      scanId,
+      error: result.error,
+      verdict: result.verdict || 'ALLOW',
+      score: result.score || 100,
+      riskLevel: result.riskLevel || 'SAFE'
+    });
+  }
+  
+  console.log(`✅ Returning completed scan ${scanId}`);
+  res.json({
+    status: 'completed',
+    scanId,
+    ...result
+  });
+});
+
+/**
+ * Health check endpoint
+ */
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    version: '2.0.0'
+  });
 });
 
 // Scan history (public - no auth required)

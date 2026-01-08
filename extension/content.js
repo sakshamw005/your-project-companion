@@ -3,148 +3,381 @@
  * Handles message-based freezing and overlay display
  */
 
-console.log('🛡️ GuardianLink v2.0 Content Script LOADED');
+console.log('🛡️ GuardianLink Content Script LOADED at:', window.location.href);
+
+// === CRITICAL: Skip GuardianLink warning pages ===
+const isWarningPage = window.location.href.includes('ui/warning.html') || window.location.href.includes('chrome-extension://');
+console.log('📍 Is warning page?', isWarningPage);
+
+if (isWarningPage) {
+  console.log('⏭️ Skipping GuardianLink warning page, no overlay needed');
+  // Don't run the rest of the content script on warning pages
+}
+
+// === FIX #2: Check if URL is a search engine ===
+function isSearchEngineUrl(url) {
+  const searchEngineDomains = [
+    'bing.com',
+    'google.com',
+    'yahoo.com',
+    'duckduckgo.com',
+    'startpage.com',
+    'ecosia.org',
+    'search.yahoo.com',
+    'www.bing.com',
+    'www.google.com'
+  ];
+  
+  try {
+    const urlObj = new URL(url);
+    const hostname = urlObj.hostname.toLowerCase();
+    
+    // Check if hostname is a search engine
+    if (searchEngineDomains.includes(hostname)) {
+      return true;
+    }
+    
+    // Also check if path contains /search for Google/Bing
+    if ((hostname.includes('google.com') || hostname.includes('bing.com')) && 
+        urlObj.pathname.includes('/search')) {
+      return true;
+    }
+    
+    return false;
+  } catch (e) {
+    return false;
+  }
+}
 
 let pageIsFrozen = false;
+let analysisInProgress = new Set();
+let shownWarnings = new Set();
+const allowedTabs = new Set(); // For tracking allowed tabs
+let pageWasBypassed = false; // Track if page was bypassed
 
-// ==================== MESSAGE LISTENER ====================
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+// === FIX: Ask background to check if page was bypassed ===
+async function checkIfBypassed() {
   try {
-    if (request.action === 'FREEZE') {
-      console.log('🔒 FREEZE message received');
-      showSecurityCheckOverlay(request.url);
-      pageIsFrozen = true;
-      sendResponse({ status: 'frozen' });
-    } 
-    else if (request.action === 'UNFREEZE') {
-      console.log('✅ UNFREEZE message received, score:', request.score);
-      removeSecurityCheckOverlay();
-      showSafetyBadge('✅ Safe', '#4CAF50', request.score);
-      pageIsFrozen = false;
-      sendResponse({ status: 'unfrozen' });
+    console.log('📤 Asking background to check bypass status...');
+    
+    // Send message with retry logic
+    const maxRetries = 3;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            reject(new Error(`Background response timeout (attempt ${attempt}/${maxRetries})`));
+          }, 1000); // Shorter timeout - 1 second per attempt
+        
+          chrome.runtime.sendMessage(
+            { action: 'CHECK_BYPASS', url: window.location.href },
+            (response) => {
+              clearTimeout(timeout);
+              if (chrome.runtime.lastError) {
+                reject(new Error(chrome.runtime.lastError.message));
+              } else {
+                resolve(response);
+              }
+            }
+          );
+        });
+        
+        if (response && response.isBypassed) {
+          console.log('✅ Background confirmed: Page was bypassed by user');
+          pageWasBypassed = true;
+          return true;
+        } else {
+          console.log('❌ Background confirmed: Page was NOT bypassed');
+          return false;
+        }
+        
+      } catch (error) {
+        console.log(`⚠️ Bypass check attempt ${attempt}/${maxRetries} failed:`, error.message);
+        if (attempt < maxRetries) {
+          console.log(`⏳ Retrying in 500ms...`);
+          await new Promise(resolve => setTimeout(resolve, 500)); // Wait 500ms before retry
+        }
+      }
     }
-    else if (request.action === 'SHOW_WARNING') {
-      console.log('⚠️ SHOW_WARNING message received, score:', request.score);
-      removeSecurityCheckOverlay();
-      showWarningOverlay(request.score);
-      sendResponse({ status: 'warning_shown' });
-    }
-    else if (request.action === 'SHOW_BLOCK_PAGE') {
-      console.log('🚫 SHOW_BLOCK_PAGE message received');
-      showBlockedPage(request.url, request.score);
-      sendResponse({ status: 'blocked_shown' });
-    }
-    else if (request.action === 'showDownloadBlocked') {
-      showDownloadBlockedNotification(request.filename, request.reason);
-      sendResponse({ status: 'received' });
-    }
-    else if (request.action === 'PROCEED_ANYWAY') {
-      console.log('⚠️ User clicked Proceed Anyway on warning overlay');
-      removeSecurityCheckOverlay();
-      pageIsFrozen = false;
-      sendResponse({ status: 'proceeding' });
-    }
+    
+    // If all retries failed, proceed without overlay (safe default)
+    console.log('⚠️ All bypass checks failed after 3 attempts, proceeding without overlay');
+    return false;
+    
   } catch (error) {
-    console.error('❌ Error handling message:', error);
-    sendResponse({ status: 'error', error: error.message });
+    console.log('⚠️ Could not check bypass status with background:', error.message);
+    // If can't check, assume not bypassed (show overlay)
+    return false;
   }
-});
+}
 
-// ==================== SECURITY CHECK OVERLAY ====================
-function showSecurityCheckOverlay(url) {
-  removeSecurityCheckOverlay();
+// Initialize on load - check bypass first, then create overlay
+async function initializeContentScript() {
+  console.log('🔄 Initializing content script...');
+  
+  // === NEW: Check if it's a search engine FIRST ===
+  if (isSearchEngineUrl(window.location.href)) {
+    console.log('🔍 Content script: Search engine detected, skipping overlay');
+    return; // Don't create overlay for search engines
+  }
+  
+  // Only check bypass if not a warning page AND not a search engine
+  if (!isWarningPage) {
+    const wasBypassed = await checkIfBypassed();
+    
+    if (!wasBypassed) {
+      console.log('📍 Creating overlay because page was NOT bypassed');
+      
+      // Check if we should create overlay NOW or wait for DOM
+      if (document.readyState === 'loading') {
+        // Wait for DOM to be ready
+        document.addEventListener('DOMContentLoaded', () => {
+          console.log('✅ DOM ready, creating overlay');
+          createImmediateOverlay();
+        });
+      } else {
+        // DOM is already ready
+        console.log('✅ DOM already ready, creating overlay');
+        createImmediateOverlay();
+      }
+    } else {
+      console.log('✅ Skipping overlay creation - page was bypassed');
+      // Make sure overlay is removed if it somehow exists
+      const existingOverlay = document.getElementById('guardianlink-immediate-overlay');
+      if (existingOverlay) {
+        existingOverlay.remove();
+        console.log('🧹 Removed existing overlay (should not exist)');
+      }
+    }
+  } else {
+    console.log('⏭️ Skipping initialization for warning page');
+  }
+}
 
+// Call initialization
+initializeContentScript();
+
+// ==================== IMMEDIATE OVERLAY ====================
+// Show overlay immediately when script loads
+function createImmediateOverlay() {
+  // Don't create if page was bypassed
+  if (pageWasBypassed) {
+    console.log('⏭️ Skipping overlay - page was bypassed');
+    return;
+  }
+  
+  // Check if overlay already exists
+  if (document.getElementById('guardianlink-immediate-overlay')) {
+    return;
+  }
+  
   const overlay = document.createElement('div');
-  overlay.id = 'guardianlink-security-overlay';
+  overlay.id = 'guardianlink-immediate-overlay';
   overlay.style.cssText = `
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.85);
+    background: rgba(0, 0, 0, 0.95);
+    z-index: 2147483647;
     display: flex;
-    flex-direction: column;
     justify-content: center;
     align-items: center;
-    z-index: 2147483647;
+    color: white;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   `;
-
-  // Spinner
-  const spinner = document.createElement('div');
-  spinner.style.cssText = `
-    width: 70px;
-    height: 70px;
-    border: 5px solid rgba(255, 255, 255, 0.2);
-    border-top: 5px solid #4CAF50;
-    border-radius: 50%;
-    animation: guardianlink-spin 1s linear infinite;
-    margin-bottom: 30px;
+  
+  overlay.innerHTML = `
+    <div style="text-align: center; padding: 30px;">
+      <div style="width: 60px; height: 60px; border: 5px solid rgba(255,255,255,0.3); border-top: 5px solid #4CAF50; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 25px;"></div>
+      <div style="font-size: 24px; font-weight: bold; margin-bottom: 10px;">🔒 GuardianLink Security Check</div>
+      <div style="font-size: 16px; opacity: 0.8; margin-bottom: 15px;">Analyzing website security...</div>
+      <div style="font-size: 12px; opacity: 0.6; font-family: monospace; max-width: 400px; word-break: break-all;">${window.location.href.substring(0, 100)}</div>
+    </div>
   `;
-
-  // Title
-  const title = document.createElement('div');
-  title.style.cssText = `
-    color: white;
-    font-size: 24px;
-    font-weight: 700;
-    text-align: center;
-    margin-bottom: 10px;
-  `;
-  title.textContent = '🔒 GuardianLink Security Check';
-
-  // Subtitle
-  const subtitle = document.createElement('div');
-  subtitle.style.cssText = `
-    color: rgba(255, 255, 255, 0.8);
-    font-size: 14px;
-    text-align: center;
-    margin-bottom: 20px;
-  `;
-  subtitle.textContent = 'Analyzing website security...';
-
-  // Domain
-  const domain = document.createElement('div');
-  domain.style.cssText = `
-    color: rgba(255, 255, 255, 0.6);
-    font-size: 12px;
-    text-align: center;
-    font-family: monospace;
-    word-break: break-all;
-    max-width: 80%;
-  `;
-  try {
-    domain.textContent = new URL(url).hostname;
-  } catch {
-    domain.textContent = url.substring(0, 60);
-  }
-
-  overlay.appendChild(spinner);
-  overlay.appendChild(title);
-  overlay.appendChild(subtitle);
-  overlay.appendChild(domain);
-  document.documentElement.appendChild(overlay);
-
-  // Animation
-  if (!document.querySelector('style[data-guardianlink]')) {
+  
+  // Add spinner animation
+  if (!document.querySelector('#guardianlink-spin-style')) {
     const style = document.createElement('style');
-    style.setAttribute('data-guardianlink', 'true');
+    style.id = 'guardianlink-spin-style';
     style.textContent = `
-      @keyframes guardianlink-spin {
-        to { transform: rotate(360deg); }
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
       }
     `;
-    document.documentElement.appendChild(style);
+    if (document.head) {
+      document.head.appendChild(style);
+    } else {
+      document.documentElement.appendChild(style);
+    }
   }
-
-  console.log('🔒 Security check overlay shown');
+  
+  // Add to document
+  if (document.body) {
+    document.body.appendChild(overlay);
+  } else {
+    document.documentElement.appendChild(overlay);
+  }
+  
+  console.log('✅ Immediate overlay created');
 }
 
-function removeSecurityCheckOverlay() {
-  const overlay = document.getElementById('guardianlink-security-overlay');
+// Overlay creation is now deferred to initializeContentScript
+// after bypass check completes
+
+// ==================== MESSAGE LISTENER ====================
+// Wrap the message listener in a try-catch and check if API exists
+try {
+  if (chrome.runtime && chrome.runtime.onMessage) {
+    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+      console.log('📨 Content script received:', request.action);
+      
+      if (request.action === 'FREEZE') {
+        console.log('🔒 FREEZE message received');
+        createImmediateOverlay();
+        sendResponse({ status: 'frozen' });
+        return true;
+      }
+      
+      if (request.action === 'UNFREEZE') {
+        console.log('✅ Received UNFREEZE message, removing overlay');
+        console.log('📊 Score:', request.score, 'Bypassed:', request.bypassed);
+        
+        const overlay = document.getElementById('guardianlink-immediate-overlay');
+        if (overlay && overlay.parentNode) {
+          overlay.remove();
+          console.log('✅ Overlay removed');
+        }
+        
+        // Clear any analysis flags
+        analysisInProgress.clear();
+        pageIsFrozen = false;
+        
+        // === FIX #2: If it was a bypass, reload the page to get fresh content ===
+        if (request.bypassed === true) {
+          console.log('🔄 Bypass detected, reloading page...');
+          // Wait a moment then reload
+          setTimeout(() => {
+            window.location.reload();
+          }, 300);
+        }
+        
+        sendResponse({ status: 'unfrozen' });
+        return true;
+      }
+  
+  if (request.action === 'showDownloadBlocked') {
+    showDownloadBlockedNotification(request.filename, request.reason);
+    sendResponse({ status: 'received' });
+    return true;
+  }
+  
+  if (request.action === 'SHOW_BLOCK_PAGE') {
+    console.log('🚫 SHOW_BLOCK_PAGE message received');
+    showBlockedPage(request.url, request.score);
+    sendResponse({ status: 'blocked_shown' });
+    return true;
+  }
+  
+  if (request.action === 'PROCEED_ANYWAY') {
+    console.log('⚠️ User clicked Proceed Anyway on warning overlay');
+    removeOverlay();
+    sendResponse({ status: 'proceeding' });
+    return true;
+  }
+  
+  // Default response for unhandled messages
+  sendResponse({ status: 'handled' });
+  return true;
+    });
+    console.log('✅ Message listener registered');
+  } else {
+    console.warn('⚠️ Chrome runtime API not available in this context');
+  }
+} catch (error) {
+  console.error('❌ Failed to register message listener:', error);
+}
+
+// Helper function to remove overlay
+function removeOverlay() {
+  const overlay = document.getElementById('guardianlink-immediate-overlay');
   if (overlay) overlay.remove();
 }
+
+// ==================== GLOBAL STYLES ====================
+function addGlobalStyles() {
+  const styleId = 'guardianlink-global-styles';
+  
+  // Don't add twice
+  if (document.getElementById(styleId)) {
+    return;
+  }
+  
+  const style = document.createElement('style');
+  style.id = styleId;
+  style.textContent = `
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    @keyframes slideIn {
+      from {
+        transform: translateX(400px);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+  `;
+  
+  // Safe append - wait for document.head if needed
+  if (document.head) {
+    document.head.appendChild(style);
+    console.log('✅ Global styles added');
+  } else {
+    console.log('⚠️ document.head not ready yet, will retry');
+    document.addEventListener('DOMContentLoaded', () => {
+      if (document.head && !document.getElementById(styleId)) {
+        document.head.appendChild(style);
+        console.log('✅ Global styles added after DOMContentLoaded');
+      }
+    });
+  }
+}
+
+// Call it safely based on document readiness
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    console.log('✅ DOM ready, adding global styles');
+    addGlobalStyles();
+  });
+} else {
+  console.log('✅ DOM already ready, adding global styles');
+  addGlobalStyles();
+}
+
+// ==================== SAFETY CHECK ON DOM LOAD ====================
+// If somehow overlay was created before bypass check, remove it on DOM load
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('✅ DOM fully loaded - running safety check');
+  
+  // If page was marked as bypassed but overlay exists, remove it
+  if (pageWasBypassed) {
+    const overlay = document.getElementById('guardianlink-immediate-overlay');
+    if (overlay) {
+      overlay.remove();
+      console.log('🧹 Safety check: Removed overlay on bypassed page');
+    }
+  }
+});
+
+// ==================== SECURITY CHECK OVERLAY - KEPT FOR LEGACY ====================
+// (Note: Immediate overlay now handles this, but keeping for compatibility)
 
 // ==================== WARNING OVERLAY ====================
 function showWarningOverlay(score) {
@@ -419,12 +652,6 @@ function showDownloadBlockedNotification(filename, reason) {
   console.log('🚫 Download blocked:', filename);
 }
 
-  if (event.data.type === 'EXTENSION_LOGIN_SUCCESS') {
-    console.log('✅ Extension login successful, syncing with website');
-    showNotification('Extension linked to your account!');
-  }
-});
-
 // ==================== LINK CLICK INTERCEPTION ====================
 document.addEventListener('click', (e) => {
   const link = e.target.closest('a[href]');
@@ -437,6 +664,12 @@ document.addEventListener('click', (e) => {
   if (/^(#|javascript:|mailto:|tel:|ftp:)/.test(url)) {
     console.log('✅ Safe protocol, allowing');
     return;
+  }
+
+  // === CRITICAL FIX: Don't intercept clicks if we're on a search engine ===
+  if (isSearchEngineUrl(window.location.href)) {
+    console.log('🔍 On search engine, allowing link click without analysis');
+    return; // Allow normal navigation
   }
 
   // Analyze
@@ -502,6 +735,57 @@ document.addEventListener('paste', (e) => {
     analyzeAndHandle(text, 'paste', e);
   }
 });
+
+// ==================== LOADING OVERLAY FUNCTIONS ====================
+function showLoadingOverlay(url) {
+  // Don't create if on search engine page
+  if (isSearchEngineUrl(window.location.href)) {
+    console.log('🔍 On search engine, skipping loading overlay');
+    return;
+  }
+  
+  // Check if loading overlay already exists
+  if (document.getElementById('guardianlink-loading-overlay')) {
+    return;
+  }
+  
+  const overlay = document.createElement('div');
+  overlay.id = 'guardianlink-loading-overlay';
+  overlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 2147483646;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  `;
+  
+  overlay.innerHTML = `
+    <div style="text-align: center; padding: 30px; background: rgba(0,0,0,0.9); border-radius: 10px;">
+      <div style="width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.3); border-top: 3px solid #4CAF50; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px;"></div>
+      <div style="font-size: 16px; font-weight: bold; margin-bottom: 8px;">🔒 Analyzing Link Safety</div>
+      <div style="font-size: 12px; opacity: 0.8; margin-bottom: 10px;">Checking security of clicked link...</div>
+      <div style="font-size: 10px; opacity: 0.6; font-family: monospace; max-width: 300px; word-break: break-all;">${url.substring(0, 50)}</div>
+    </div>
+  `;
+  
+  document.body.appendChild(overlay);
+  console.log('⏳ Loading overlay shown for link click');
+}
+
+function removeLoadingOverlay() {
+  const overlay = document.getElementById('guardianlink-loading-overlay');
+  if (overlay && overlay.parentNode) {
+    overlay.remove();
+    console.log('✅ Loading overlay removed');
+  }
+}
 
 // ==================== MAIN ANALYSIS FUNCTION ====================
 function analyzeAndHandle(url, context, event) {
@@ -569,15 +853,19 @@ function analyzeAndHandle(url, context, event) {
 
 // ==================== BLOCK FUNCTION ====================
 function showWarningPage(decision) {
-  console.log('📄 Preparing warning page');
+  console.log('📄 Preparing warning page:', decision);
 
-  const decisionJson = encodeURIComponent(JSON.stringify(decision));
-  const warningUrl = chrome.runtime.getURL(
-    `ui/warning.html?decision=${decisionJson}`
-  );
-
-  console.log('🔗 Navigating to warning page');
-  window.location.href = warningUrl;
+  // Store decision in chrome.storage.session so warning.html can retrieve it
+  chrome.storage.session.set({
+    'guardianlink_warning_decision': decision,
+    'guardianlink_original_url': decision.url
+  }, () => {
+    const warningUrl = chrome.runtime.getURL(
+      `ui/warning.html?url=${encodeURIComponent(decision.url)}&verdict=${decision.verdict}`
+    );
+    console.log('🔗 Navigating to warning page with decision in session storage');
+    window.location.href = warningUrl;
+  });
 }
 
 // ==================== WARN FUNCTION ====================
@@ -604,7 +892,7 @@ function showWarningNotification(decision) {
     z-index: 999999;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     font-size: 14px;
-    max-width: 380px;
+    max-width: 400px;
     border-left: 4px solid #ff3d3f;
     animation: slideIn 0.3s ease;
   `;
@@ -620,6 +908,10 @@ function showWarningNotification(decision) {
   const score = document.createElement('div');
   score.style.cssText = 'font-size: 11px; opacity: 0.85; margin-bottom: 10px;';
   score.textContent = `Risk Score: ${decision.score}/100`;
+
+  const warning = document.createElement('div');
+  warning.style.cssText = 'font-size: 11px; opacity: 0.8; margin-bottom: 12px; padding: 6px; background: rgba(0,0,0,0.2); border-radius: 4px;';
+  warning.textContent = '📋 You can proceed at your own risk if you trust this site.';
 
   const buttons = document.createElement('div');
   buttons.style.cssText = 'display: flex; gap: 8px;';
@@ -643,7 +935,7 @@ function showWarningNotification(decision) {
   };
 
   const proceedBtn = document.createElement('button');
-  proceedBtn.textContent = 'Proceed';
+  proceedBtn.textContent = '✅ Proceed Anyway';
   proceedBtn.style.cssText = `
     flex: 1;
     padding: 6px 12px;
@@ -670,6 +962,7 @@ function showWarningNotification(decision) {
   notification.appendChild(title);
   notification.appendChild(message);
   notification.appendChild(score);
+  notification.appendChild(warning);
   notification.appendChild(buttons);
 
   document.body.appendChild(notification);
@@ -728,55 +1021,22 @@ function addStyle(css) {
 
 console.log('✅ GuardianLink v2.0 Content Script Ready');
 
-// Listen for analysis complete messages from background script
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === 'analysisComplete') {
-    console.log('📊 Analysis complete:', request.verdict, 'Score:', request.score);
-    
-    if (request.verdict === 'BLOCK') {
-      console.log('🚫 Page will be replaced with warning');
-    } else if (request.verdict === 'WARN') {
-      console.log('⚠️ Keeping page frozen, showing warning with proceed button');
-      // Background script will handle this via injected script
-    } else {
-      console.log('✅ Safe site, unfrozen');
-      // Background script will handle this via injected script
-    }
-    
-    sendResponse({ status: 'received' });
-  }
-  
-  if (request.action === 'showDownloadBlocked') {
-    showDownloadBlockedNotification(request.filename, request.reason);
-    sendResponse({ status: 'received' });
-  }
+// ==================== INITIALIZATION ====================
+// Register content script with background script (backup registration)
+setTimeout(() => {
+  chrome.runtime.sendMessage({ action: 'contentScriptReady' }, (response) => {
+    console.log('✅ Content script registered with background');
+  });
+}, 1000);
+
+console.log('✅ GuardianLink Content Script FULLY LOADED at:', window.location.href);
+
+// Additional debug logging
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('✅ DOM fully loaded - content script ready to intercept');
 });
 
-// Show security warning overlay
-// (Handled by background.js injected script now)
-
-function showDownloadBlockedNotification(filename, reason) {
-  const notification = document.createElement('div');
-  notification.style.cssText = `
-    position: fixed;
-    top: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: #F44336;
-    color: white;
-    padding: 15px 20px;
-    border-radius: 8px;
-    z-index: 999999;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    font-size: 13px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    max-width: 80%;
-    word-break: break-word;
-  `;
-  notification.innerHTML = `🚫 ${filename || 'Download'} blocked<br><span style="font-size: 11px; opacity: 0.9; margin-top: 5px; display: block;">${reason}</span>`;
-  
-  document.body.appendChild(notification);
-  console.log('🚫 Download blocked notification shown:', filename);
-  
-  setTimeout(() => notification.remove(), 5000);
-}
+// ==================== TEST VERIFICATION ====================
+console.log('🎯 GuardianLink Content Script TEST MARKER - LOADED SUCCESSFULLY');
+console.log('📊 Current URL:', window.location.href);
+console.log('📊 Document readyState:', document.readyState);

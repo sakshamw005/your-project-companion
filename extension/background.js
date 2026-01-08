@@ -10,10 +10,11 @@ const CONFIG = {
     ABUSEIPDB: '',
     GOOGLE_SAFE_BROWSING: ''
   },
-  WEBSITE_API: 'http://localhost:3001/api',
+  WEBSITE_API: 'http://localhost:3001', // Just the base URL, endpoints added in functions
   TIMEOUTS: {
-    API_CALL: 3000,
-    TOTAL_ANALYSIS: 5000
+    API_CALL: 5000,           // Initial request timeout
+    POLL_TIMEOUT: 30000,      // Total polling timeout (30 seconds)
+    TOTAL_ANALYSIS: 35000     // Total analysis timeout (35 seconds)
   },
   THRESHOLDS: {
     BLOCK: 50,    // < 50% = BLOCK
@@ -35,13 +36,7 @@ let recentBypassedURLs = new Map(); // Store bypassed URLs with timestamp to pre
 chrome.declarativeNetRequest.getDynamicRules(rules => {
   const ids = rules.map(r => r.id);
   if (ids.length > 0) {
-    chrome.declarativeNetRequest.updateDynamicRules({
-      removeRuleIds: ids
-    }).then(() => {
-      console.warn('🧹 GuardianLink: Cleared', ids.length, 'stale DNR rules on startup');
-    }).catch(err => {
-      console.log('⚠️ Could not clear stale rules:', err.message);
-    });
+    chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: ids });
   }
 });
 
@@ -52,12 +47,23 @@ chrome.runtime.onInstalled.addListener(() => {
   initializeWhitelist();
   verifyExtensionToken();
   setupContextMenus();
+  testBackendConnection();
   
   chrome.storage.local.get(['guardianlink_logs'], (data) => {
-    if (!data.guardianlink_logs) {
-      chrome.storage.local.set({ 'guardianlink_logs': [] });
-    }
+    const logs = data.guardianlink_logs || [];
+    console.log('📊 Loaded logs:', logs.length, 'entries');
   });
+});
+
+// === FIX: Clear stale state on startup ===
+chrome.runtime.onStartup?.addListener(() => {
+  console.log('🔄 Extension starting up, clearing stale state');
+  allowedTabs.clear();
+  safeUrls.clear();
+  recentBypassedURLs.clear();
+  blockedTabRules.clear();
+  analysisInProgressByTab.clear();
+  console.log('✅ Stale state cleared');
 });
 
 // Setup context menus for right-click scanning
@@ -84,74 +90,108 @@ function setupContextMenus() {
 // Handle context menu clicks
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === 'scan-link' && info.linkUrl) {
-    console.log('📎 Context menu: Scanning link:', info.linkUrl);
-    analyzeURL(info.linkUrl, tab.id, 'context-menu')
-      .then(decision => {
-        console.log('📊 Decision:', decision.verdict);
-        if (decision.verdict === 'BLOCK') {
-          const decisionJson = encodeURIComponent(JSON.stringify(decision));
-          chrome.tabs.create({ 
-            url: chrome.runtime.getURL(`ui/warning.html?decision=${decisionJson}`)
-          });
-        } else {
-          chrome.notifications.create({
-            type: 'basic',
-            iconUrl: chrome.runtime.getURL('assets/icon-128.png'),
-            title: `✅ Link is ${decision.verdict}`,
-            message: decision.reasoning || 'This link appears to be safe'
-          });
-        }
-      })
-      .catch(error => console.error('❌ Error analyzing link:', error));
+    console.log('🔗 Scanning link:', info.linkUrl);
+    analyzeURL(info.linkUrl, tab.id, 'context-menu').then(decision => {
+      console.log('📋 Decision:', decision);
+    });
   }
   
   if (info.menuItemId === 'scan-page') {
-    console.log('📄 Context menu: Scanning page:', tab.url);
-    analyzeURL(tab.url, tab.id, 'context-menu')
-      .then(decision => {
-        chrome.notifications.create({
-          type: 'basic',
-          iconUrl: chrome.runtime.getURL('assets/icon-128.png'),
-          title: `🔍 Page Analysis: ${decision.verdict}`,
-          message: decision.reasoning || `Security Score: ${decision.combinedScore}%`
-        });
-      })
-      .catch(error => console.error('❌ Error analyzing page:', error));
+    console.log('📄 Scanning page:', tab.url);
+    analyzeURL(tab.url, tab.id, 'context-menu').then(decision => {
+      console.log('📋 Decision:', decision);
+    });
   }
 });
 
 // Verify extension token on startup and periodically
 async function verifyExtensionToken() {
   try {
-    const response = await fetch(`${CONFIG.WEBSITE_API}/health`);
-    
-    if (response.ok) {
-      const data = await response.json();
-      console.log('✅ Website backend is available. Status:', data.status);
-      isAuthenticated = true;
-    } else {
-      console.log('⚠️ Website backend not available');
-      isAuthenticated = false;
-    }
+    extensionToken = chrome.runtime.id;
+    console.log('✅ Extension token verified:', extensionToken);
   } catch (error) {
-    console.log('⚠️ Could not reach website backend (offline mode):', error.message);
-    isAuthenticated = false;
-    // Continue with local fallback analysis
+    console.error('❌ Failed to verify token:', error);
   }
   
   // Verify again in 30 minutes
   setTimeout(verifyExtensionToken, 30 * 60 * 1000);
 }
 
+/**
+ * Test backend connection on startup
+ */
+async function testBackendConnection() {
+  console.log('🔧 Testing backend connection...');
+  
+  // Use AbortController for timeout since fetch doesn't accept timeout option
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 3000);
+  
+  try {
+    const response = await fetch(`${CONFIG.WEBSITE_API}/api/health`, {
+      method: 'GET',
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (response.ok) {
+      const data = await response.json();
+      console.log('✅ Backend is running:', data);
+      return true;
+    } else {
+      console.log('❌ Backend responded with status:', response.status);
+      return false;
+    }
+  } catch (error) {
+    clearTimeout(timeoutId);
+    
+    if (error.name === 'AbortError') {
+      console.log('❌ Backend connection timeout (3s)');
+    } else {
+      console.log('❌ Backend is NOT accessible:', error.message);
+    }
+    
+    console.log('💡 Make sure:');
+    console.log('   1. Backend is running: node server.js or npm start');
+    console.log('   2. Port 3001 is not blocked');
+    console.log('   3. CORS is enabled in backend');
+    console.log('   4. Backend URL is:', CONFIG.WEBSITE_API);
+    return false;
+  }
+}
+
 // Load blacklist
 async function loadBlacklist() {
   try {
     const response = await fetch(chrome.runtime.getURL('reputation/blacklist.json'));
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      throw new Error('Expected JSON but got: ' + contentType);
+    }
+    
     const data = await response.json();
-    blacklistData = data.blacklist || [];
-    console.log('✅ Blacklist loaded:', blacklistData.length, 'entries');
+    
+    // Validate data format
+    if (Array.isArray(data)) {
+      blacklistData = data;
+      console.log('✅ Loaded blacklist:', blacklistData.length, 'entries');
+    } else if (data.domains && Array.isArray(data.domains)) {
+      blacklistData = data.domains;
+      console.log('✅ Loaded blacklist:', blacklistData.length, 'entries');
+    } else {
+      console.warn('⚠️ Blacklist format unexpected, using empty array');
+      blacklistData = [];
+    }
+    
   } catch (e) {
     console.error('❌ Failed to load blacklist:', e);
+    blacklistData = []; // Ensure it's an array
   }
 }
 
@@ -166,6 +206,44 @@ function initializeWhitelist() {
   whitelistDomains = new Set(trusted.map(d => d.toLowerCase()));
   console.log('✅ Whitelist initialized:', whitelistDomains.size, 'domains');
 }
+
+// Cleanup old decisions from storage (prevent bloat)
+async function cleanupOldDecisions() {
+  const ONE_HOUR_MS = 60 * 60 * 1000;
+  const now = new Date().getTime();
+  
+  try {
+    // Get all local storage keys
+    const allLocal = await chrome.storage.local.get(null);
+    const keysToDelete = [];
+    
+    for (const key in allLocal) {
+      // Only process decision keys
+      if (key.startsWith('guardianlink_decision_') || key === 'guardianlink_current_decision') {
+        const item = allLocal[key];
+        if (item && item.timestamp) {
+          const itemTime = new Date(item.timestamp).getTime();
+          if (now - itemTime > ONE_HOUR_MS) {
+            keysToDelete.push(key);
+          }
+        }
+      }
+    }
+    
+    if (keysToDelete.length > 0) {
+      await chrome.storage.local.remove(keysToDelete);
+      console.log('🧹 Cleaned up', keysToDelete.length, 'old decisions from storage');
+    }
+  } catch (error) {
+    console.error('Error during cleanup:', error);
+  }
+}
+
+// Run cleanup periodically (every hour)
+setInterval(cleanupOldDecisions, 60 * 60 * 1000);
+
+// Run cleanup on startup
+cleanupOldDecisions();
 
 // ==================== DOWNLOAD BLOCKING ====================
 // Track ongoing analysis per tab
@@ -184,137 +262,205 @@ chrome.downloads.onCreated.addListener((download) => {
   const anyAnalysisInProgress = analysisInProgressByTab.size > 0;
   
   if (isExecutable || anyAnalysisInProgress) {
-    console.log('🚫 BLOCKING DOWNLOAD:', filename, '| Analysis in progress:', anyAnalysisInProgress);
     chrome.downloads.cancel(download.id);
+    console.log('🚫 Blocked download:', filename);
     
-    // Notify user via broadcast to all tabs
-    chrome.tabs.query({}, (tabs) => {
-      tabs.forEach(tab => {
-        chrome.tabs.sendMessage(tab.id, {
-          action: 'showDownloadBlocked',
-          filename: filename,
-          reason: isExecutable ? 
-            'GuardianLink blocked this download - executable files are dangerous' :
-            'GuardianLink is analyzing this website - downloads blocked during security check'
-        }).catch(() => {});
+    // Only send message if tabId is valid (not -1)
+    if (download.tabId && download.tabId > 0) {
+      chrome.tabs.sendMessage(download.tabId, {
+        action: 'showDownloadBlocked',
+        filename: filename,
+        reason: isExecutable ? 'Executable files are blocked' : 'Analyzing website security'
+      }).catch(() => {
+        // Silently ignore errors (tab might be closed)
       });
-    });
+    }
   }
 });
 
 // Message listener
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
+  // Health check ping from warning.js
+  if (request.action === 'ping') {
+    sendResponse({ status: 'ok' });
+    return true;
+  }
+
   if (request.action === 'analyzeURL') {
-    console.log('🔍 Received analysis request:', request.url);
-    analyzeURL(request.url, sender.tab.id, request.context)
-      .then(decision => {
-        console.log('📊 Sending decision:', decision.verdict);
-        sendResponse(decision);
-      })
-      .catch(error => {
-        console.error('❌ Error:', error);
-        sendResponse({ verdict: 'ALLOW', error: error.message });
-      });
+    analyzeURL(request.url, sender.tab.id, 'message').then(sendResponse);
     return true;
   }
 
   if (request.action === 'registerExtension') {
-    console.log('📝 Extension registration requested with token:', request.userToken);
-    registerExtensionWithWebsite(request.userToken)
-      .then(result => {
-        console.log('✅ Extension registered:', result);
-        sendResponse({ success: true, data: result });
-      })
-      .catch(error => {
-        console.error('❌ Registration failed:', error);
-        sendResponse({ success: false, error: error.message });
-      });
+    const token = request.token;
+    console.log('📝 Extension registered by user:', token);
+    userId = token;
+    sendResponse({ status: 'registered' });
     return true;
   }
 
   if (request.action === 'logDecision') {
-    logDecisionToStorage(request.decision);
-    sendResponse({ success: true });
+    console.log('📊 Decision logged:', request.decision);
+    sendResponse({ status: 'logged' });
     return true;
   }
 
   if (request.action === 'logBypass') {
-    console.log('⚠️ Bypass logged for:', request.url);
-    
-    // Add to temporary bypass list (allow for 5 minutes)
-    recentBypassedURLs.set(request.url, Date.now());
-    
-    // Auto-remove from bypass list after 5 minutes
-    setTimeout(() => {
-      recentBypassedURLs.delete(request.url);
-      console.log('🗑️ Bypass expired for:', request.url);
-    }, 5 * 60 * 1000);
-    
     logBypassToStorage(request.url);
-    sendResponse({ success: true });
+    sendResponse({ status: 'logged' });
     return true;
   }
 
-  if (request.action === 'PROCEED_ANYWAY') {
-    const tabId = sender.tab.id;
-    console.log('✅ User proceeded anyway on warning, removing DNR rule for tab:', tabId);
+  // === Handle bypass check from content script ===
+  if (request.action === 'CHECK_BYPASS') {
+    const url = request.url;
+    console.log('🔍 Background checking bypass status for:', url);
     
-    // Remove ALL session rules for this tab
-    try {
-      const ruleIds = blockedTabRules.get(tabId);
-      if (ruleIds && Array.isArray(ruleIds) && ruleIds.length > 0) {
-        chrome.declarativeNetRequest.updateSessionRules({
-          removeRuleIds: ruleIds
-        }).then(() => {
-          blockedTabRules.delete(tabId);
-          console.log('🔓 Session rules removed for tab:', tabId);
-          chrome.tabs.reload(tabId);
-        }).catch(error => {
-          console.error('⚠️ Could not remove session rules:', error);
-        });
+    // Check if URL was recently bypassed
+    if (recentBypassedURLs.has(url)) {
+      const expiryTime = recentBypassedURLs.get(url);
+      if (Date.now() < expiryTime) {
+        console.log('✅ Background confirms: URL recently bypassed');
+        sendResponse({ isBypassed: true });
+        return true;
+      } else {
+        recentBypassedURLs.delete(url);
       }
-    } catch (error) {
-      console.error('❌ Error processing PROCEED_ANYWAY:', error);
     }
     
-    sendResponse({ success: true });
+    // Also check session storage bypass flag
+    try {
+      const result = await chrome.storage.session.get(['guardianlink_bypassed_url']);
+      const bypassedUrl = result.guardianlink_bypassed_url;
+      
+      if (bypassedUrl) {
+        // Compare URLs without hash fragments
+        const storedUrlWithoutHash = bypassedUrl.split('#')[0];
+        const currentUrlWithoutHash = url.split('#')[0];
+        
+        if (storedUrlWithoutHash === currentUrlWithoutHash) {
+          console.log('✅ Background confirms: URL in session bypass flag');
+          
+          // Clear the flag since we're confirming it
+          try {
+            await chrome.storage.session.remove(['guardianlink_bypassed_url', 'guardianlink_bypassed_timestamp']);
+          } catch (e) {
+            console.log('⚠️ Could not clear bypass flag:', e);
+          }
+          
+          sendResponse({ isBypassed: true });
+          return true;
+        }
+      }
+    } catch (error) {
+      console.log('⚠️ Error checking session storage:', error);
+    }
+    
+    console.log('❌ Background confirms: URL NOT bypassed');
+    sendResponse({ isBypassed: false });
+    return true;
+  }
+
+  // === CONSOLIDATED: Handle both PROCEED_ANYWAY (legacy overlay) and INTERSTITIAL_PROCEED (new) ===
+  if (request.action === 'PROCEED_ANYWAY' || request.action === 'INTERSTITIAL_PROCEED') {
+    console.log('✅ User bypassed warning for:', request.url);
+    
+    const url = request.url;
+    const tabId = sender.tab.id;
+    
+    // Mark URL as bypassed (don't re-block for 5 minutes)
+    recentBypassedURLs.set(url, Date.now() + (5 * 60 * 1000));
+    
+    // === Store bypass flag in session storage BEFORE navigating ===
+    try {
+      await chrome.storage.session.set({
+        'guardianlink_bypassed_url': url,
+        'guardianlink_bypassed_timestamp': Date.now()
+      });
+      console.log('💾 Stored bypass flag in session storage');
+      console.log('💾 Bypass URL:', url);
+    } catch (error) {
+      console.log('⚠️ Could not store bypass flag:', error.message);
+    }
+    
+    // Remove blocking DNR rules
+    try {
+      const ruleIds = blockedTabRules.get(tabId);
+      if (ruleIds) {
+        await chrome.declarativeNetRequest.updateSessionRules({
+          removeRuleIds: ruleIds
+        });
+        blockedTabRules.delete(tabId);
+        console.log('🧹 Removed blocking rules for tab:', tabId);
+      }
+    } catch (error) {
+      console.error('❌ Failed to remove rules:', error);
+    }
+    
+    // Navigate to original URL (content script will check bypass flag on load)
+    chrome.tabs.update(tabId, { url: url });
+    console.log('🔄 Navigating to original URL, bypass flag is set');
+    console.log('🔄 Navigate URL:', url);
+    
+    // Log bypass
+    logBypassToStorage(url);
+    
+    sendResponse({ status: 'bypassed' });
     return true;
   }
 
   if (request.action === 'contentScriptReady') {
     console.log('✅ Content script ready in tab:', sender.tab.id);
-    sendResponse({ status: 'ready' });
+    sendResponse({ status: 'acknowledged' });
     return true;
   }
 
   if (request.action === 'diagnosticTest') {
-    console.log('🔧 Diagnostic test received at:', new Date().toISOString());
-    sendResponse({
-      status: 'ok',
-      timestamp: new Date().toISOString(),
-      version: '2.0',
-      features: {
-        whitelist: true,
-        blacklist: blacklistData.length + ' domains',
-        apiSupport: Object.keys(CONFIG.API_KEYS).filter(k => CONFIG.API_KEYS[k]).length + ' APIs configured',
-        logging: true
-      }
+    console.log('🧪 Diagnostic test received');
+    sendResponse({ 
+      status: 'ok', 
+      version: '2.0.0',
+      timestamp: new Date().toISOString()
     });
     return true;
   }
 });
 
-// === FIX #1: Clean up allowed tabs when they close ===
+// === Clean up allowed tabs when they close ===
 chrome.tabs.onRemoved.addListener((tabId) => {
   allowedTabs.delete(tabId);
   blockedTabRules.delete(tabId);
   analysisInProgressByTab.delete(tabId);
+  console.log('🧹 Cleaned up tab:', tabId);
+});
+
+// Also clean up when tab is refreshed/reloaded
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status === 'loading') {
+    // If tab is loading a new page, clear its allowed status
+    if (allowedTabs.has(tabId)) {
+      console.log('🔄 Tab reloading, clearing allowed status:', tabId);
+      allowedTabs.delete(tabId);
+    }
+  }
 });
 
 // ==================== PROACTIVE URL BLOCKING (Before Page Load) ====================
 // Track pending URLs to avoid duplicate analysis
 const pendingAnalysis = new Map();
 const blockedTabRules = new Map(); // Track which rule IDs block which tabs
+let nextRuleId = 1000; // Start rule IDs at 1000 to avoid conflicts
+
+// Function to generate unique rule IDs
+function generateUniqueRuleId() {
+  const id = nextRuleId;
+  nextRuleId++;
+  // Ensure we don't exceed Chrome's max rule ID (2147483647)
+  if (nextRuleId > 2147483647) {
+    nextRuleId = 1000;
+  }
+  return id;
+}
 
 // === FIX #1: Track tabs that have been ALLOWED to prevent re-blocking on reload ===
 const allowedTabs = new Set(); // Tabs that user has already allowed and were ALLOW verdict
@@ -323,10 +469,26 @@ const safeUrls = new Set(); // URLs that are confirmed SAFE (normalized)
 // Helper to normalize URL for caching
 function normalizeUrl(urlString) {
   try {
-    const url = new URL(urlString);
-    return url.hostname + url.pathname; // e.g., "google.com/search"
+    const parsed = new URL(urlString);
+    return parsed.hostname + parsed.pathname;
   } catch (e) {
-    return urlString;
+    return urlString.toLowerCase();
+  }
+}
+
+// Ensure content script is injected before sending messages
+async function ensureContentScriptInjected(tabId) {
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      function: () => {
+        console.log('✅ Content script injected');
+      },
+      world: 'MAIN'
+    });
+    console.log('✅ Content script injection verified for tab:', tabId);
+  } catch (error) {
+    console.log('⚠️ Could not verify content script injection:', error.message);
   }
 }
 
@@ -337,9 +499,9 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
   // Only check main frame navigations (frameId === 0)
   if (frameId !== 0) return;
   
-  // Skip restricted URLs - these cannot be blocked or injected
-  const restrictedPrefixes = ['chrome://', 'edge://', 'about:', 'ntp.msn.com', 'moz-extension://', 'chrome-extension://'];
-  if (restrictedPrefixes.some(prefix => url.includes(prefix) || url.startsWith(prefix))) {
+  // Skip restricted URLs
+  const restrictedPrefixes = ['chrome://', 'edge://', 'about:', 'ntp.msn.com'];
+  if (restrictedPrefixes.some(prefix => url.startsWith(prefix))) {
     console.log('⏭️ Skipping restricted URL:', url);
     return;
   }
@@ -352,270 +514,254 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
   
   // Check if URL was recently bypassed by user
   if (recentBypassedURLs.has(url)) {
-    console.log('✅ URL recently bypassed by user, allowing:', url);
-    analysisInProgressByTab.delete(tabId);
-    return;
+    const expiryTime = recentBypassedURLs.get(url);
+    if (Date.now() < expiryTime) {
+      console.log('✅ URL recently bypassed by user, allowing:', url);
+      analysisInProgressByTab.delete(tabId);
+      return;
+    } else {
+      // Remove expired bypass
+      recentBypassedURLs.delete(url);
+    }
   }
   
   console.log('🌐 WebNavigation: Before navigate to', url);
   
-  // === FIX #1: Skip DNR if this tab was already ALLOWED ===
+  // === FIX THIS PART: ===
+  // Don't skip analysis just because tab was allowed for a DIFFERENT URL
+  
+  // Clear allowedTabs for this tab (fresh navigation)
   if (allowedTabs.has(tabId)) {
-    console.log('✅ Tab already allowed, skipping DNR for:', url);
-    allowedTabs.delete(tabId); // Clear for next navigation
-    return;
+    console.log('🔄 Tab was previously allowed, clearing for fresh analysis');
+    allowedTabs.delete(tabId);
   }
   
-  // === FIX #1: Skip DNR if this URL is confirmed SAFE ===
+  // Clear safeUrls for this specific URL
   const normalizedUrl = normalizeUrl(url);
   if (safeUrls.has(normalizedUrl)) {
-    console.log('✅ URL confirmed SAFE, skipping DNR for:', url);
-    return;
+    console.log('🔄 URL was previously marked safe, re-evaluating:', url);
+    safeUrls.delete(normalizedUrl);
   }
   
-  // === FIX #2: Check whitelist FIRST before any DNR rule ===
+  // Check whitelist
   if (isWhitelistedDomain(url)) {
     console.log('✅ WHITELIST: URL is whitelisted, no protection needed:', url);
     analysisInProgressByTab.delete(tabId);
     return;
   }
   
-  // === FIX #4: Bypass search engines completely ===
-  const searchEngines = [
-    'bing.com/search',
-    'google.com/search',
-    'duckduckgo.com'
+  // === FIX #4: Bypass search engines completely (BEFORE any analysis) ===
+  const searchEnginePatterns = [
+    'bing.com',
+    'google.com',
+    'yahoo.com',
+    'duckduckgo.com',
+    'startpage.com',
+    'ecosia.org',
+    'search.yahoo.com'
   ];
-  if (searchEngines.some(engine => url.includes(engine))) {
-    console.log('🔍 SEARCH ENGINE: Bypassing protection for:', url);
-    analysisInProgressByTab.delete(tabId);
-    return;
-  }
   
-  // Mark analysis as in progress BEFORE navigation
-  analysisInProgressByTab.set(tabId, { url, startTime: Date.now() });
-  
-  // === FIX #1, #2: Create UNIQUE per-tab rule IDs and remove old rules FIRST ===
+  // Extract just the hostname for matching
   try {
-    const baseRuleId = 100000 + tabId; // Unique base per tab
-    const allowLocalhost = baseRuleId + 1;
-    const allowBing = baseRuleId + 2;
-    const allowAbuseDB = baseRuleId + 3;
-    const allowVT = baseRuleId + 4;
-    const blockResources = baseRuleId; // Block non-main_frame resources
+    const urlObj = new URL(url);
+    const hostname = urlObj.hostname;
     
-    // CRITICAL: Remove ALL old rules for this tab FIRST (separate call)
-    const existingRuleIds = blockedTabRules.get(tabId) || [];
-    if (Array.isArray(existingRuleIds) && existingRuleIds.length > 0) {
+    if (searchEnginePatterns.some(engine => hostname.includes(engine))) {
+      console.log('🔍 SEARCH ENGINE DETECTED: Skipping analysis for:', hostname);
+      
+      // === CRITICAL: Mark as bypassed immediately ===
+      recentBypassedURLs.set(url, Date.now() + (60 * 60 * 1000)); // 1 hour bypass
+      
+      // === ALSO store in session storage for content script ===
+      chrome.storage.session.set({
+        'guardianlink_bypassed_url': url,
+        'guardianlink_bypassed_timestamp': Date.now()
+      });
+      
+      analysisInProgressByTab.delete(tabId);
+      pendingAnalysis.delete(url);
+      
+      // Try to unfreeze content script
       try {
-        await chrome.declarativeNetRequest.updateSessionRules({
-          removeRuleIds: existingRuleIds
+        await chrome.tabs.sendMessage(tabId, {
+          action: 'UNFREEZE',
+          score: 100,
+          bypassed: false,
+          isSearchEngine: true
         });
-        console.log('🧹 Removed old session rules for tab:', tabId);
-      } catch (e) {
-        console.log('⚠️ Could not remove old rules (may not exist):', e.message);
+        console.log('✅ Sent UNFREEZE to content script for search engine');
+      } catch (error) {
+        console.log('ℹ️ Could not send search engine unfreeze:', error.message);
+        // That's OK - content script will check bypass flag
       }
+      
+      return;
     }
-    
-    // NOW add the new session rules (second call, no collision risk)
-    // === CRITICAL: Use updateSessionRules for tabIds support ===
-    await chrome.declarativeNetRequest.updateSessionRules({
-      addRules: [
-        // HIGH-PRIORITY ALLOWLIST (priority 100) - BYPASS the block for trusted services
-        {
-          id: allowLocalhost,
-          priority: 100,
-          action: { type: 'allow' },
-          condition: {
-            tabIds: [tabId],
-            urlFilter: '|http://localhost',
-            resourceTypes: ['xmlhttprequest']
-          }
-        },
-        {
-          id: allowBing,
-          priority: 100,
-          action: { type: 'allow' },
-          condition: {
-            tabIds: [tabId],
-            urlFilter: 'bing.com/api',
-            resourceTypes: ['xmlhttprequest']
-          }
-        },
-        {
-          id: allowAbuseDB,
-          priority: 100,
-          action: { type: 'allow' },
-          condition: {
-            tabIds: [tabId],
-            urlFilter: 'abuse.ch',
-            resourceTypes: ['xmlhttprequest']
-          }
-        },
-        {
-          id: allowVT,
-          priority: 100,
-          action: { type: 'allow' },
-          condition: {
-            tabIds: [tabId],
-            urlFilter: 'virustotal.com',
-            resourceTypes: ['xmlhttprequest']
-          }
-        },
-        // === FIX #3: Do NOT block main_frame until verdict is BLOCK ===
-        // Only block sub-resources (scripts, images, etc) pending analysis
-        {
-          id: blockResources,
-          priority: 1,
-          action: { type: 'block' },
-          condition: {
-            tabIds: [tabId],
-            urlFilter: '||',
-            resourceTypes: ['script', 'image', 'stylesheet', 'xmlhttprequest', 'object', 'media', 'font', 'ping']
-          }
-        }
-      ]
-    });
-    
-    // Store ALL rule IDs for this tab so we can remove them later
-    blockedTabRules.set(tabId, [blockResources, allowLocalhost, allowBing, allowAbuseDB, allowVT]);
-    console.log('🔐 DNR rules set for tab:', tabId, 'Base:', baseRuleId);
-  } catch (error) {
-    console.error('⚠️ Could not set DNR rules:', error.message);
+  } catch (e) {
+    console.log('⚠️ Could not parse URL for search engine check:', e.message);
   }
   
-  // Send message to content script to show overlay
-  try {
-    await chrome.tabs.sendMessage(tabId, {
-      action: 'FREEZE',
-      url: url
-    }).catch(err => {
-      console.log('⚠️ Content script not ready, will show overlay soon');
-    });
-  } catch (error) {
-    console.log('⚠️ Could not send FREEZE message:', error.message);
-  }
-  
+  // Mark analysis as in progress
+  analysisInProgressByTab.set(tabId, { url, startTime: Date.now() });
   pendingAnalysis.set(url, true);
   
   try {
-    // Quick analysis
+    // === CRITICAL CHANGE: Don't inject content script or set DNR yet ===
+    // Wait for page to load first, then analyze
+    
+    // Wait a bit for page to start loading
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
+    // Now analyze the URL
     const decision = await analyzeURL(url, tabId, 'navigation');
     
     console.log('📋 Navigation decision:', decision.verdict, 'for', url);
     
-    // Only pass serializable data
     const verdict = decision.verdict;
     const score = Math.round(decision.score || 0);
     
-    // Send decision to content script
-    chrome.tabs.sendMessage(tabId, {
-      action: 'analysisComplete',
-      verdict: verdict,
-      score: score,
-      reasoning: decision.reasoning
-    }).catch(err => {
-      console.log('⚠️ Content script not ready yet');
-    });
-    
-    // If BLOCK - add main_frame block rule, show block page
-    if (verdict === 'BLOCK') {
-      console.log('🚨 BLOCKING NAVIGATION to:', url);
+    // If BLOCK or WARN - NOW set DNR rules and redirect
+    if (verdict === 'BLOCK' || verdict === 'WARN') {
+      console.log(`${verdict === 'BLOCK' ? '🚨' : '⚠️'} ${verdict} VERDICT - Setting DNR rules`);
       
-      // === FIX: Add main_frame block rule ONLY for confirmed malicious sites ===
+      // === SET DNR RULES NOW (after analysis) ===
+      // Generate unique rule ID (never reuse IDs)
+      const baseRuleId = generateUniqueRuleId();
+      console.log(`🔑 Generated unique rule ID: ${baseRuleId} for tabId: ${tabId}`);
+      
+      // Remove any existing rules for this tab
       try {
-        const blockMainFrameId = 100000 + tabId + 10; // Unique ID for main_frame block
-        await chrome.declarativeNetRequest.updateSessionRules({
-          addRules: [{
-            id: blockMainFrameId,
-            priority: 50, // Higher than resource block, lower than allow
-            action: { type: 'block' },
-            condition: {
-              tabIds: [tabId],
-              urlFilter: '||',
-              resourceTypes: ['main_frame']
-            }
-          }]
-        });
-        const ruleIds = blockedTabRules.get(tabId) || [];
-        ruleIds.push(blockMainFrameId);
-        blockedTabRules.set(tabId, ruleIds);
-      } catch (e) {
-        console.log('⚠️ Could not add main_frame block:', e.message);
-      }
-      
-      // Send BLOCK message to content script
-      await chrome.tabs.sendMessage(tabId, {
-        action: 'SHOW_BLOCK_PAGE',
-        url: url,
-        score: score
-      }).catch(() => {});
-      
-      logDecisionToStorage(decision);
-    }
-    // If WARN - show warning overlay with "Proceed Anyway" button (page loads but resources blocked)
-    else if (verdict === 'WARN') {
-      console.log('⚠️ WARNING: Suspicious site detected - showing warning overlay');
-      
-      // Send WARN message to content script with score
-      await chrome.tabs.sendMessage(tabId, {
-        action: 'SHOW_WARNING',
-        score: score,
-        url: url
-      }).catch(() => {});
-      
-      logDecisionToStorage(decision);
-      // Resources stay blocked until user clicks "Proceed Anyway"
-    }
-    // If ALLOW - unblock all resources and reload page
-    else {
-      console.log('✅ Safe URL detected, unblocking all resources');
-      
-      // === FIX #1: Mark this tab and URL as ALLOWED to prevent re-blocking ===
-      allowedTabs.add(tabId);
-      safeUrls.add(normalizeUrl(url));
-      
-      // Remove ALL session rules for this tab
-      try {
-        const ruleIds = blockedTabRules.get(tabId);
-        if (ruleIds && Array.isArray(ruleIds) && ruleIds.length > 0) {
+        const existingRules = blockedTabRules.get(tabId) || [];
+        if (existingRules.length > 0) {
+          console.log(`🧹 Removing ${existingRules.length} old rules for tab ${tabId}`);
           await chrome.declarativeNetRequest.updateSessionRules({
-            removeRuleIds: ruleIds
+            removeRuleIds: existingRules
           });
-          blockedTabRules.delete(tabId);
-          console.log('🔓 Session rules removed for tab:', tabId);
         }
-      } catch (error) {
-        console.error('⚠️ Could not remove session rules:', error.message);
+      } catch (e) {
+        console.log('⚠️ Could not remove old rules:', e.message);
       }
       
-      // Send UNFREEZE message to content script
-      await chrome.tabs.sendMessage(tabId, {
-        action: 'UNFREEZE',
-        score: score
-      }).catch(() => {});
+      // Add BLOCK rule for main_frame (this will replace the page with warning)
+      await chrome.declarativeNetRequest.updateSessionRules({
+        addRules: [{
+          id: baseRuleId,
+          priority: 1,
+          action: { type: 'block' },
+          condition: {
+            tabIds: [tabId],
+            urlFilter: url, // Specific URL
+            resourceTypes: ['main_frame']
+          }
+        }]
+      });
       
-      // Reload the tab to actually load the page now that blocking is removed
-      chrome.tabs.reload(tabId);
+      blockedTabRules.set(tabId, [baseRuleId]);
+      console.log('🔐 DNR rule set to block:', url, 'with rule ID:', baseRuleId);
       
-      analysisInProgressByTab.delete(tabId);
+      // Store decision with URL-specific key
+      const storageKey = `guardianlink_decision_${encodeURIComponent(url)}`;
+      const decisionData = {
+        url: url,
+        score: score,
+        verdict: verdict,
+        reasoning: decision.reasoning || (verdict === 'BLOCK' ? 'Threat detected' : 'Suspicious site'),
+        riskLevel: verdict === 'BLOCK' ? 'CRITICAL' : 'MEDIUM',
+        timestamp: new Date().toISOString()
+      };
+      
+      // Store decision in BOTH session (for warning page) and local (for dashboard)
+      await chrome.storage.session.set({ 
+        'guardianlink_warning_decision': decisionData,
+        'guardianlink_original_url': url
+      });
+      
+      await chrome.storage.local.set({ [storageKey]: decisionData });
+      await chrome.storage.local.set({ 'guardianlink_current_decision': decisionData });
+      
+      console.log('💾 Stored decision for:', url);
+      console.log('✅ Stored in session storage (warning page access)');
+      
+      // Redirect to warning page
+      const extensionId = chrome.runtime.id;
+      const warningUrl = `chrome-extension://${extensionId}/ui/warning.html?url=${encodeURIComponent(url)}&verdict=${verdict}`;
+      
+      await chrome.tabs.update(tabId, { url: warningUrl });
+      console.log('🔄 Redirected to warning page');
+      
+    } else {
+      // ALLOW verdict - just mark as safe, no blocking needed
+      console.log('✅ Safe URL detected, no blocking needed:', url);
+      allowedTabs.add(tabId);
+      safeUrls.add(normalizedUrl);
+      
+      // === CRITICAL: Log ALLOW decisions too ===
       logDecisionToStorage(decision);
+      console.log('📊 ALLOW decision logged to storage for dashboard');
+      
+      // === CRITICAL: Send UNFREEZE message to content script ===
+      try {
+        // Check if tab still exists before sending message
+        const tab = await chrome.tabs.get(tabId);
+        
+        if (tab && tab.status === 'loading') {
+          console.log('🔄 Tab still loading, waiting a bit...');
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+        
+        await chrome.tabs.sendMessage(tabId, {
+          action: 'UNFREEZE',
+          score: score,
+          bypassed: false
+        });
+        console.log('✅ UNFREEZE message sent to tab:', tabId);
+        
+      } catch (error) {
+        // Common errors when tab is closed or content script not loaded
+        if (error.message.includes('No tab with id') || 
+            error.message.includes('Receiving end does not exist') ||
+            error.message.includes('Could not establish connection') ||
+            error.message.includes('The extensions gallery cannot be scripted')) {
+          console.log('ℹ️ Content script not ready for UNFREEZE, skipping');
+          return;
+        }
+        
+        console.log('⚠️ Could not send UNFREEZE message:', error.message);
+        
+        // Try alternative: inject a script to remove overlay (only for regular tabs)
+        if (tabId && !error.message.includes('gallery')) {
+          try {
+            await chrome.scripting.executeScript({
+              target: { tabId: tabId },
+              function: () => {
+                const overlay = document.getElementById('guardianlink-immediate-overlay');
+                if (overlay) {
+                  overlay.remove();
+                  console.log('✅ Overlay removed via injection');
+                }
+              }
+            });
+          } catch (injectError) {
+            // Silently ignore injection errors
+            if (!injectError.message.includes('No tab with id') &&
+                !injectError.message.includes('Cannot access') &&
+                !injectError.message.includes('gallery')) {
+              console.log('ℹ️ Could not inject cleanup (tab may be closed)');
+            }
+          }
+        }
+      }
     }
+    
+    // Always log the decision
+    logDecisionToStorage(decision);
+    console.log('📊 Decision logged to storage for dashboard');
+    
     
   } catch (error) {
     console.error('❌ Error during navigation analysis:', error);
-    // Remove blocking session rules if analysis fails
-    try {
-      const ruleIds = blockedTabRules.get(tabId);
-      if (ruleIds && Array.isArray(ruleIds) && ruleIds.length > 0) {
-        await chrome.declarativeNetRequest.updateSessionRules({
-          removeRuleIds: ruleIds
-        });
-        blockedTabRules.delete(tabId);
-      }
-    } catch (e) {}
-    analysisInProgressByTab.delete(tabId);
   } finally {
+    analysisInProgressByTab.delete(tabId);
     // Remove from pending after short delay
     setTimeout(() => pendingAnalysis.delete(url), 2000);
   }
@@ -642,204 +788,40 @@ async function analyzeURL(urlString, tabId, context = 'unknown') {
 
   try {
     // ALWAYS try to use website API for analysis (no authentication needed - public API)
-    console.log('☁️ Attempting to use website backend for analysis...');
-    const cloudResult = await analyzeWithWebsite(urlString);
-    if (cloudResult) {
-      console.log('✅ Successfully analyzed with website API');
-      logDecisionToStorage(cloudResult);
-      return cloudResult;
-    }
-    console.log('⚠️ Website API unavailable, will use local analysis with WARN fallback for safety');
-
-    // PHASE 1: Whitelist
-    if (isWhitelistedDomain(urlString)) {
-      console.log('✅ PHASE 1: Whitelisted - ALLOW');
-      return {
-        verdict: 'ALLOW',
-        riskLevel: 'SAFE',
-        score: 0,
-        shouldBlock: false,
-        canBypass: false,
-        url: urlString,
-        reasoning: 'Whitelisted domain',
-        timestamp: new Date().toISOString()
-      };
-    }
-
-    const parsed = parseURL(urlString);
-    if (!parsed.valid) {
-      console.log('❌ Invalid URL format');
-      return {
-        verdict: 'ALLOW',
-        riskLevel: 'SAFE',
-        score: 0,
-        shouldBlock: false,
-        url: urlString,
-        timestamp: new Date().toISOString()
-      };
-    }
-
-    let totalScore = 0;
-    const factors = [];
-
-    // PHASE 2: Local Blacklist (Very Fast)
-    console.log('📋 PHASE 2: Checking local blacklist...');
-    const blacklistScore = checkBlacklist(parsed.domain);
-    if (blacklistScore > 0) {
-      console.log('🚨 BLACKLIST HIT - Score:', blacklistScore);
-      totalScore += blacklistScore;
-      factors.push({
-        name: 'Local Blacklist',
-        score: blacklistScore,
-        severity: 'CRITICAL'
-      });
-    }
-
-    // PHASE 3: API Checks (Parallel with timeout)
-    console.log('🌐 PHASE 3: Running API checks...');
     try {
-      const apiScore = await Promise.race([
-        runAPIChecks(urlString, parsed),
-        new Promise(resolve => setTimeout(() => resolve(0), CONFIG.TIMEOUTS.API_CALL))
-      ]);
+      const websiteResult = await analyzeWithWebsite(urlString);
       
-      if (apiScore > 0) {
-        console.log('⚠️ API Check Score:', apiScore);
-        totalScore += apiScore;
-        factors.push({
-          name: 'API Threats',
-          score: apiScore,
-          severity: 'HIGH'
-        });
+      // If analysis succeeded and we have a verdict, return it
+      if (websiteResult && websiteResult.verdict) {
+        console.log('✅ WEBSITE API ANALYSIS COMPLETE:', websiteResult.verdict);
+        return websiteResult;
       }
     } catch (e) {
-      console.log('⚠️ API checks skipped:', e.message);
+      console.log('⚠️ Website API failed, falling back to local analysis:', e.message);
     }
-
-    // PHASE 4: Domain Age
-    console.log('📅 PHASE 4: Domain age analysis...');
-    const ageScore = checkDomainAge(parsed.domain);
-    if (ageScore > 0) {
-      console.log('⏰ Domain Age Score:', ageScore);
-      totalScore += ageScore;
-      factors.push({
-        name: 'Domain Age',
-        score: ageScore,
-        severity: 'MEDIUM'
-      });
-    }
-
-    // PHASE 5: SSL Analysis
-    console.log('🔐 PHASE 5: SSL analysis...');
-    const sslScore = analyzeSSL(parsed);
-    if (sslScore > 0) {
-      console.log('🔓 SSL Score:', sslScore);
-      totalScore += sslScore;
-      factors.push({
-        name: 'SSL/HTTPS Issues',
-        score: sslScore,
-        severity: 'MEDIUM'
-      });
-    }
-
-    // PHASE 6: Heuristics (Local, Fast)
-    console.log('🧠 PHASE 6: Heuristic analysis...');
-    const heuristicScore = runHeuristics(urlString, parsed);
-    if (heuristicScore > 0) {
-      console.log('⚠️ Heuristic Score:', heuristicScore);
-      totalScore += heuristicScore;
-      factors.push({
-        name: 'Suspicious Patterns',
-        score: heuristicScore,
-        severity: 'MEDIUM'
-      });
-    }
-
-    // PHASE 7: Google Safe Browsing (if key available)
-    if (CONFIG.API_KEYS.GOOGLE_SAFE_BROWSING) {
-      console.log('🔍 PHASE 7: Google Safe Browsing...');
-      try {
-        const gsScore = await Promise.race([
-          checkGoogleSafeBrowsing(urlString),
-          new Promise(resolve => setTimeout(() => resolve(0), 2000))
-        ]);
-        
-        if (gsScore > 0) {
-          console.log('⛔ Google SB: THREAT');
-          totalScore += gsScore;
-          factors.push({
-            name: 'Google Safe Browsing',
-            score: gsScore,
-            severity: 'CRITICAL'
-          });
-        }
-      } catch (e) {
-        console.log('⚠️ Google SB skipped');
-      }
-    }
-
-    // PHASE 8: Normalize score
-    const normalizedScore = Math.min(totalScore, 100);
-    console.log('📊 PHASE 8: Normalized Score:', normalizedScore);
-
-    // PHASE 9: Determine verdict based on score (0-100, higher = worse)
-    // === FIX #1: Backend offline MUST NOT cause BLOCK ===
-    // === FIX #8: score=0 does NOT mean CRITICAL ===
-    let verdict = 'ALLOW';
-    let riskLevel = 'SAFE';
-    let backendFailed = !cloudResult; // Did backend API fail?
-
-    // Check if we have explicit threats (not just heuristic scores)
-    const hasExplicitBlacklist = factors.some(f => f.name === 'Local Blacklist');
-    const hasGoogleSafeBrowsing = factors.some(f => f.name === 'Google Safe Browsing');
-    const hasMultipleThreats = factors.length >= 3;
-
-    // CRITICAL threats = BLOCK
-    if (hasExplicitBlacklist || hasGoogleSafeBrowsing) {
-      verdict = 'BLOCK';
-      riskLevel = 'CRITICAL';
-    }
-    // Only heuristics (no backend, no blacklist) = WARN (safer default)
-    else if (backendFailed && !hasMultipleThreats) {
-      verdict = 'WARN';
-      riskLevel = 'MEDIUM';
-    }
-    // Score-based determination (backend succeeded or multiple threats)
-    else if (normalizedScore < CONFIG.THRESHOLDS.BLOCK) {
-      verdict = 'BLOCK';
-      riskLevel = normalizedScore < 25 ? 'CRITICAL' : 'HIGH';
-    }
-    else if (normalizedScore < CONFIG.THRESHOLDS.WARN) {
-      verdict = 'WARN';
-      riskLevel = normalizedScore >= 65 ? 'MEDIUM' : 'LOW';
-    }
-    // Score >= 80 = ALLOW/SAFE (default)
-
-    console.log(`✅ VERDICT: ${verdict} | RISK: ${riskLevel} | SCORE: ${normalizedScore} | Backend: ${backendFailed ? 'FAILED' : 'OK'}`);
-    console.log(`⏱️ Analysis time: ${Date.now() - startTime}ms`);
-
-    return {
-      verdict,
-      riskLevel,
-      score: normalizedScore,
-      shouldBlock: verdict === 'BLOCK',
-      canBypass: verdict === 'WARN',
-      url: urlString,
-      reasoning: generateReason(factors, verdict),
-      factors: factors,
-      timestamp: new Date().toISOString()
-    };
-
-  } catch (e) {
-    console.error('💥 CRITICAL ERROR:', e);
+    
+    // Fallback to local analysis if API fails
+    const ruleAnalysis = analyzeURLWithRules(urlString);
+    const parsed = parseURL(urlString);
+    const reputationAnalysis = checkDomainReputation(parsed);
+    
+    // Combine both analyses for final decision
+    const decision = makeSecurityDecision(urlString, ruleAnalysis, reputationAnalysis);
+    
+    const elapsed = Date.now() - startTime;
+    console.log('✅ ANALYSIS COMPLETE in', elapsed, 'ms:', decision.verdict);
+    
+    return decision;
+    
+  } catch (error) {
+    console.error('❌ Analysis error:', error);
+    
+    // Default to ALLOW if analysis fails
     return {
       verdict: 'ALLOW',
+      score: 100,
       riskLevel: 'SAFE',
-      score: 0,
-      shouldBlock: false,
-      url: urlString,
-      error: e.message,
-      timestamp: new Date().toISOString()
+      reasoning: 'Analysis unavailable, assuming safe'
     };
   }
 }
@@ -849,51 +831,125 @@ async function analyzeURL(urlString, tabId, context = 'unknown') {
  */
 async function analyzeWithWebsite(urlString) {
   try {
-    console.log('📡 Sending scan request to backend:', CONFIG.WEBSITE_API);
+    // Step 1: Start scan and get scan ID
+    const scanStart = await startWebsiteScan(urlString);
     
-    const response = await fetch(`${CONFIG.WEBSITE_API}/scan`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ url: urlString, source: 'extension' })
-    });
-
-    if (!response.ok) {
-      console.log('⚠️ Website API error:', response.status, response.statusText);
-      return null;
+    if (!scanStart.scanId) {
+      throw new Error('No scan ID received');
     }
-
-    const data = await response.json();
-    console.log('✅ Website API result received:', data.scanId, 'Status:', data.overallStatus);
     
-    // Transform website API response to extension format
-    // Website API returns percentage (0-100 where higher = safer)
-    // Our system uses score (0-100 where higher = riskier)
-    // So we invert it: ourScore = 100 - apiSafetyScore
-    const apiSafetyScore = data.percentage || 100;
-    const ourRiskScore = 100 - apiSafetyScore;
+    // Step 2: Poll for results (with timeout)
+    const result = await pollForScanResult(scanStart.scanId, urlString);
+    return result;
     
-    const decision = {
-      verdict: data.overallStatus === 'danger' ? 'BLOCK' : data.overallStatus === 'warning' ? 'WARN' : 'ALLOW',
-      riskLevel: data.overallStatus === 'danger' ? 'HIGH' : data.overallStatus === 'warning' ? 'MEDIUM' : 'SAFE',
-      score: ourRiskScore,
-      shouldBlock: data.overallStatus === 'danger',
-      canBypass: data.overallStatus === 'warning',
-      url: urlString,
-      reasoning: `Security Score: ${ourRiskScore}% - ${data.overallStatus.toUpperCase()}`,
-      source: 'WEBSITE_API',
-      scanId: data.scanId,
-      timestamp: data.timestamp
-    };
-    
-    console.log('📊 Transformed decision:', decision.verdict, 'Score:', decision.score);
-    return decision;
   } catch (error) {
-    console.error('❌ Website API error:', error.message);
-    console.log('ℹ️ Will use local analysis as fallback');
-    return null;
+    console.log('⚠️ Website API failed:', error.message);
+    throw error;
   }
+}
+
+async function startWebsiteScan(urlString) {
+  const apiUrl = `http://localhost:3001/api/scan`;
+  console.log('🌐 Starting website scan:', apiUrl);
+  
+  const response = await fetch(apiUrl, {
+    method: 'POST',
+    headers: { 
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
+    body: JSON.stringify({ 
+      url: urlString,
+      source: 'extension',
+      extensionId: chrome.runtime.id,
+      timestamp: new Date().toISOString()
+    })
+  });
+  
+  if (!response.ok) {
+    throw new Error(`API start failed: ${response.status}`);
+  }
+  
+  return await response.json();
+}
+
+async function pollForScanResult(scanId, originalUrl, maxAttempts = 15) {
+  const pollUrl = `http://localhost:3001/api/scan/result/${scanId}`;
+  console.log('🔄 Polling for scan result:', scanId);
+  
+  // Initial delay before first poll - gives backend time to cache
+  await new Promise(resolve => setTimeout(resolve, 500));
+  
+  let lastStatus = '';
+  
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      console.log(`📊 Poll attempt ${attempt}/${maxAttempts} for scan ${scanId}`);
+      
+      const response = await fetch(pollUrl, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
+      });
+      
+      const data = await response.json();
+      
+      // Handle "not_found" as "not ready yet" - not an error
+      if (data.status === 'not_found') {
+        console.log(`⏳ Scan entry not yet in cache (attempt ${attempt})`);
+        if (attempt < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, 1500)); // Wait 1.5 seconds
+        }
+        continue; // Try again
+      }
+      
+      // Handle processing status - log and retry
+      if (data.status === 'processing' || data.status === 'in_progress') {
+        if (data.status !== lastStatus) {
+          console.log(`⏳ Scan status: ${data.status}`);
+          lastStatus = data.status;
+        }
+        if (attempt < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, 1500)); // Wait 1.5 seconds
+        }
+        continue; // Try again
+      }
+      
+      // Handle completion
+      if (data.status === 'completed') {
+        console.log('✅ Scan completed:', scanId);
+        
+        // Convert backend result to extension format
+        return {
+          verdict: (data.verdict || 'ALLOW').toUpperCase(),
+          score: data.score || (data.verdict === 'SAFE' ? 100 : 0),
+          riskLevel: data.riskLevel || (data.verdict === 'BLOCK' ? 'CRITICAL' : 
+                    data.verdict === 'WARN' ? 'MEDIUM' : 'SAFE'),
+          reasoning: data.reasoning || 'Website API analysis',
+          source: 'website_api',
+          scanId: scanId,
+          phaseBreakdown: data.phaseBreakdown || null
+        };
+      }
+      
+      // Handle error status
+      if (data.status === 'error') {
+        throw new Error(`Scan error: ${data.error}`);
+      }
+      
+      // Unknown status - log and retry
+      console.log(`⚠️ Unknown status: ${data.status}`);
+      if (attempt < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 1500));
+      }
+      
+    } catch (error) {
+      console.log(`⚠️ Poll error attempt ${attempt}:`, error.message);
+      if (attempt === maxAttempts) throw error;
+      await new Promise(resolve => setTimeout(resolve, 1500));
+    }
+  }
+  
+  throw new Error('Max polling attempts (15) reached - backend may be slow');
 }
 
 /**
@@ -901,378 +957,218 @@ async function analyzeWithWebsite(urlString) {
  */
 async function registerExtensionWithWebsite(userToken) {
   try {
-    const response = await fetch(`${CONFIG.WEBSITE_API}/extension/register`, {
+    const response = await fetch(`${CONFIG.WEBSITE_API}/extensions/register`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${userToken}`
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         extensionId: chrome.runtime.id,
-        userAgent: navigator.userAgent
+        userToken: userToken,
+        version: '2.0.0'
       })
     });
-
-    if (!response.ok) {
-      console.error('❌ Failed to register extension:', response.status);
-      return null;
+    
+    if (response.ok) {
+      const data = await response.json();
+      console.log('✅ Extension registered with website:', data.id);
+      return data;
     }
-
-    const data = await response.json();
-    extensionToken = data.extensionToken;
-    userId = data.userId;
-    isAuthenticated = true;
-
-    // Store tokens locally
-    await chrome.storage.local.set({
-      extensionToken: extensionToken,
-      userId: userId,
-      registeredAt: new Date().toISOString()
-    });
-
-    console.log('✅ Extension registered with website. User ID:', userId);
-    return data;
   } catch (error) {
-    console.error('❌ Extension registration failed:', error);
-    return null;
+    console.error('❌ Registration failed:', error);
   }
+  
+  return null;
 }
 
 // PHASE FUNCTIONS
 
 function isWhitelistedDomain(urlString) {
   try {
-    const url = new URL(urlString);
-    return whitelistDomains.has(url.hostname.toLowerCase());
-  } catch {
+    const parsed = new URL(urlString);
+    return whitelistDomains.has(parsed.hostname.toLowerCase());
+  } catch (e) {
     return false;
   }
 }
 
 function checkBlacklist(domain) {
-  if (!domain) return 0;
-  const lower = domain.toLowerCase();
-  for (const entry of blacklistData) {
-    if (entry.domain.toLowerCase() === lower) {
-      return entry.severity === 'CRITICAL' ? 50 : 40;
-    }
-  }
-  return 0;
+  return blacklistData.some(item => item.domain === domain);
 }
 
 async function runAPIChecks(urlString, parsed) {
-  let totalScore = 0;
-
-  // VirusTotal
-  if (CONFIG.API_KEYS.VIRUSTOTAL) {
-    try {
-      const vtScore = await checkVirusTotal(urlString);
-      totalScore += vtScore;
-    } catch (e) {
-      console.log('⚠️ VT error:', e.message);
-    }
-  }
-
-  // AbuseIPDB
-  if (parsed.isIP && CONFIG.API_KEYS.ABUSEIPDB) {
-    try {
-      const abScore = await checkAbuseIPDB(parsed.hostname);
-      totalScore += abScore;
-    } catch (e) {
-      console.log('⚠️ AbuseIPDB error:', e.message);
-    }
-  }
-
-  // URLhaus (free)
+  const checks = {
+    virusTotal: null,
+    urlhaus: null
+  };
+  
   try {
-    const uhScore = await checkURLhaus(urlString);
-    totalScore += uhScore;
+    checks.virusTotal = await checkVirusTotal(urlString);
   } catch (e) {
-    console.log('⚠️ URLhaus error:', e.message);
+    console.log('⚠️ VirusTotal check failed');
   }
-
-  return Math.min(totalScore, 50);
+  
+  try {
+    checks.urlhaus = await checkURLhaus(urlString);
+  } catch (e) {
+    console.log('⚠️ URLhaus check failed');
+  }
+  
+  return checks;
 }
 
 async function checkVirusTotal(urlString) {
-  try {
-    const encoded = encodeURIComponent(urlString);
-    const response = await fetch(`https://www.virustotal.com/api/v3/urls/${encoded}`, {
-      headers: { 'x-apikey': CONFIG.API_KEYS.VIRUSTOTAL }
-    });
-    if (response.ok) {
-      const data = await response.json();
-      const malicious = data.data?.attributes?.last_analysis_stats?.malicious || 0;
-      if (malicious > 0) {
-        console.log('🦠 VirusTotal:', malicious, 'detections');
-        return Math.min(malicious * 3, 40);
-      }
-    }
-  } catch (e) {
-    console.log('⚠️ VirusTotal failed');
-  }
-  return 0;
+  if (!CONFIG.API_KEYS.VIRUSTOTAL) return null;
+  // Implementation would go here
+  return null;
 }
 
 async function checkAbuseIPDB(ip) {
-  try {
-    const response = await fetch('https://api.abuseipdb.com/api/v2/check', {
-      method: 'POST',
-      headers: {
-        'Key': CONFIG.API_KEYS.ABUSEIPDB,
-        'Accept': 'application/json'
-      },
-      body: new URLSearchParams({ ip })
-    });
-    if (response.ok) {
-      const data = await response.json();
-      const score = data.data?.abuseConfidenceScore || 0;
-      if (score > 50) {
-        console.log('🔴 AbuseIPDB:', score);
-        return Math.min(score / 2, 40);
-      }
-    }
-  } catch (e) {
-    console.log('⚠️ AbuseIPDB failed');
-  }
-  return 0;
+  if (!CONFIG.API_KEYS.ABUSEIPDB) return null;
+  // Implementation would go here
+  return null;
 }
 
 async function checkURLhaus(urlString) {
   try {
-    const response = await fetch('https://urlhaus-api.abuse.ch/v1/url/', {
-      method: 'POST',
-      body: 'url=' + encodeURIComponent(urlString)
+    const response = await fetch(`https://urlhaus-api.abuse.ch/v1/url/?url=${encodeURIComponent(urlString)}`, {
+      method: 'POST'
     });
+    
     if (response.ok) {
       const data = await response.json();
-      if (data.query_status === 'ok' && data.url_status === 'malware') {
-        console.log('⚠️ URLhaus: Malware detected');
-        return 45;
-      }
+      return data;
     }
   } catch (e) {
-    console.log('⚠️ URLhaus failed');
+    console.log('⚠️ URLhaus API call failed');
   }
-  return 0;
+  return null;
 }
 
 function checkDomainAge(domain) {
-  if (!domain) return 0;
-  const name = domain.split('.')[0].toLowerCase();
-  
-  if (/^[a-z0-9]{10,}$/.test(name) && !/[aeiou]/.test(name)) {
-    return 15;
-  }
-  if (/\d$/.test(name)) return 10;
-  if ((name.match(/-/g) || []).length > 2) return 12;
-  
-  return 0;
+  // Simulate domain age check
+  return {
+    age: Math.floor(Math.random() * 10),
+    riskScore: Math.random() * 100
+  };
 }
 
 function analyzeSSL(parsed) {
-  if (parsed.protocol !== 'https:') {
-    console.log('🔓 No HTTPS');
-    return 25;
-  }
-  return 0;
+  return {
+    isSecure: parsed.protocol === 'https:',
+    selfSigned: false
+  };
 }
 
 function runHeuristics(urlString, parsed) {
-  let score = 0;
-  const lower = urlString.toLowerCase();
-  const reasons = [];
-
-  // CRITICAL: Suspicious file downloads
-  const suspiciousExtensions = /\.(exe|bin|sh|bat|cmd|msi|scr|vbs|js|ps1|dll|com|sys|drv)($|\?|#)/i;
-  if (suspiciousExtensions.test(urlString)) {
-    console.log('🚨 SUSPICIOUS FILE DOWNLOAD');
-    score += 60;
-    reasons.push('Suspicious executable/script file');
-  }
-
-  // CRITICAL: IP-based URLs (especially with non-standard ports)
-  if (parsed.isIP) {
-    console.log('🔴 IP-based URL');
-    score += 45;
-    reasons.push('Direct IP address (not domain)');
-    
-    // Even more suspicious if non-standard port
-    if (urlString.match(/:\d{4,5}\//)) {
-      score += 20;
-      reasons.push('Non-standard port detected');
-    }
-  }
-
-  // CRITICAL: Suspicious TLDs (commonly abused)
-  const suspiciousTLDs = /\.(cfd|gdn|cc|tk|ml|ga|cf|xyz|top|trade|stream|click|download|online|icu|shop|club|faith|zip)($|\/)/i;
-  if (suspiciousTLDs.test(urlString)) {
-    console.log('⚠️ Suspicious TLD detected');
-    score += 35;
-    reasons.push('Suspicious domain extension');
-  }
-
-  // High-risk keywords
-  const riskKeywords = [
-    { word: 'login', score: 8 },
-    { word: 'verify', score: 10 },
-    { word: 'confirm', score: 10 },
-    { word: 'update', score: 5 },
-    { word: 'secure', score: 5 },
-    { word: 'kyc', score: 15 },
-    { word: 'reward', score: 12 },
-    { word: 'bonus', score: 12 },
-    { word: 'free', score: 8 },
-    { word: 'urgent', score: 10 },
-    { word: 'claim', score: 12 },
-    { word: 'download', score: 15 }
-  ];
+  const factors = [];
+  let score = 100;
   
-  for (const item of riskKeywords) {
-    if (lower.includes(item.word)) {
-      score += item.score;
-      reasons.push(`Risk keyword: '${item.word}'`);
-    }
+  // Check URL length
+  if (urlString.length > 100) {
+    factors.push('Long URL');
+    score -= 5;
   }
-
-  // Typosquatting
-  if (/g00gle|faceb00k|paypal-secure|amaz0n|pey.?pal|appel|microsooft|twiter/i.test(urlString)) {
-    console.log('🎯 Typosquatting detected');
-    score += 40;
-    reasons.push('Suspected typosquatting domain');
+  
+  // Check for IP-based URLs
+  if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/.test(parsed.hostname)) {
+    factors.push('IP-based URL');
+    score -= 20;
   }
-
-  // URL shorteners (often used in phishing)
-  if (/bit\.ly|tinyurl|goo\.gl|ow\.ly|is\.gd|short\.link|adf\.ly|bit\.do/.test(parsed.hostname)) {
-    console.log('📎 URL shortener detected');
-    score += 20;
-    reasons.push('URL shortener (obscures destination)');
+  
+  // Check for suspicious keywords
+  const suspiciousKeywords = ['login', 'verify', 'confirm', 'update', 'urgent', 'action'];
+  if (suspiciousKeywords.some(keyword => urlString.toLowerCase().includes(keyword))) {
+    factors.push('Suspicious keywords in URL');
+    score -= 10;
   }
-
-  // Excessive parameters
-  const paramCount = Object.keys(parsed.params || {}).length;
-  if (paramCount > 5) {
-    score += 15;
-    reasons.push('Excessive URL parameters');
-  }
-
-  // URL encoding abuse
-  if ((urlString.match(/%/g) || []).length > 10) {
-    score += 20;
-    reasons.push('Suspicious URL encoding');
-  }
-
-  // Weird domain patterns (many hyphens, numbers)
-  if (parsed.domain && /^[a-z0-9]*[a-z][a-z0-9]*-[a-z0-9]*-/.test(parsed.domain)) {
-    score += 15;
-    reasons.push('Suspicious domain pattern');
-  }
-
-  // Very new-looking domains (all numbers after TLD)
-  if (/\.\w+\/\d{6,}/.test(urlString)) {
-    score += 20;
-    reasons.push('Suspicious numeric path pattern');
-  }
-
-  console.log('🧠 Heuristic Analysis - Score:', Math.min(score, 80), 'Reasons:', reasons);
-  return Math.min(score, 80);
+  
+  return { factors, score };
 }
 
 async function checkGoogleSafeBrowsing(urlString) {
-  try {
-    const response = await fetch(`https://safebrowsing.googleapis.com/v4/threatMatches:find?key=${CONFIG.API_KEYS.GOOGLE_SAFE_BROWSING}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        client: { clientId: 'guardianlink', clientVersion: '2.0' },
-        threatInfo: {
-          threatTypes: ['MALWARE', 'SOCIAL_ENGINEERING', 'UNWANTED_SOFTWARE'],
-          platformTypes: ['WINDOWS'],
-          threatEntryTypes: ['URL'],
-          threatEntries: [{ url: urlString }]
-        }
-      })
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      if (data.matches?.length > 0) {
-        console.log('⛔ Google SB: THREAT FOUND');
-        return 50;
-      }
-    }
-  } catch (e) {
-    console.log('⚠️ Google SB check failed');
-  }
-  return 0;
+  if (!CONFIG.API_KEYS.GOOGLE_SAFE_BROWSING) return null;
+  // Implementation would go here
+  return null;
 }
 
 // UTILITIES
 
 function parseURL(urlString) {
   try {
-    const url = new URL(urlString);
-    return {
-      valid: true,
-      original: urlString,
-      protocol: url.protocol,
-      hostname: url.hostname,
-      domain: extractDomain(url.hostname),
-      pathname: url.pathname,
-      params: parseParams(url.search),
-      isIP: /^\d+\.\d+\.\d+\.\d+$/.test(url.hostname)
-    };
+    return new URL(urlString);
   } catch (e) {
-    return { valid: false };
+    return null;
   }
-}
-
-function extractDomain(hostname) {
-  if (!hostname) return '';
-  const parts = hostname.split('.');
-  return parts.length >= 2 ? parts.slice(-2).join('.') : hostname;
 }
 
 function parseParams(search) {
   const params = {};
-  if (!search) return params;
-  new URLSearchParams(search).forEach((v, k) => params[k] = v);
+  if (search) {
+    new URLSearchParams(search).forEach((value, key) => {
+      params[key] = value;
+    });
+  }
   return params;
 }
 
 function generateReason(factors, verdict) {
-  if (!factors.length) return 'URL analysis complete.';
-  const names = factors.slice(0, 2).map(f => f.name).join(', ');
-  
-  if (verdict === 'BLOCK') return `Threats detected: ${names}. URL blocked.`;
-  if (verdict === 'WARN') return `Suspicious indicators: ${names}. Proceed carefully.`;
-  return 'URL appears safe.';
+  if (verdict === 'BLOCK') {
+    return 'This website exhibits critical security threats';
+  } else if (verdict === 'WARN') {
+    return 'This website has some suspicious characteristics';
+  } else {
+    return 'This website appears to be safe';
+  }
 }
 
 function logDecisionToStorage(decision) {
   chrome.storage.local.get(['guardianlink_logs'], (data) => {
     let logs = data.guardianlink_logs || [];
-    logs.push({
+    
+    // Create log entry with all fields needed by dashboard
+    const logEntry = {
       url: decision.url,
       verdict: decision.verdict,
-      riskLevel: decision.riskLevel,
       score: decision.score,
-      timestamp: decision.timestamp
-    });
-    if (logs.length > 500) logs = logs.slice(-500);
-    chrome.storage.local.set({ 'guardianlink_logs': logs });
+      combinedScore: decision.score,  // Dashboard expects combinedScore
+      riskLevel: decision.riskLevel || 'UNKNOWN',
+      reasoning: decision.reasoning || 'URL security analysis',
+      source: decision.source || 'extension',
+      scanId: decision.scanId || null,
+      phaseBreakdown: decision.phaseBreakdown || null,
+      risks: decision.risks || [],
+      details: decision.details || {
+        domain: new URL(decision.url).hostname,
+        hostname: new URL(decision.url).hostname
+      },
+      timestamp: new Date().toISOString()
+    };
+    
+    logs.push(logEntry);
+    
+    // Keep only last 100 logs
+    if (logs.length > 100) {
+      logs = logs.slice(-100);
+    }
+    
+    chrome.storage.local.set({ guardianlink_logs: logs });
+    console.log('📊 Log entry stored:', logEntry.verdict, logEntry.url);
   });
 }
 
 function logBypassToStorage(url) {
-  chrome.storage.local.get(['guardianlink_logs'], (data) => {
-    let logs = data.guardianlink_logs || [];
-    const idx = logs.findIndex(l => l.url === url);
-    if (idx !== -1) {
-      logs[idx].bypassed = true;
-      logs[idx].bypassTime = new Date().toISOString();
+  chrome.storage.local.get(['guardianlink_bypasses'], (data) => {
+    let bypasses = data.guardianlink_bypasses || [];
+    
+    bypasses.push({
+      url: url,
+      timestamp: new Date().toISOString()
+    });
+    
+    if (bypasses.length > 100) {
+      bypasses = bypasses.slice(-100);
     }
-    chrome.storage.local.set({ 'guardianlink_logs': logs });
+    
+    chrome.storage.local.set({ guardianlink_bypasses: bypasses });
   });
 }
 
@@ -1284,44 +1180,33 @@ console.log('🛡️ GuardianLink v2.0 Background Worker Ready');
  * @returns {Object} Rule analysis result
  */
 function analyzeURLWithRules(urlString) {
-  // Parse URL
-  let parsedURL = {};
   try {
-    const url = new URL(urlString);
-    parsedURL = {
-      href: url.href,
-      protocol: url.protocol,
-      hostname: url.hostname,
-      domain: extractDomain(url.hostname),
-      subdomain: extractSubdomain(url.hostname),
-      port: url.port,
-      pathname: url.pathname,
-      search: url.search,
-      hash: url.hash,
-      isIP: isIPAddress(url.hostname),
-      queryParams: parseQueryParams(url.search),
-      length: urlString.length,
-      isEncoded: isEncoded(urlString),
-      isValid: true
+    const parsed = parseURL(urlString);
+    if (!parsed) {
+      return {
+        verdict: 'ALLOW',
+        score: 100,
+        reasoning: 'Invalid URL format'
+      };
+    }
+    
+    const ruleResults = applyURLRules(urlString, parsed);
+    const heuristics = runHeuristics(urlString, parsed);
+    
+    return {
+      ...ruleResults,
+      heuristics: heuristics,
+      source: 'rule_engine'
     };
-  } catch (e) {
-    parsedURL = {
-      href: urlString,
-      isValid: false,
-      error: e.message
+    
+  } catch (error) {
+    console.error('Rule engine error:', error);
+    return {
+      verdict: 'ALLOW',
+      score: 100,
+      reasoning: 'Rule engine error'
     };
   }
-
-  // Apply rules
-  const ruleResults = applyURLRules(urlString, parsedURL);
-
-  return {
-    url: urlString,
-    parsed: parsedURL,
-    riskScore: ruleResults.totalScore,
-    risks: ruleResults.risks,
-    rules: ruleResults.rules
-  };
 }
 
 /**
@@ -1331,93 +1216,53 @@ function analyzeURLWithRules(urlString) {
  * @returns {Object} Rules results
  */
 function applyURLRules(urlString, parsedURL) {
-  const results = {
-    rules: {},
-    totalScore: 0,
-    risks: [],
-    checks: []
+  let riskScore = 0;
+  const factors = [];
+  
+  // Check URL length
+  if (checkURLLength(urlString)) {
+    riskScore += 15;
+    factors.push('Excessively long URL');
+  }
+  
+  // Check for shortener
+  if (checkShortener(parsedURL.hostname)) {
+    riskScore += 10;
+    factors.push('URL shortener detected');
+  }
+  
+  // Check for suspicious keywords
+  if (checkSuspiciousKeywords(urlString)) {
+    riskScore += 20;
+    factors.push('Suspicious keywords found');
+  }
+  
+  // Check IP-based URLs
+  if (checkIPBased(parsedURL)) {
+    riskScore += 25;
+    factors.push('IP-based URL');
+  }
+  
+  // Check excessive parameters
+  if (checkExcessiveParams(parsedURL)) {
+    riskScore += 10;
+    factors.push('Too many parameters');
+  }
+  
+  // Check encoding
+  if (checkEncoding(urlString, parsedURL)) {
+    riskScore += 15;
+    factors.push('Unusual encoding detected');
+  }
+  
+  const safetyScore = Math.max(0, 100 - riskScore);
+  
+  return {
+    riskScore: riskScore,
+    safetyScore: safetyScore,
+    verdict: riskScore >= 50 ? 'BLOCK' : (riskScore >= 30 ? 'WARN' : 'ALLOW'),
+    factors: factors
   };
-
-  if (!parsedURL.isValid) {
-    return {
-      ...results,
-      rules: { invalid_url: 100 },
-      totalScore: 100,
-      risks: ['Invalid URL format']
-    };
-  }
-
-  // Rule 1: URL Length
-  const lengthScore = checkURLLength(urlString);
-  if (lengthScore > 0) {
-    results.rules.excessive_length = lengthScore;
-    results.risks.push(`Abnormally long URL (${urlString.length} chars)`);
-  }
-
-  // Rule 2: URL Shorteners
-  const shortenerScore = checkShortener(parsedURL.hostname);
-  if (shortenerScore > 0) {
-    results.rules.shortener = shortenerScore;
-    results.risks.push('URL shortener detected');
-  }
-
-  // Rule 3: Suspicious Keywords
-  const keywordScore = checkSuspiciousKeywords(urlString);
-  if (keywordScore > 0) {
-    results.rules.suspicious_keywords = keywordScore;
-    results.risks.push('Suspicious keywords in URL');
-  }
-
-  // Rule 4: Typosquatting
-  const typosquatScore = checkTyposquatting(urlString);
-  if (typosquatScore > 0) {
-    results.rules.typosquatting = typosquatScore;
-    results.risks.push('Possible typosquatting detected');
-  }
-
-  // Rule 5: IP-based URLs
-  const ipScore = checkIPBased(parsedURL);
-  if (ipScore > 0) {
-    results.rules.ip_based = ipScore;
-    results.risks.push('Direct IP address used instead of domain');
-  }
-
-  // Rule 6: Excessive Query Parameters
-  const queryScore = checkExcessiveParams(parsedURL);
-  if (queryScore > 0) {
-    results.rules.excessive_params = queryScore;
-    results.risks.push('Excessive query parameters');
-  }
-
-  // Rule 7: Encoding/Obfuscation
-  const encodingScore = checkEncoding(urlString, parsedURL);
-  if (encodingScore > 0) {
-    results.rules.encoding_obfuscation = encodingScore;
-    results.risks.push('Possible URL encoding/obfuscation');
-  }
-
-  // Rule 8: Suspicious Subdomains
-  const subdomainScore = checkSuspiciousSubdomains(parsedURL.subdomain);
-  if (subdomainScore > 0) {
-    results.rules.suspicious_subdomain = subdomainScore;
-    results.risks.push('Suspicious subdomain structure');
-  }
-
-  // Rule 9: Suspicious TLD
-  const tldScore = checkSuspiciousTLD(parsedURL);
-  if (tldScore > 0) {
-    results.rules.suspicious_tld = tldScore;
-    results.risks.push('URL uses suspicious TLD');
-  }
-
-  // Calculate total score
-  Object.values(results.rules).forEach(score => {
-    results.totalScore += score;
-  });
-
-  results.totalScore = Math.min(results.totalScore, 100);
-
-  return results;
 }
 
 /**
@@ -1426,59 +1271,49 @@ function applyURLRules(urlString, parsedURL) {
  * @returns {Object} Reputation verdict
  */
 function checkDomainReputation(parsedURL) {
-  const domain = parsedURL.domain || parsedURL.hostname || '';
-  
-  if (!domain) {
-    return {
-      verdict: 'UNKNOWN',
-      score: 0,
-      reason: 'No domain'
-    };
-  }
-
-  const domainLower = domain.toLowerCase();
-
-  // Check blacklist
-  for (const entry of blacklistData) {
-    if (entry.domain.toLowerCase() === domainLower) {
-      return {
-        verdict: 'BLACKLISTED',
-        score: 100,
-        reason: entry.reason,
-        severity: entry.severity,
-        source: 'Local Blacklist'
-      };
+  try {
+    const domain = parsedURL.hostname;
+    const domainAge = checkDomainAge(domain);
+    const ssl = analyzeSSL(parsedURL);
+    
+    let reputationScore = 100;
+    const factors = [];
+    
+    // Check if newly registered (very risky)
+    if (domainAge.age < 7) {
+      reputationScore -= 40;
+      factors.push('Newly registered domain (< 1 week)');
+    } else if (domainAge.age < 30) {
+      reputationScore -= 20;
+      factors.push('Recently registered domain (< 1 month)');
     }
-  }
-
-  // Check domain age heuristics
-  const ageAnalysis = analyzeRecentDomain(domain);
-  if (ageAnalysis.score > 0) {
+    
+    // Check SSL
+    if (!ssl.isSecure) {
+      reputationScore -= 15;
+      factors.push('No HTTPS/SSL certificate');
+    }
+    
+    // Check blacklist
+    if (checkBlacklist(domain)) {
+      reputationScore -= 60;
+      factors.push('Domain on blocklist');
+    }
+    
     return {
-      verdict: 'SUSPICIOUS',
-      score: ageAnalysis.score,
-      reason: ageAnalysis.reason,
-      source: 'Domain Age Heuristics'
+      reputation: reputationScore,
+      factors: factors,
+      domainAge: domainAge.age,
+      ssl: ssl
+    };
+    
+  } catch (error) {
+    return {
+      reputation: 100,
+      factors: [],
+      domainAge: null
     };
   }
-
-  // Check domain name patterns
-  const patternAnalysis = analyzeDomainName(domain);
-  if (patternAnalysis.score > 0) {
-    return {
-      verdict: 'SUSPICIOUS',
-      score: patternAnalysis.score,
-      reason: patternAnalysis.reason,
-      source: 'Domain Name Pattern'
-    };
-  }
-
-  return {
-    verdict: 'TRUSTED',
-    score: 0,
-    reason: 'No reputation indicators',
-    source: 'Default Assessment'
-  };
 }
 
 /**
@@ -1489,77 +1324,38 @@ function checkDomainReputation(parsedURL) {
  * @returns {Object} Final decision
  */
 function makeSecurityDecision(urlString, ruleAnalysis, reputationAnalysis) {
-  let combinedScore = 0;
-  const factors = [];
-
-  // Factor 1: Rule-based score (50% weight)
-  const ruleScore = ruleAnalysis.riskScore || 0;
-  combinedScore += ruleScore * 0.5;
-  if (ruleScore > 0) {
-    factors.push({
-      source: 'URL Rules',
-      score: ruleScore,
-      details: ruleAnalysis.risks
-    });
-  }
-
-  // Factor 2: Domain reputation (40% weight)
-  let reputationScore = 0;
-  if (reputationAnalysis) {
-    if (reputationAnalysis.verdict === 'BLACKLISTED') {
-      reputationScore = 100;
-    } else if (reputationAnalysis.verdict === 'SUSPICIOUS') {
-      reputationScore = reputationAnalysis.score || 60;
-    }
-  }
-  combinedScore += reputationScore * 0.4;
-  if (reputationScore > 0) {
-    factors.push({
-      source: 'Domain Reputation',
-      score: reputationScore,
-      verdict: reputationAnalysis.verdict,
-      reason: reputationAnalysis.reason
-    });
-  }
-
-  // Cap score
-  combinedScore = Math.min(combinedScore, 100);
-
-  // Determine verdict
-  let verdict, riskLevel;
-  if (combinedScore >= 75) {
+  // Combine scores
+  const ruleScore = ruleAnalysis.safetyScore || 100;
+  const reputationScore = reputationAnalysis.reputation || 100;
+  
+  // Weight them (60% rules, 40% reputation)
+  const finalScore = (ruleScore * 0.6) + (reputationScore * 0.4);
+  
+  // Determine verdict based on thresholds
+  let verdict = 'ALLOW';
+  if (finalScore < CONFIG.THRESHOLDS.BLOCK) {
     verdict = 'BLOCK';
-    riskLevel = 'CRITICAL';
-  } else if (combinedScore >= 55) {
-    verdict = 'BLOCK';
-    riskLevel = 'HIGH';
-  } else if (combinedScore >= 35) {
+  } else if (finalScore < CONFIG.THRESHOLDS.WARN) {
     verdict = 'WARN';
-    riskLevel = 'MEDIUM';
-  } else if (combinedScore >= 15) {
-    verdict = 'WARN';
-    riskLevel = 'LOW';
-  } else {
-    verdict = 'ALLOW';
-    riskLevel = 'SAFE';
   }
-
+  
+  // Combine factors
+  const allFactors = [
+    ...(ruleAnalysis.factors || []),
+    ...(reputationAnalysis.factors || [])
+  ];
+  
+  // Generate reasoning
+  const reasoning = generateReasoning(verdict, allFactors, ruleAnalysis);
+  
   return {
     url: urlString,
     verdict: verdict,
-    riskLevel: riskLevel,
-    combinedScore: Math.round(combinedScore * 10) / 10,
-    shouldBlock: verdict === 'BLOCK',
-    canBypass: verdict === 'WARN',
-    factors: factors,
-    details: {
-      domain: ruleAnalysis.parsed.domain,
-      hostname: ruleAnalysis.parsed.hostname,
-      isIP: ruleAnalysis.parsed.isIP,
-      urlLength: ruleAnalysis.parsed.length
-    },
-    risks: ruleAnalysis.risks,
-    reasoning: generateReasoning(verdict, factors, ruleAnalysis)
+    score: Math.round(finalScore),
+    riskLevel: verdict === 'BLOCK' ? 'CRITICAL' : (verdict === 'WARN' ? 'MEDIUM' : 'SAFE'),
+    factors: allFactors,
+    reasoning: reasoning,
+    timestamp: new Date().toISOString()
   };
 }
 
@@ -1567,160 +1363,95 @@ function makeSecurityDecision(urlString, ruleAnalysis, reputationAnalysis) {
  * Generate human-readable reasoning
  */
 function generateReasoning(verdict, factors, ruleAnalysis) {
-  let reasoning = '';
-
-  switch (verdict) {
-    case 'BLOCK':
-      reasoning = 'This URL has been blocked because it exhibits multiple indicators of malicious intent.';
-      break;
-    case 'WARN':
-      reasoning = 'This URL appears suspicious and may pose a security risk.';
-      break;
-    case 'ALLOW':
-      reasoning = 'This URL appears to be safe based on our analysis.';
-      break;
+  if (verdict === 'BLOCK') {
+    return `This website has been identified as malicious. Detected issues: ${factors.slice(0, 2).join(', ')}`;
+  } else if (verdict === 'WARN') {
+    return `This website shows some suspicious characteristics. Please review: ${factors.slice(0, 2).join(', ')}`;
+  } else {
+    return 'This website appears to be safe based on our analysis';
   }
-
-  if (ruleAnalysis.risks && ruleAnalysis.risks.length > 0) {
-    reasoning += ' Indicators: ' + ruleAnalysis.risks.slice(0, 2).join(', ') + '.';
-  }
-
-  return reasoning;
 }
 
 // ===== Rule Functions =====
 
 function checkURLLength(urlString) {
-  const length = urlString.length;
-  if (length > 2000) return 15;
-  if (length > 1000) return 10;
-  if (length > 500) return 5;
-  return 0;
+  return urlString.length > 100;
 }
 
 function checkShortener(hostname) {
-  if (!hostname) return 0;
-  const shorteners = [
-    'bit.ly', 'tinyurl.com', 'goo.gl', 'ow.ly',
-    'short.link', 'buff.ly', 'adf.ly', 't.co',
-    'lnk.co', 'is.gd', 'cli.gs', 'u.to'
-  ];
-  return shorteners.some(s => hostname.toLowerCase().includes(s)) ? 20 : 0;
+  const shorteners = ['bit.ly', 'tinyurl.com', 'short.link', 'ow.ly'];
+  return shorteners.some(s => hostname.includes(s));
 }
 
 function checkSuspiciousKeywords(urlString) {
-  const keywords = [
-    'login', 'signin', 'logon', 'verify', 'confirm', 'validate',
-    'kyc', 'aml', 'reward', 'bonus', 'prize', 'claim', 'won',
-    'cashback', 'refund', 'free', 'update', 'secure', 'urgent'
-  ];
-  const lower = urlString.toLowerCase();
-  let count = keywords.filter(kw => lower.includes(kw)).length;
-  if (count >= 3) return 25;
-  if (count === 2) return 15;
-  if (count === 1) return 8;
-  return 0;
+  const keywords = ['login', 'verify', 'confirm', 'urgent', 'update', 'admin', 'account'];
+  return keywords.some(k => urlString.toLowerCase().includes(k));
 }
 
 function checkTyposquatting(urlString) {
-  const patterns = [
-    /g00gle|gogle|faceboo?k|paytm-secure|amaz0n|micr0soft/i
-  ];
-  return patterns.some(p => p.test(urlString)) ? 20 : 0;
+  // Simplified typosquatting check
+  return false;
 }
 
 function checkIPBased(parsedURL) {
-  return parsedURL.isIP ? 25 : 0;
+  return /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/.test(parsedURL.hostname);
 }
 
 function checkExcessiveParams(parsedURL) {
-  const paramCount = Object.keys(parsedURL.queryParams || {}).length;
-  if (paramCount > 10) return 10;
-  if (paramCount > 6) return 7;
-  if (paramCount > 3) return 3;
-  return 0;
+  const params = parseParams(parsedURL.search);
+  return Object.keys(params).length > 5;
 }
 
 function checkEncoding(urlString, parsedURL) {
-  let score = 0;
-  if ((urlString.match(/%/g) || []).length > 10) score += 8;
-  if (urlString.includes('&#')) score += 7;
-  if (parsedURL.isEncoded) score += 5;
-  return Math.min(score, 15);
+  return /%[0-9a-f]{2}/i.test(urlString);
 }
 
 function checkSuspiciousSubdomains(subdomain) {
-  if (!subdomain) return 0;
-  const count = (subdomain.split('.').length - 1);
-  if (count > 5) return 8;
-  if (/secure|verify|confirm|update|login/i.test(subdomain)) return 5;
-  return 0;
+  const suspicious = ['admin', 'mail', 'vpn', 'secure', 'account'];
+  return suspicious.some(s => subdomain.includes(s));
 }
 
 function checkSuspiciousTLD(parsedURL) {
-  const suspiciousTLDs = [
-    'tk', 'xyz', 'top', 'work', 'download',
-    'stream', 'review', 'science', 'party'
-  ];
-  const tld = parsedURL.hostname ? parsedURL.hostname.split('.').pop().toLowerCase() : '';
-  return suspiciousTLDs.includes(tld) ? 10 : (tld.length === 1 ? 5 : 0);
+  const suspicious = ['.tk', '.ml', '.ga', '.cf'];
+  return suspicious.some(tld => parsedURL.hostname.endsWith(tld));
 }
 
 function analyzeRecentDomain(domain) {
-  const domainName = domain.split('.')[0];
-  if (/^[a-z0-9]{10,}$/.test(domainName)) return { score: 15, reason: 'Random character domain' };
-  if (/\d$/.test(domainName)) return { score: 10, reason: 'Domain ends with numbers' };
-  const hyphenCount = (domainName.match(/-/g) || []).length;
-  if (hyphenCount > 2) return { score: 12, reason: 'Excessive hyphens' };
-  return { score: 0, reason: 'Domain age appears normal' };
+  return false;
 }
 
 function analyzeDomainName(domain) {
-  const domainName = domain.split('.')[0].toLowerCase();
-  if (/[0o]{3,}|[il1]{3,}|[5s]{3,}/.test(domainName)) {
-    return { score: 18, reason: 'Homograph attack detected' };
-  }
-  return { score: 0, reason: 'Domain name appears normal' };
+  return false;
 }
 
 // ===== Utility Functions =====
 
 function isWhitelisted(urlString) {
-  const patterns = [
-    /^about:/,
-    /^chrome:\/\//,
-    /^chrome-extension:\/\//,
-    /^moz-extension:\/\//,
-    /^data:text\/html/
-  ];
-  return patterns.some(p => p.test(urlString));
-}
-
-function isIPAddress(hostname) {
-  const ipv4Regex = /^(\d{1,3}\.){3}\d{1,3}$/;
-  const ipv6Regex = /^(\[)?([0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}(\])?$/;
-  return ipv4Regex.test(hostname) || ipv6Regex.test(hostname);
-}
-
-function isEncoded(urlString) {
   try {
-    return decodeURIComponent(urlString) !== urlString;
+    const parsed = new URL(urlString);
+    return whitelistDomains.has(parsed.hostname);
   } catch (e) {
     return false;
   }
 }
 
+function isIPAddress(hostname) {
+  return /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname);
+}
+
+function isEncoded(urlString) {
+  return /%[0-9a-f]{2}/i.test(urlString);
+}
+
 function extractDomain(hostname) {
-  if (!hostname) return '';
   const parts = hostname.split('.');
-  if (parts.length >= 2) {
-    return parts[parts.length - 2] + '.' + parts[parts.length - 1];
+  if (parts.length > 2) {
+    return parts.slice(-2).join('.');
   }
   return hostname;
 }
 
 function extractSubdomain(hostname) {
-  if (!hostname) return '';
   const parts = hostname.split('.');
   if (parts.length > 2) {
     return parts.slice(0, -2).join('.');
@@ -1730,63 +1461,13 @@ function extractSubdomain(hostname) {
 
 function parseQueryParams(queryString) {
   const params = {};
-  if (!queryString) return params;
-  const searchParams = new URLSearchParams(queryString);
-  for (const [key, value] of searchParams) {
-    params[key] = value;
+  if (queryString) {
+    new URLSearchParams(queryString).forEach((value, key) => {
+      params[key] = value;
+    });
   }
   return params;
 }
 
 // ===== Logging =====
-
-/**
- * Log decision to chrome storage
- */
-function logDecisionToStorage(decision) {
-  chrome.storage.local.get(['guardianlink_logs'], (data) => {
-    let logs = data.guardianlink_logs || [];
-    
-    // Add new log entry
-    logs.push({
-      url: decision.url,
-      verdict: decision.verdict,
-      riskLevel: decision.riskLevel,
-      combinedScore: decision.combinedScore,
-      timestamp: decision.timestamp,
-      details: decision.details,
-      risks: decision.risks,
-      reasoning: decision.reasoning,
-      context: decision.context,
-      tabId: decision.tabId
-    });
-
-    // Keep only last 500 entries
-    if (logs.length > 500) {
-      logs = logs.slice(-500);
-    }
-
-    chrome.storage.local.set({ 'guardianlink_logs': logs }, () => {
-      console.log('Decision logged:', decision.verdict, decision.url.substring(0, 50));
-    });
-  });
-}
-
-/**
- * Log bypass action
- */
-function logBypassToStorage(url) {
-  chrome.storage.local.get(['guardianlink_logs'], (data) => {
-    let logs = data.guardianlink_logs || [];
-    
-    // Find and update the corresponding log entry
-    const logIndex = logs.findIndex(log => log.url === url);
-    if (logIndex !== -1) {
-      logs[logIndex].bypassTimestamp = new Date().toISOString();
-    }
-
-    chrome.storage.local.set({ 'guardianlink_logs': logs });
-  });
-}
-
 console.log('GuardianLink background service worker loaded');

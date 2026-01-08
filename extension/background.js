@@ -345,20 +345,30 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
   // Mark analysis as in progress BEFORE navigation
   analysisInProgressByTab.set(tabId, { url, startTime: Date.now() });
   
-  // === FIX #3 & #6: Create UNIQUE rule IDs for all rules to prevent collision ===
+  // === FIX #1, #2: Create UNIQUE per-tab rule IDs and remove old rules FIRST ===
   try {
-    const baseRuleId = 10000 + tabId; // Base ID for this tab
-    const allowLocalhost = baseRuleId + 100;
-    const allowBing = baseRuleId + 101;
-    const allowAbuseDB = baseRuleId + 102;
-    const allowVT = baseRuleId + 103;
-    const blockRule = baseRuleId; // The actual block rule
+    const baseRuleId = 100000 + tabId; // Unique base per tab
+    const allowLocalhost = baseRuleId + 1;
+    const allowBing = baseRuleId + 2;
+    const allowAbuseDB = baseRuleId + 3;
+    const allowVT = baseRuleId + 4;
+    const blockResources = baseRuleId; // Block non-main_frame resources
     
-    // Remove any existing rules for this tab
+    // CRITICAL: Remove ALL old rules for this tab FIRST (separate call)
     const existingRuleIds = blockedTabRules.get(tabId) || [];
+    if (Array.isArray(existingRuleIds) && existingRuleIds.length > 0) {
+      try {
+        await chrome.declarativeNetRequest.updateDynamicRules({
+          removeRuleIds: existingRuleIds
+        });
+        console.log('🧹 Removed old DNR rules for tab:', tabId);
+      } catch (e) {
+        console.log('⚠️ Could not remove old rules (may not exist):', e.message);
+      }
+    }
     
+    // NOW add the new rules (second call, no collision risk)
     await chrome.declarativeNetRequest.updateDynamicRules({
-      removeRuleIds: Array.isArray(existingRuleIds) ? existingRuleIds : [existingRuleIds],
       addRules: [
         // HIGH-PRIORITY ALLOWLIST (priority 100) - BYPASS the block for trusted services
         {
@@ -397,9 +407,10 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
             resourceTypes: ['xmlhttprequest']
           }
         },
-        // LOW-PRIORITY BLOCK (priority 1) - blocks network until verdict known
+        // === FIX #3: Do NOT block main_frame until verdict is BLOCK ===
+        // Only block sub-resources (scripts, images, etc) pending analysis
         {
-          id: blockRule,
+          id: blockResources,
           priority: 1,
           action: { type: 'block' },
           condition: {
@@ -411,10 +422,10 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
     });
     
     // Store ALL rule IDs for this tab so we can remove them later
-    blockedTabRules.set(tabId, [blockRule, allowLocalhost, allowBing, allowAbuseDB, allowVT]);
-    console.log('🔐 DNR blocking rule activated for tab:', tabId, 'Rule IDs:', blockRule);
+    blockedTabRules.set(tabId, [blockResources, allowLocalhost, allowBing, allowAbuseDB, allowVT]);
+    console.log('🔐 DNR rules set for tab:', tabId, 'Base:', baseRuleId);
   } catch (error) {
-    console.error('⚠️ Could not set DNR rule:', error.message);
+    console.error('⚠️ Could not set DNR rules:', error.message);
   }
   
   // Send message to content script to show overlay
@@ -451,9 +462,30 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
       console.log('⚠️ Content script not ready yet');
     });
     
-    // If BLOCK - keep blocking, show block page
+    // If BLOCK - add main_frame block rule, show block page
     if (verdict === 'BLOCK') {
       console.log('🚨 BLOCKING NAVIGATION to:', url);
+      
+      // === FIX: Add main_frame block rule ONLY for confirmed malicious sites ===
+      try {
+        const blockMainFrameId = 100000 + tabId + 10; // Unique ID for main_frame block
+        await chrome.declarativeNetRequest.updateDynamicRules({
+          addRules: [{
+            id: blockMainFrameId,
+            priority: 50, // Higher than resource block, lower than allow
+            action: { type: 'block' },
+            condition: {
+              urlFilter: '||',
+              resourceTypes: ['main_frame']
+            }
+          }]
+        });
+        const ruleIds = blockedTabRules.get(tabId) || [];
+        ruleIds.push(blockMainFrameId);
+        blockedTabRules.set(tabId, ruleIds);
+      } catch (e) {
+        console.log('⚠️ Could not add main_frame block:', e.message);
+      }
       
       // Send BLOCK message to content script
       await chrome.tabs.sendMessage(tabId, {
@@ -462,12 +494,11 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
         score: score
       }).catch(() => {});
       
-      // Keep DNR rule active - nothing loads
       logDecisionToStorage(decision);
     }
-    // If WARN - keep page frozen, show warning overlay with "Proceed Anyway" button
+    // If WARN - show warning overlay with "Proceed Anyway" button (page loads but resources blocked)
     else if (verdict === 'WARN') {
-      console.log('⚠️ WARNING: Suspicious site detected - keeping page frozen');
+      console.log('⚠️ WARNING: Suspicious site detected - showing warning overlay');
       
       // Send WARN message to content script with score
       await chrome.tabs.sendMessage(tabId, {
@@ -477,11 +508,11 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
       }).catch(() => {});
       
       logDecisionToStorage(decision);
-      // DNR rule stays active - nothing loads until user clicks Proceed
+      // Resources stay blocked until user clicks "Proceed Anyway"
     }
-    // If ALLOW - unblock and reload page
+    // If ALLOW - unblock all resources and reload page
     else {
-      console.log('✅ Safe URL detected, unblocking and reloading page');
+      console.log('✅ Safe URL detected, unblocking all resources');
       
       // Remove ALL DNR rules for this tab
       try {

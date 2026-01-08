@@ -289,10 +289,31 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 });
 
+// === FIX #1: Clean up allowed tabs when they close ===
+chrome.tabs.onRemoved.addListener((tabId) => {
+  allowedTabs.delete(tabId);
+  blockedTabRules.delete(tabId);
+  analysisInProgressByTab.delete(tabId);
+});
+
 // ==================== PROACTIVE URL BLOCKING (Before Page Load) ====================
 // Track pending URLs to avoid duplicate analysis
 const pendingAnalysis = new Map();
 const blockedTabRules = new Map(); // Track which rule IDs block which tabs
+
+// === FIX #1: Track tabs that have been ALLOWED to prevent re-blocking on reload ===
+const allowedTabs = new Set(); // Tabs that user has already allowed and were ALLOW verdict
+const safeUrls = new Set(); // URLs that are confirmed SAFE (normalized)
+
+// Helper to normalize URL for caching
+function normalizeUrl(urlString) {
+  try {
+    const url = new URL(urlString);
+    return url.hostname + url.pathname; // e.g., "google.com/search"
+  } catch (e) {
+    return urlString;
+  }
+}
 
 // Intercept navigation BEFORE page loads
 chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
@@ -322,6 +343,20 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
   }
   
   console.log('🌐 WebNavigation: Before navigate to', url);
+  
+  // === FIX #1: Skip DNR if this tab was already ALLOWED ===
+  if (allowedTabs.has(tabId)) {
+    console.log('✅ Tab already allowed, skipping DNR for:', url);
+    allowedTabs.delete(tabId); // Clear for next navigation
+    return;
+  }
+  
+  // === FIX #1: Skip DNR if this URL is confirmed SAFE ===
+  const normalizedUrl = normalizeUrl(url);
+  if (safeUrls.has(normalizedUrl)) {
+    console.log('✅ URL confirmed SAFE, skipping DNR for:', url);
+    return;
+  }
   
   // === FIX #2: Check whitelist FIRST before any DNR rule ===
   if (isWhitelistedDomain(url)) {
@@ -513,6 +548,10 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
     // If ALLOW - unblock all resources and reload page
     else {
       console.log('✅ Safe URL detected, unblocking all resources');
+      
+      // === FIX #1: Mark this tab and URL as ALLOWED to prevent re-blocking ===
+      allowedTabs.add(tabId);
+      safeUrls.add(normalizeUrl(url));
       
       // Remove ALL DNR rules for this tab
       try {

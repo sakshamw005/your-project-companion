@@ -259,18 +259,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     const tabId = sender.tab.id;
     console.log('✅ User proceeded anyway on warning, removing DNR rule for tab:', tabId);
     
-    // Remove ALL DNR rules for this tab
+    // Remove ALL session rules for this tab
     try {
       const ruleIds = blockedTabRules.get(tabId);
       if (ruleIds && Array.isArray(ruleIds) && ruleIds.length > 0) {
-        chrome.declarativeNetRequest.updateDynamicRules({
+        chrome.declarativeNetRequest.updateSessionRules({
           removeRuleIds: ruleIds
         }).then(() => {
           blockedTabRules.delete(tabId);
-          console.log('🔓 DNR rules removed for tab:', tabId);
+          console.log('🔓 Session rules removed for tab:', tabId);
           chrome.tabs.reload(tabId);
         }).catch(error => {
-          console.error('⚠️ Could not remove DNR rules:', error);
+          console.error('⚠️ Could not remove session rules:', error);
         });
       }
     } catch (error) {
@@ -408,17 +408,18 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
     const existingRuleIds = blockedTabRules.get(tabId) || [];
     if (Array.isArray(existingRuleIds) && existingRuleIds.length > 0) {
       try {
-        await chrome.declarativeNetRequest.updateDynamicRules({
+        await chrome.declarativeNetRequest.updateSessionRules({
           removeRuleIds: existingRuleIds
         });
-        console.log('🧹 Removed old DNR rules for tab:', tabId);
+        console.log('🧹 Removed old session rules for tab:', tabId);
       } catch (e) {
         console.log('⚠️ Could not remove old rules (may not exist):', e.message);
       }
     }
     
-    // NOW add the new rules (second call, no collision risk)
-    await chrome.declarativeNetRequest.updateDynamicRules({
+    // NOW add the new session rules (second call, no collision risk)
+    // === CRITICAL: Use updateSessionRules for tabIds support ===
+    await chrome.declarativeNetRequest.updateSessionRules({
       addRules: [
         // HIGH-PRIORITY ALLOWLIST (priority 100) - BYPASS the block for trusted services
         {
@@ -524,7 +525,7 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
       // === FIX: Add main_frame block rule ONLY for confirmed malicious sites ===
       try {
         const blockMainFrameId = 100000 + tabId + 10; // Unique ID for main_frame block
-        await chrome.declarativeNetRequest.updateDynamicRules({
+        await chrome.declarativeNetRequest.updateSessionRules({
           addRules: [{
             id: blockMainFrameId,
             priority: 50, // Higher than resource block, lower than allow
@@ -574,18 +575,18 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
       allowedTabs.add(tabId);
       safeUrls.add(normalizeUrl(url));
       
-      // Remove ALL DNR rules for this tab
+      // Remove ALL session rules for this tab
       try {
         const ruleIds = blockedTabRules.get(tabId);
         if (ruleIds && Array.isArray(ruleIds) && ruleIds.length > 0) {
-          await chrome.declarativeNetRequest.updateDynamicRules({
+          await chrome.declarativeNetRequest.updateSessionRules({
             removeRuleIds: ruleIds
           });
           blockedTabRules.delete(tabId);
-          console.log('🔓 DNR rules removed for tab:', tabId);
+          console.log('🔓 Session rules removed for tab:', tabId);
         }
       } catch (error) {
-        console.error('⚠️ Could not remove DNR rules:', error.message);
+        console.error('⚠️ Could not remove session rules:', error.message);
       }
       
       // Send UNFREEZE message to content script
@@ -603,11 +604,11 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
     
   } catch (error) {
     console.error('❌ Error during navigation analysis:', error);
-    // Remove blocking rules if analysis fails
+    // Remove blocking session rules if analysis fails
     try {
       const ruleIds = blockedTabRules.get(tabId);
       if (ruleIds && Array.isArray(ruleIds) && ruleIds.length > 0) {
-        await chrome.declarativeNetRequest.updateDynamicRules({
+        await chrome.declarativeNetRequest.updateSessionRules({
           removeRuleIds: ruleIds
         });
         blockedTabRules.delete(tabId);

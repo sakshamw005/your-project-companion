@@ -352,15 +352,15 @@ async function analyzeURL(urlString, tabId, context = 'unknown') {
   console.log('🚀 STARTING ANALYSIS:', urlString);
 
   try {
-    // If authenticated with website, use cloud analysis
-    if (isAuthenticated && extensionToken) {
-      console.log('☁️ Using website API for analysis...');
-      const cloudResult = await analyzeWithWebsite(urlString);
-      if (cloudResult) {
-        logDecisionToStorage(cloudResult);
-        return cloudResult;
-      }
+    // ALWAYS try to use website API for analysis (no authentication needed - public API)
+    console.log('☁️ Attempting to use website backend for analysis...');
+    const cloudResult = await analyzeWithWebsite(urlString);
+    if (cloudResult) {
+      console.log('✅ Successfully analyzed with website API');
+      logDecisionToStorage(cloudResult);
+      return cloudResult;
     }
+    console.log('⚠️ Website API unavailable, falling back to local analysis');
 
     // PHASE 1: Whitelist
     if (isWhitelistedDomain(urlString)) {
@@ -539,6 +539,8 @@ async function analyzeURL(urlString, tabId, context = 'unknown') {
  */
 async function analyzeWithWebsite(urlString) {
   try {
+    console.log('📡 Sending scan request to backend:', CONFIG.WEBSITE_API);
+    
     const response = await fetch(`${CONFIG.WEBSITE_API}/scan`, {
       method: 'POST',
       headers: {
@@ -548,15 +550,15 @@ async function analyzeWithWebsite(urlString) {
     });
 
     if (!response.ok) {
-      console.log('⚠️ Website API error:', response.status);
+      console.log('⚠️ Website API error:', response.status, response.statusText);
       return null;
     }
 
     const data = await response.json();
-    console.log('✅ Website API result:', data);
+    console.log('✅ Website API result received:', data.scanId, 'Status:', data.overallStatus);
     
     // Transform website API response to extension format
-    return {
+    const decision = {
       verdict: data.overallStatus === 'danger' ? 'BLOCK' : data.overallStatus === 'warning' ? 'WARN' : 'ALLOW',
       riskLevel: data.overallStatus === 'danger' ? 'HIGH' : data.overallStatus === 'warning' ? 'MEDIUM' : 'SAFE',
       score: data.percentage || 0,
@@ -568,8 +570,12 @@ async function analyzeWithWebsite(urlString) {
       scanId: data.scanId,
       timestamp: data.timestamp
     };
+    
+    console.log('📊 Transformed decision:', decision.verdict, 'Score:', decision.score);
+    return decision;
   } catch (error) {
-    console.log('⚠️ Website API unavailable:', error.message);
+    console.error('❌ Website API error:', error.message);
+    console.log('ℹ️ Will use local analysis as fallback');
     return null;
   }
 }

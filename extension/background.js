@@ -145,33 +145,44 @@ function initializeWhitelist() {
   const trusted = [
     'google.com', 'www.google.com', 'github.com', 'www.github.com',
     'stackoverflow.com', 'www.stackoverflow.com', 'wikipedia.org',
-    'amazon.com', 'microsoft.com', 'apple.com', 'youtube.com'
+    'amazon.com', 'microsoft.com', 'apple.com', 'youtube.com',
+    'edge://extensions', 'chrome://extensions', 'about:addons'
   ];
   whitelistDomains = new Set(trusted.map(d => d.toLowerCase()));
   console.log('✅ Whitelist initialized:', whitelistDomains.size, 'domains');
 }
 
 // ==================== DOWNLOAD BLOCKING ====================
-// Block dangerous executable downloads
+// Track ongoing analysis per tab
+const analysisInProgressByTab = new Map();
+
+// Block downloads during URL analysis
 chrome.downloads.onCreated.addListener((download) => {
   const url = download.url.toLowerCase();
   const filename = download.filename.toLowerCase();
   
   // Block executable/dangerous file extensions
   const dangerous = /\.(exe|bin|cmd|bat|msi|dll|scr|vbs|ps1|com|sys)$/i;
-  if (dangerous.test(filename) || dangerous.test(url)) {
-    console.log('🚫 BLOCKING DANGEROUS DOWNLOAD:', filename);
+  const isExecutable = dangerous.test(filename) || dangerous.test(url);
+  
+  // Check if ANY tab is currently analyzing
+  const anyAnalysisInProgress = analysisInProgressByTab.size > 0;
+  
+  if (isExecutable || anyAnalysisInProgress) {
+    console.log('🚫 BLOCKING DOWNLOAD:', filename, '| Analysis in progress:', anyAnalysisInProgress);
     chrome.downloads.cancel(download.id);
     
-    // Notify user
-    chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
-      if (tabs[0]) {
-        chrome.tabs.sendMessage(tabs[0].id, {
+    // Notify user via broadcast to all tabs
+    chrome.tabs.query({}, (tabs) => {
+      tabs.forEach(tab => {
+        chrome.tabs.sendMessage(tab.id, {
           action: 'showDownloadBlocked',
           filename: filename,
-          reason: 'GuardianLink blocked this download - executable files are dangerous'
+          reason: isExecutable ? 
+            'GuardianLink blocked this download - executable files are dangerous' :
+            'GuardianLink is analyzing this website - downloads blocked during security check'
         }).catch(() => {});
-      }
+      });
     });
   }
 });
@@ -263,8 +274,10 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
   // Only check main frame navigations (frameId === 0)
   if (frameId !== 0) return;
   
-  // Skip chrome:// and extension:// URLs
-  if (url.startsWith('chrome://') || url.startsWith('extension://')) return;
+  // Skip extension manager URLs
+  if (url.startsWith('chrome://extensions') || url.startsWith('edge://extensions') || 
+      url.startsWith('about:addons') || url.startsWith('chrome://') || 
+      url.startsWith('edge://') || url.startsWith('about:')) return;
   
   // Skip our own warning page
   if (url.includes('ui/warning.html')) return;
@@ -275,10 +288,27 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
   // Check if URL was recently bypassed by user
   if (recentBypassedURLs.has(url)) {
     console.log('✅ URL recently bypassed by user, allowing:', url);
+    analysisInProgressByTab.delete(tabId);
     return; // Let the navigation proceed
   }
   
   console.log('🌐 WebNavigation: Before navigate to', url);
+  
+  // Mark analysis as in progress BEFORE navigation
+  analysisInProgressByTab.set(tabId, { url, startTime: Date.now() });
+  
+  // Immediately inject blocking script to freeze page rendering
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId: tabId },
+      function: injectPageFreeze,
+      args: [url],
+      injectImmediately: true
+    });
+    console.log('🔒 Page freeze injected for tab:', tabId);
+  } catch (error) {
+    console.error('⚠️ Could not inject freeze script:', error);
+  }
   
   pendingAnalysis.set(url, true);
   
@@ -287,6 +317,16 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
     const decision = await analyzeURL(url, tabId, 'navigation');
     
     console.log('📋 Navigation decision:', decision.verdict, 'for', url);
+    
+    // Send decision to content script to handle overlay
+    chrome.tabs.sendMessage(tabId, {
+      action: 'analysisComplete',
+      decision: decision,
+      verdict: decision.verdict,
+      score: decision.combinedScore
+    }).catch(err => {
+      console.log('⚠️ Content script not ready yet, decision will be handled by page injection');
+    });
     
     // If BLOCK - stop the page load and show warning
     if (decision.verdict === 'BLOCK') {
@@ -298,6 +338,7 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
       
       chrome.tabs.update(tabId, { url: warningUrl }, () => {
         console.log('📄 Navigated to warning page');
+        analysisInProgressByTab.delete(tabId);
       });
     }
     // If WARN - show notification but let page load
@@ -309,29 +350,205 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
         type: 'basic',
         iconUrl: chrome.runtime.getURL('assets/icon-128.png'),
         title: '⚠️ Suspicious Website Detected',
-        message: `The site you're visiting appears suspicious: ${new URL(url).hostname}`,
+        message: `Score: ${decision.combinedScore}% - ${new URL(url).hostname}`,
         buttons: [
           { title: 'View Details' },
-          { title: 'Dismiss' }
+          { title: 'Proceed Anyway' }
         ]
       });
       
-      // Log the warning
+      // Inject unfreeze script
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId: tabId },
+          function: unfreezePageAndShowOverlay,
+          args: [url, decision.combinedScore],
+          injectImmediately: false
+        });
+      } catch (error) {
+        console.log('⚠️ Could not unfreeze page:', error);
+      }
+      
+      analysisInProgressByTab.delete(tabId);
       logDecisionToStorage(decision);
     }
     // If ALLOW - just log and continue
     else {
       console.log('✅ Safe URL detected, allowing navigation');
+      
+      // Inject unfreeze script
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId: tabId },
+          function: unfreezePageAndShowOverlay,
+          args: [url, decision.combinedScore],
+          injectImmediately: false
+        });
+      } catch (error) {
+        console.log('⚠️ Could not unfreeze page:', error);
+      }
+      
+      analysisInProgressByTab.delete(tabId);
       logDecisionToStorage(decision);
     }
     
   } catch (error) {
     console.error('❌ Error during navigation analysis:', error);
+    // Remove freeze if analysis fails
+    try {
+      await chrome.scripting.executeScript({
+        target: { tabId: tabId },
+        function: unfreezePageAndShowOverlay,
+        args: [url, 0]
+      });
+    } catch (e) {}
+    analysisInProgressByTab.delete(tabId);
   } finally {
     // Remove from pending after short delay
     setTimeout(() => pendingAnalysis.delete(url), 2000);
   }
 });
+
+// Functions to inject into page
+function injectPageFreeze(url) {
+  // Create freeze overlay
+  const overlay = document.createElement('div');
+  overlay.id = 'guardianlink-analysis-overlay';
+  overlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 999999999;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  `;
+  
+  const spinner = document.createElement('div');
+  spinner.style.cssText = `
+    width: 60px;
+    height: 60px;
+    border: 4px solid rgba(255, 255, 255, 0.2);
+    border-top: 4px solid #4CAF50;
+    border-radius: 50%;
+    animation: guardianlink-spin 1s linear infinite;
+    margin-bottom: 20px;
+  `;
+  
+  const message = document.createElement('div');
+  message.style.cssText = `
+    color: white;
+    font-size: 20px;
+    font-weight: 600;
+    text-align: center;
+    margin-bottom: 10px;
+  `;
+  message.textContent = '🔒 GuardianLink Security Check';
+  
+  const subtitle = document.createElement('div');
+  subtitle.style.cssText = `
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 14px;
+    text-align: center;
+    margin-bottom: 5px;
+  `;
+  subtitle.textContent = 'Analyzing website security...';
+  
+  const domain = document.createElement('div');
+  domain.style.cssText = `
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 12px;
+    text-align: center;
+    font-family: monospace;
+    word-break: break-all;
+    max-width: 80%;
+    margin-top: 15px;
+  `;
+  try {
+    domain.textContent = new URL(url).hostname;
+  } catch (e) {
+    domain.textContent = url.substring(0, 50);
+  }
+  
+  overlay.appendChild(spinner);
+  overlay.appendChild(message);
+  overlay.appendChild(subtitle);
+  overlay.appendChild(domain);
+  
+  // Add animation
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes guardianlink-spin {
+      to { transform: rotate(360deg); }
+    }
+  `;
+  document.documentElement.appendChild(style);
+  
+  // Freeze the page
+  document.documentElement.style.overflow = 'hidden';
+  document.body.style.overflow = 'hidden';
+  document.documentElement.appendChild(overlay);
+  
+  // Block all interactions
+  document.addEventListener('click', (e) => e.stopImmediatePropagation(), true);
+  document.addEventListener('scroll', (e) => e.preventDefault(), true);
+  document.addEventListener('touchmove', (e) => e.preventDefault(), true);
+  
+  window.guardianLinkFrozen = true;
+}
+
+function unfreezePageAndShowOverlay(url, score) {
+  // Remove freeze overlay
+  const overlay = document.getElementById('guardianlink-analysis-overlay');
+  if (overlay) {
+    overlay.remove();
+  }
+  
+  // Restore scrolling
+  document.documentElement.style.overflow = 'auto';
+  document.body.style.overflow = 'auto';
+  
+  window.guardianLinkFrozen = false;
+  
+  // Show security badge
+  if (score >= 80) {
+    showSecurityBadge(url, '✅ Safe', '#4CAF50', score);
+  } else if (score >= 50) {
+    showSecurityBadge(url, '⚠️ Warning', '#FF9800', score);
+  } else {
+    showSecurityBadge(url, '🚫 Suspicious', '#F44336', score);
+  }
+}
+
+function showSecurityBadge(url, status, color, score) {
+  const badge = document.createElement('div');
+  badge.id = 'guardianlink-security-badge';
+  badge.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: white;
+    border: 3px solid ${color};
+    border-radius: 10px;
+    padding: 15px 20px;
+    z-index: 999999;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    font-weight: 600;
+    font-size: 14px;
+    color: #333;
+  `;
+  badge.innerHTML = `${status}<br><span style="font-size: 12px; color: #666; margin-top: 5px; display: block;">Score: ${score}%</span>`;
+  document.body.appendChild(badge);
+  
+  // Auto-remove badge after 8 seconds
+  setTimeout(() => badge.remove(), 8000);
+}
 
 // Handle notification button clicks
 chrome.notifications.onButtonClicked.addListener((notificationId, buttonIndex) => {

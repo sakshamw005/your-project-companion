@@ -8,6 +8,8 @@ console.log('🛡️ GuardianLink v2.0 Content Script LOADED');
 // Track warnings shown
 const shownWarnings = new Set();
 const analysisInProgress = new Set();
+let pageIsFrozen = false;
+let analysisResult = null;
 
 // ==================== LOADING OVERLAY ====================
 function showLoadingOverlay(url) {
@@ -484,3 +486,127 @@ function addStyle(css) {
 }
 
 console.log('✅ GuardianLink v2.0 Content Script Ready');
+
+// Listen for analysis complete messages from background script
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'analysisComplete') {
+    console.log('📊 Analysis complete:', request.verdict, 'Score:', request.score);
+    analysisResult = request.decision;
+    
+    if (request.verdict === 'BLOCK') {
+      // Page will be replaced with warning, no need to show overlay
+      console.log('🚫 Page will be replaced with warning');
+    } else if (request.verdict === 'WARN') {
+      showSecurityWarningOverlay(request.score, request.decision);
+    } else {
+      // Safe - just show brief badge
+      showSecurityBadge('✅ Safe', '#4CAF50', request.score);
+    }
+    
+    sendResponse({ status: 'received' });
+  }
+  
+  if (request.action === 'showDownloadBlocked') {
+    showDownloadBlockedNotification(request.filename, request.reason);
+    sendResponse({ status: 'received' });
+  }
+});
+
+// Show security warning overlay
+function showSecurityWarningOverlay(score, decision) {
+  const overlay = document.createElement('div');
+  overlay.id = 'guardianlink-warning-overlay';
+  overlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 152, 0, 0.15);
+    border: 3px solid #FF9800;
+    z-index: 999998;
+    pointer-events: none;
+  `;
+  
+  const badge = document.createElement('div');
+  badge.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: white;
+    border: 3px solid #FF9800;
+    border-radius: 10px;
+    padding: 15px 20px;
+    z-index: 999999;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    font-weight: 600;
+    font-size: 14px;
+    color: #FF9800;
+  `;
+  badge.innerHTML = `⚠️ Warning<br><span style="font-size: 12px; color: #666; margin-top: 5px; display: block;">Score: ${score}%</span>`;
+  
+  document.body.appendChild(overlay);
+  document.body.appendChild(badge);
+  
+  console.log('⚠️ Security warning overlay shown for suspicious site');
+  
+  // Auto-remove after 10 seconds
+  setTimeout(() => {
+    overlay.remove();
+    badge.remove();
+  }, 10000);
+}
+
+function showSecurityBadge(status, color, score) {
+  const badge = document.createElement('div');
+  badge.id = 'guardianlink-security-badge';
+  badge.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: white;
+    border: 3px solid ${color};
+    border-radius: 10px;
+    padding: 15px 20px;
+    z-index: 999999;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    font-weight: 600;
+    font-size: 14px;
+    color: #333;
+  `;
+  badge.innerHTML = `${status}<br><span style="font-size: 12px; color: #666; margin-top: 5px; display: block;">Score: ${score}%</span>`;
+  document.body.appendChild(badge);
+  
+  console.log('✅ Security badge shown:', status);
+  
+  // Auto-remove after 8 seconds
+  setTimeout(() => badge.remove(), 8000);
+}
+
+function showDownloadBlockedNotification(filename, reason) {
+  const notification = document.createElement('div');
+  notification.style.cssText = `
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #F44336;
+    color: white;
+    padding: 15px 20px;
+    border-radius: 8px;
+    z-index: 999999;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 13px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    max-width: 80%;
+    word-break: break-word;
+  `;
+  notification.innerHTML = `🚫 ${filename || 'Download'} blocked<br><span style="font-size: 11px; opacity: 0.9; margin-top: 5px; display: block;">${reason}</span>`;
+  
+  document.body.appendChild(notification);
+  console.log('🚫 Download blocked notification shown:', filename);
+  
+  setTimeout(() => notification.remove(), 5000);
+}

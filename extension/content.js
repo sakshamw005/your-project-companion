@@ -203,6 +203,48 @@ document.addEventListener('click', (e) => {
   
 }, true);
 
+// ==================== FORM SUBMISSION INTERCEPTION ====================
+document.addEventListener('submit', (e) => {
+  const form = e.target;
+  const action = form.action || window.location.href;
+  
+  console.log('📋 Form submitted to:', action);
+  
+  // Show overlay and analyze form action
+  if (analysisInProgress.size > 0) {
+    console.log('⏸️ Blocking form submission - scan in progress');
+    e.preventDefault();
+    e.stopPropagation();
+    return;
+  }
+  
+  // Analyze the form action URL
+  e.preventDefault();
+  e.stopPropagation();
+  analyzeAndHandle(action, 'form', e);
+}, true);
+
+// ==================== NAVIGATION BLOCKING ====================
+// Block window.location changes during analysis
+const originalLocationAssign = window.location.assign;
+const originalLocationReplace = window.location.replace;
+
+window.location.assign = function(url) {
+  if (analysisInProgress.size > 0) {
+    console.log('🛑 Blocked navigation during analysis:', url);
+    return;
+  }
+  return originalLocationAssign.call(window.location, url);
+};
+
+window.location.replace = function(url) {
+  if (analysisInProgress.size > 0) {
+    console.log('🛑 Blocked replace navigation during analysis:', url);
+    return;
+  }
+  return originalLocationReplace.call(window.location, url);
+};
+
 // ==================== PASTE INTERCEPTION ====================
 document.addEventListener('paste', (e) => {
   const text = e.clipboardData?.getData('text');
@@ -215,29 +257,6 @@ document.addEventListener('paste', (e) => {
     e.preventDefault();
     e.stopPropagation();
     analyzeAndHandle(text, 'paste', e);
-  }
-});
-
-// ==================== FORM SUBMISSION ====================
-document.addEventListener('submit', (e) => {
-  const form = e.target;
-  const action = form.getAttribute('action');
-
-  if (action && isURL(action)) {
-    console.log('📝 Form submission to:', action);
-    e.preventDefault();
-    e.stopPropagation();
-    analyzeAndHandle(action, 'form_submission', e);
-  }
-}, true);
-
-// ==================== NAVIGATION ATTEMPTS ====================
-// Show overlay when user navigates to a new URL (address bar entry)
-window.addEventListener('beforeunload', (e) => {
-  console.log('🔄 Page unload event - showing overlay for address bar navigation');
-  // Show overlay for the new URL about to be loaded
-  if (window.location) {
-    showLoadingOverlay(window.location.href);
   }
 });
 

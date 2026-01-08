@@ -252,6 +252,15 @@
             height: 100%;
             border-radius: 4px;
             transition: width 0.3s ease;
+            width: 0%;
+            background: #d32f2f;
+        }
+
+        .critical-message {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+            margin-top: 15px;
         }
     </style>
 </head>
@@ -299,7 +308,7 @@
             </div>
 
             <div id="scoreBarContainer" class="score-bar hidden">
-                <div class="score-fill" id="scoreFill" style="width: 0%; background: #d32f2f;"></div>
+                <div class="score-fill" id="scoreFill"></div>
             </div>
 
             <div class="actions">
@@ -309,7 +318,7 @@
                 </button>
             </div>
 
-            <div id="criticalMessage" class="warning-message hidden" style="background: #f8d7da; border-color: #f5c6cb; color: #721c24; margin-top: 15px;">
+            <div id="criticalMessage" class="warning-message critical-message hidden">
                 <strong>This URL has been BLOCKED.</strong><br>
                 It exhibits critical security threats. Proceeding is not recommended.
             </div>

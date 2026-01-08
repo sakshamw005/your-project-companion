@@ -1,249 +1,314 @@
 /**
- * Dashboard Script
- * Manages the GuardianLink dashboard UI and log display
+ * Dashboard Script - GuardianLink v2.0
+ * Real-time log display with proper synchronization
  */
 
 let allLogs = [];
-let currentFilter = '';
+let currentFilter = 'all';
+let stats = { blocked: 0, warned: 0, allowed: 0, total: 0 };
 
-// Initialize dashboard on load
+// Initialize dashboard
 document.addEventListener('DOMContentLoaded', () => {
+  console.log('📊 Dashboard initializing...');
+  
   loadLogs();
-  setupAutoRefresh();
+  setupEventListeners();
+  setupRealTimeUpdates();
   
-  // Add event listeners for CSP compliance (no inline handlers)
-  const exportBtn = document.getElementById('exportBtn');
-  if (exportBtn) {
-    exportBtn.addEventListener('click', exportLogs);
-  }
-  
-  const settingsBtn = document.getElementById('settingsBtn');
-  if (settingsBtn) {
-    settingsBtn.addEventListener('click', openSettings);
-  }
-  
-  const clearBtn = document.getElementById('clearBtn');
-  if (clearBtn) {
-    clearBtn.addEventListener('click', clearLogs);
-  }
-  
-  const filterSelect = document.getElementById('filterVerdict');
-  if (filterSelect) {
-    filterSelect.addEventListener('change', filterLogs);
-  }
-  
-  const closeModalBtn = document.getElementById('closeDetailBtn');
-  if (closeModalBtn) {
-    closeModalBtn.addEventListener('click', closeDetailModal);
-  }
+  // Initial stats update
+  updateStats();
 });
 
-// Load logs from chrome storage
+// ========== LOAD LOGS ==========
 function loadLogs() {
-  chrome.storage.local.get(['guardianlink_logs', 'guardianlink_blacklist'], (data) => {
-    allLogs = data.guardianlink_logs || [];
+  chrome.storage.local.get(['guardianlink_logs'], (data) => {
+    const logs = data.guardianlink_logs || [];
     
-    console.log('📊 Dashboard loaded logs:', allLogs.length, 'entries');
-    console.log('Latest logs:', allLogs.slice(-3).map(l => ({ url: l.url, verdict: l.verdict })));
-
+    console.log(`📥 Loaded ${logs.length} logs from storage`);
+    
     // Sort by timestamp (newest first)
-    allLogs.sort((a, b) => {
+    allLogs = logs.sort((a, b) => {
       const timeA = new Date(a.timestamp || 0).getTime();
       const timeB = new Date(b.timestamp || 0).getTime();
       return timeB - timeA;
     });
-
-    // Update display
+    
+    // Update stats
     updateStats();
+    
+    // Display logs
     displayLogs(allLogs);
+    
+    // Update UI
+    updateUI();
   });
 }
 
-// Update statistics
+// ========== UPDATE STATS ==========
 function updateStats() {
-  // Filter to only include logs from the last 24 hours
-  const twentyFourHoursAgo = Date.now() - (24 * 60 * 60 * 1000);
-  const recentLogs = allLogs.filter(log => {
-    try {
-      const logTime = new Date(log.timestamp).getTime();
-      return logTime > twentyFourHoursAgo;
-    } catch {
-      return false;
+  // Reset stats
+  stats = { blocked: 0, warned: 0, allowed: 0, total: allLogs.length };
+  
+  // Count by verdict
+  allLogs.forEach(log => {
+    switch (log.verdict) {
+      case 'BLOCK':
+        stats.blocked++;
+        break;
+      case 'WARN':
+        stats.warned++;
+        break;
+      case 'ALLOW':
+        stats.allowed++;
+        break;
     }
   });
   
-  const blocked = recentLogs.filter(log => log.verdict === 'BLOCK').length;
-  const warned = recentLogs.filter(log => log.verdict === 'WARN').length;
-  const allowed = recentLogs.filter(log => log.verdict === 'ALLOW').length;
-
-  document.getElementById('blockedCount').textContent = blocked;
-  document.getElementById('warnedCount').textContent = warned;
-  document.getElementById('allowedCount').textContent = allowed;
+  // Update UI
+  document.getElementById('blockedCount').textContent = stats.blocked;
+  document.getElementById('warnedCount').textContent = stats.warned;
+  document.getElementById('allowedCount').textContent = stats.allowed;
+  
+  // Update filter counts
+  updateFilterCounts();
 }
 
-// Display logs in table
-// Helper functions
-function truncateUrl(url, maxLength) {
-  if (!url || typeof url !== 'string') return 'N/A';
-  return url.length > maxLength ? url.substring(0, maxLength) + '...' : url;
-}
-
-function formatTime(timestamp) {
-  try {
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  } catch (e) {
-    return 'N/A';
-  }
-}
-
+// ========== DISPLAY LOGS ==========
 function displayLogs(logs) {
   const container = document.getElementById('logContainer');
   
-  if (logs.length === 0) {
+  if (!logs || logs.length === 0) {
     container.innerHTML = `
       <div class="empty-state">
         <div class="empty-state-icon">📋</div>
-        <p>No URLs logged yet. GuardianLink is monitoring your browsing.</p>
+        <p>No security logs yet. GuardianLink will log URLs as you browse.</p>
+        <p class="empty-state-hint">Try visiting a few websites to see logs appear here.</p>
       </div>
     `;
     return;
   }
-
-  container.innerHTML = logs.map((log, index) => {
-    // Add null checks for log properties
-    const verdict = log.verdict || 'UNKNOWN';
-    const riskLevel = log.riskLevel || 'UNKNOWN';
-    const url = log.url || 'Unknown URL';
-    const score = log.combinedScore !== undefined ? log.combinedScore : (log.score !== undefined ? log.score : 'N/A');
-    
-    return `
-      <div class="log-row" data-log-index="${index}">
-        <div class="url-cell" title="${url}">
-          ${truncateUrl(url, 40)}
-        </div>
-        <div>
-          <span class="verdict-badge verdict-${verdict.toLowerCase()}">
-            ${verdict}
-          </span>
-        </div>
-        <div>
-          <span class="risk-badge risk-${riskLevel.toLowerCase()}">
-            ${riskLevel}
-          </span>
-        </div>
-        <div>${typeof score === 'number' ? score.toFixed(1) : score}/100</div>
-        <div class="timestamp">${formatTime(log.timestamp)}</div>
-      </div>
-    `;
-  }).join('');
   
-  // Add event listeners to log rows
-  const logRows = document.querySelectorAll('.log-row');
-  logRows.forEach(row => {
-    row.style.cursor = 'pointer';
-    row.addEventListener('click', (e) => {
-      const index = parseInt(row.getAttribute('data-log-index'));
-      showDetails(index);
+  // Apply current filter
+  const filteredLogs = applyFilter(logs);
+  
+  // Create HTML
+  container.innerHTML = filteredLogs.map((log, index) => createLogRow(log, index)).join('');
+  
+  // Add click handlers
+  document.querySelectorAll('.log-row').forEach(row => {
+    row.addEventListener('click', () => {
+      const index = row.dataset.index;
+      showLogDetails(filteredLogs[index]);
     });
   });
 }
 
-// Filter logs by verdict
-function filterLogs() {
-  const filterValue = document.getElementById('filterVerdict').value;
-  currentFilter = filterValue;
+function createLogRow(log, index) {
+  const verdict = log.verdict || 'UNKNOWN';
+  const riskLevel = log.riskLevel || 'UNKNOWN';
+  const score = log.combinedScore !== undefined ? log.combinedScore : (log.score || 0);
+  const url = log.url || 'Unknown URL';
+  const domain = extractDomain(url);
+  const time = formatTime(log.timestamp);
   
-  const filtered = filterValue 
-    ? allLogs.filter(log => log.verdict === filterValue)
-    : allLogs;
+  const verdictClass = `verdict-${verdict.toLowerCase()}`;
+  const riskClass = `risk-${riskLevel.toLowerCase()}`;
   
-  displayLogs(filtered);
+  return `
+    <div class="log-row" data-index="${index}">
+      <div class="log-cell log-url" title="${escapeHtml(url)}">
+        <div class="log-domain">${escapeHtml(domain)}</div>
+        <div class="log-path">${truncatePath(url, 40)}</div>
+      </div>
+      <div class="log-cell">
+        <span class="verdict-badge ${verdictClass}">
+          ${verdict}
+        </span>
+      </div>
+      <div class="log-cell">
+        <span class="risk-badge ${riskClass}">
+          ${riskLevel}
+        </span>
+      </div>
+      <div class="log-cell log-score">
+        <div class="score-bar">
+          <div class="score-fill" style="width: ${score}%; background: ${getScoreColor(score)};"></div>
+        </div>
+        <span class="score-text">${score.toFixed(0)}</span>
+      </div>
+      <div class="log-cell log-time">${time}</div>
+      <div class="log-cell log-actions">
+        <button class="icon-btn" title="View details" onclick="event.stopPropagation(); showLogDetails(${JSON.stringify(log)})">
+          👁️
+        </button>
+      </div>
+    </div>
+  `;
 }
 
-// Show detailed view of a log entry
-function showDetails(index) {
-  const filteredLogs = currentFilter 
-    ? allLogs.filter(log => log.verdict === currentFilter)
-    : allLogs;
-  
-  const log = filteredLogs[index];
-  if (!log) return;
-
+// ========== LOG DETAILS MODAL ==========
+function showLogDetails(log) {
+  const modal = document.getElementById('detailModal');
   const content = document.getElementById('detailContent');
-  const risks = Array.isArray(log.risks) ? log.risks : [];
-
-  content.innerHTML = `
-    <div class="modal-detail-row">
-      <div class="modal-label">URL</div>
-      <div class="modal-value" style="word-break: break-all;">${escapeHtml(log.url)}</div>
+  
+  if (!log) {
+    content.innerHTML = '<p>Error: Log data not available</p>';
+    modal.classList.add('active');
+    return;
+  }
+  
+  const details = `
+    <div class="modal-section">
+      <h3>URL Details</h3>
+      <div class="detail-row">
+        <span class="detail-label">Full URL:</span>
+        <span class="detail-value url-display">${escapeHtml(log.url)}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Domain:</span>
+        <span class="detail-value">${escapeHtml(extractDomain(log.url))}</span>
+      </div>
     </div>
-    <div class="modal-detail-row">
-      <div class="modal-label">Domain</div>
-      <div class="modal-value">${escapeHtml(log.details?.domain || log.details?.hostname || 'Unknown')}</div>
-    </div>
-    <div class="modal-detail-row">
-      <div class="modal-label">Verdict</div>
-      <div class="modal-value">
-        <span class="verdict-badge verdict-${log.verdict.toLowerCase()}">
+    
+    <div class="modal-section">
+      <h3>Security Assessment</h3>
+      <div class="detail-row">
+        <span class="detail-label">Verdict:</span>
+        <span class="detail-value verdict-badge verdict-${log.verdict.toLowerCase()}">
           ${log.verdict}
         </span>
       </div>
-    </div>
-    <div class="modal-detail-row">
-      <div class="modal-label">Risk Level</div>
-      <div class="modal-value">
-        <span class="risk-badge risk-${log.riskLevel.toLowerCase()}">
+      <div class="detail-row">
+        <span class="detail-label">Risk Level:</span>
+        <span class="detail-value risk-badge risk-${log.riskLevel.toLowerCase()}">
           ${log.riskLevel}
         </span>
       </div>
+      <div class="detail-row">
+        <span class="detail-label">Security Score:</span>
+        <span class="detail-value">
+          <strong>${log.combinedScore || log.score || 0}</strong> / 100
+        </span>
+      </div>
     </div>
-    <div class="modal-detail-row">
-      <div class="modal-label">Risk Score</div>
-      <div class="modal-value">${(log.combinedScore || 0).toFixed(1)} / 100</div>
+    
+    <div class="modal-section">
+      <h3>Analysis Details</h3>
+      <div class="detail-row">
+        <span class="detail-label">Timestamp:</span>
+        <span class="detail-value">${formatDateTime(log.timestamp)}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Reasoning:</span>
+        <span class="detail-value">${escapeHtml(log.reasoning || 'No details available')}</span>
+      </div>
+      ${log.details?.risks?.length > 0 ? `
+        <div class="detail-row">
+          <span class="detail-label">Detected Risks:</span>
+          <div class="detail-value">
+            <ul class="risk-list">
+              ${log.details.risks.map(risk => `<li>${escapeHtml(risk)}</li>`).join('')}
+            </ul>
+          </div>
+        </div>
+      ` : ''}
     </div>
-    <div class="modal-detail-row">
-      <div class="modal-label">Timestamp</div>
-      <div class="modal-value">${new Date(log.timestamp).toLocaleString()}</div>
-    </div>
-    ${risks.length > 0 ? `
-      <div class="modal-detail-row" style="flex-direction: column; align-items: flex-start;">
-        <div class="modal-label">Detected Risks</div>
-        <div class="modal-value">
-          <ul style="margin-left: 20px; margin-top: 5px;">
-            ${risks.map(risk => `<li>${escapeHtml(String(risk))}</li>`).join('')}
-          </ul>
+    
+    ${log.details?.phaseBreakdown ? `
+      <div class="modal-section">
+        <h3>Scan Breakdown</h3>
+        <div class="phase-breakdown">
+          ${Object.entries(log.details.phaseBreakdown).map(([phase, data]) => `
+            <div class="phase-row">
+              <span class="phase-name">${phase}:</span>
+              <span class="phase-score">${data.score || 0}/${data.maxScore || 100}</span>
+              <span class="phase-status status-${data.status || 'unknown'}">${data.status || 'unknown'}</span>
+            </div>
+          `).join('')}
         </div>
       </div>
     ` : ''}
-    ${log.reasoning ? `
-      <div class="modal-detail-row" style="flex-direction: column; align-items: flex-start;">
-        <div class="modal-label">Analysis</div>
-        <div class="modal-value">${escapeHtml(log.reasoning)}</div>
-      </div>
-    ` : ''}
   `;
-
-  document.getElementById('detailModal').classList.add('active');
+  
+  content.innerHTML = details;
+  modal.classList.add('active');
 }
 
-// Close detail modal
 function closeDetailModal() {
   document.getElementById('detailModal').classList.remove('active');
 }
 
-// Clear all logs
-function clearLogs() {
-  if (confirm('Are you sure you want to clear all logs? This cannot be undone.')) {
-    chrome.storage.local.set({ 'guardianlink_logs': [] }, () => {
-      allLogs = [];
-      updateStats();
-      displayLogs([]);
-    });
-  }
+// ========== FILTERING ==========
+function applyFilter(logs) {
+  if (currentFilter === 'all') return logs;
+  return logs.filter(log => log.verdict === currentFilter);
 }
 
-// Export logs as JSON
+function updateFilterCounts() {
+  const filterButtons = document.querySelectorAll('.filter-btn');
+  filterButtons.forEach(btn => {
+    const filter = btn.dataset.filter;
+    let count = 0;
+    
+    switch (filter) {
+      case 'all': count = stats.total; break;
+      case 'BLOCK': count = stats.blocked; break;
+      case 'WARN': count = stats.warned; break;
+      case 'ALLOW': count = stats.allowed; break;
+    }
+    
+    const countBadge = btn.querySelector('.filter-count');
+    if (countBadge) {
+      countBadge.textContent = count;
+      countBadge.style.display = count > 0 ? 'inline' : 'none';
+    }
+  });
+}
+
+// ========== EVENT LISTENERS ==========
+function setupEventListeners() {
+  // Filter buttons
+  document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const filter = btn.dataset.filter;
+      setActiveFilter(filter);
+    });
+  });
+  
+  // Export button
+  document.getElementById('exportBtn').addEventListener('click', exportLogs);
+  
+  // Clear button
+  document.getElementById('clearBtn').addEventListener('click', clearLogs);
+  
+  // Settings button
+  document.getElementById('settingsBtn').addEventListener('click', openSettings);
+  
+  // Modal close
+  document.getElementById('closeDetailBtn').addEventListener('click', closeDetailModal);
+  document.getElementById('detailModal').addEventListener('click', (e) => {
+    if (e.target === document.getElementById('detailModal')) {
+      closeDetailModal();
+    }
+  });
+  
+  // Refresh button
+  document.getElementById('refreshBtn').addEventListener('click', loadLogs);
+}
+
+function setActiveFilter(filter) {
+  currentFilter = filter;
+  
+  // Update UI
+  document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.filter === filter);
+  });
+  
+  // Refresh display
+  displayLogs(allLogs);
+}
+
+// ========== ACTIONS ==========
 function exportLogs() {
   const dataStr = JSON.stringify(allLogs, null, 2);
   const dataBlob = new Blob([dataStr], { type: 'application/json' });
@@ -255,43 +320,100 @@ function exportLogs() {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  
+  setTimeout(() => URL.revokeObjectURL(url), 100);
+  
+  showToast('✅ Logs exported successfully');
 }
 
-// Open settings (placeholder)
-function openSettings() {
-  alert('Settings page coming soon. Current features:\n\n' +
-    '✓ Rule-based URL detection\n' +
-    '✓ Domain reputation checking\n' +
-    '✓ Local blacklist\n' +
-    '✓ Offline operation\n' +
-    '✓ Decision logging\n\n' +
-    'For now, you can manage logs and export data here.');
-}
-
-// Utility functions
-
-function truncateUrl(url, length) {
-  if (url.length > length) {
-    return url.substring(0, length) + '...';
+function clearLogs() {
+  if (!confirm('Are you sure you want to clear all logs? This action cannot be undone.')) {
+    return;
   }
-  return url;
+  
+  chrome.storage.local.set({ 'guardianlink_logs': [] }, () => {
+    allLogs = [];
+    updateStats();
+    displayLogs([]);
+    showToast('🧹 All logs cleared');
+  });
+}
+
+function openSettings() {
+  showToast('⚙️ Settings panel coming soon');
+  // In future: Open settings modal or page
+}
+
+// ========== REAL-TIME UPDATES ==========
+function setupRealTimeUpdates() {
+  // Listen for background messages
+  chrome.runtime.onMessage.addListener((request) => {
+    if (request.action === 'refreshDashboard') {
+      console.log('🔄 Refreshing dashboard...');
+      loadLogs();
+    }
+  });
+  
+  // Poll for updates every 3 seconds
+  setInterval(() => {
+    chrome.storage.local.get(['guardianlink_logs'], (data) => {
+      const newCount = data.guardianlink_logs?.length || 0;
+      if (newCount !== stats.total) {
+        console.log(`🔄 New logs detected (${newCount} vs ${stats.total}), refreshing...`);
+        loadLogs();
+      }
+    });
+  }, 3000);
+}
+
+// ========== UTILITY FUNCTIONS ==========
+function extractDomain(url) {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return url.split('/')[2] || url.substring(0, 30);
+  }
+}
+
+function truncatePath(url, maxLength) {
+  try {
+    const urlObj = new URL(url);
+    const path = urlObj.pathname + urlObj.search;
+    return path.length > maxLength ? path.substring(0, maxLength) + '...' : path;
+  } catch {
+    return url.length > maxLength ? url.substring(0, maxLength) + '...' : url;
+  }
 }
 
 function formatTime(timestamp) {
-  const date = new Date(timestamp);
-  const now = new Date();
-  const diffMs = now - date;
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMins / 60);
-  const diffDays = Math.floor(diffHours / 24);
+  try {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`;
+    return date.toLocaleDateString();
+  } catch {
+    return 'Unknown';
+  }
+}
 
-  if (diffMins < 1) return 'Just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
-  
-  return date.toLocaleDateString();
+function formatDateTime(timestamp) {
+  try {
+    return new Date(timestamp).toLocaleString();
+  } catch {
+    return 'Unknown';
+  }
+}
+
+function getScoreColor(score) {
+  if (score >= 80) return '#4CAF50';
+  if (score >= 60) return '#FFC107';
+  if (score >= 40) return '#FF9800';
+  return '#F44336';
 }
 
 function escapeHtml(text) {
@@ -300,22 +422,44 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
-// Auto-refresh logs every 5 seconds
-function setupAutoRefresh() {
-  setInterval(loadLogs, 5000);
+function showToast(message) {
+  // Remove existing toast
+  const existing = document.querySelector('.toast');
+  if (existing) existing.remove();
+  
+  // Create new toast
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.textContent = message;
+  
+  document.body.appendChild(toast);
+  
+  // Animate in
+  setTimeout(() => toast.classList.add('show'), 10);
+  
+  // Remove after 3 seconds
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
 }
 
-// Close modal when clicking outside
-document.getElementById('detailModal').addEventListener('click', (e) => {
-  if (e.target === document.getElementById('detailModal')) {
-    closeDetailModal();
+function updateUI() {
+  // Update last refresh time
+  document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+  
+  // Show/hide empty state
+  const emptyState = document.querySelector('.empty-state');
+  const logContainer = document.getElementById('logContainer');
+  
+  if (allLogs.length === 0) {
+    emptyState?.classList.add('show');
+    logContainer?.classList.add('empty');
+  } else {
+    emptyState?.classList.remove('show');
+    logContainer?.classList.remove('empty');
   }
-});
+}
 
-// Handle messages from background script
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === 'refreshDashboard') {
-    loadLogs();
-    sendResponse({ success: true });
-  }
-});
+// ========== INITIALIZE ==========
+console.log('✅ Dashboard script loaded');

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "GuardianLink - URL Security Shield",
   "version": "2.0.0",
-  "description": "Real-time malicious URL detection with website sync and user account linking",
+  "description": "Real-time malicious URL detection with complete page blocking until security scan completes",
   "permissions": [
     "storage",
     "tabs",
@@ -10,20 +10,17 @@
     "webNavigation",
     "scripting",
     "notifications",
-    "downloads",
     "contextMenus",
     "declarativeNetRequest",
-    "declarativeNetRequestFeedback",
     "declarativeNetRequestWithHostAccess"
   ],
   "host_permissions": [
     "<all_urls>",
     "http://localhost:3001/*",
-    "http://localhost:3002/*",
     "http://localhost:3000/*"
   ],
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' http://localhost:3001 http://localhost:3002 http://localhost:3000 https://*"
+    "extension_pages": "script-src 'self'; style-src 'self' 'unsafe-inline'; object-src 'self'; connect-src 'self' http://localhost:3001 http://localhost:3000; frame-ancestors 'self'"
   },
   "background": {
     "service_worker": "background.js"
@@ -47,7 +44,11 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["ui/warning.html"],
+      "resources": [
+        "ui/warning.html",
+        "ui/scanner.html",
+        "assets/*"
+      ],
       "matches": ["<all_urls>"]
     }
   ]

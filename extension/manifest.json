@@ -11,7 +11,9 @@
     "scripting",
     "notifications",
     "downloads",
-    "contextMenus"
+    "contextMenus",
+    "declarativeNetRequest",
+    "declarativeNetRequestFeedback"
   ],
   "host_permissions": [
     "<all_urls>",

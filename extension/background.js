@@ -16,9 +16,9 @@ const CONFIG = {
     TOTAL_ANALYSIS: 5000
   },
   THRESHOLDS: {
-    BLOCK: 70,
-    WARN: 40,
-    ALLOW: 0
+    BLOCK: 50,    // < 50% = BLOCK
+    WARN: 80,     // 50-79% = WARN
+    ALLOW: 80     // >= 80% = ALLOW
   }
 };
 
@@ -240,6 +240,32 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 
+  if (request.action === 'PROCEED_ANYWAY') {
+    const tabId = sender.tab.id;
+    console.log('✅ User proceeded anyway on warning, removing DNR rule for tab:', tabId);
+    
+    // Remove ALL DNR rules for this tab
+    try {
+      const ruleIds = blockedTabRules.get(tabId);
+      if (ruleIds && Array.isArray(ruleIds) && ruleIds.length > 0) {
+        chrome.declarativeNetRequest.updateDynamicRules({
+          removeRuleIds: ruleIds
+        }).then(() => {
+          blockedTabRules.delete(tabId);
+          console.log('🔓 DNR rules removed for tab:', tabId);
+          chrome.tabs.reload(tabId);
+        }).catch(error => {
+          console.error('⚠️ Could not remove DNR rules:', error);
+        });
+      }
+    } catch (error) {
+      console.error('❌ Error processing PROCEED_ANYWAY:', error);
+    }
+    
+    sendResponse({ success: true });
+    return true;
+  }
+
   if (request.action === 'contentScriptReady') {
     console.log('✅ Content script ready in tab:', sender.tab.id);
     sendResponse({ status: 'ready' });
@@ -266,6 +292,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 // ==================== PROACTIVE URL BLOCKING (Before Page Load) ====================
 // Track pending URLs to avoid duplicate analysis
 const pendingAnalysis = new Map();
+const blockedTabRules = new Map(); // Track which rule IDs block which tabs
 
 // Intercept navigation BEFORE page loads
 chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
@@ -274,10 +301,12 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
   // Only check main frame navigations (frameId === 0)
   if (frameId !== 0) return;
   
-  // Skip extension manager URLs
-  if (url.startsWith('chrome://extensions') || url.startsWith('edge://extensions') || 
-      url.startsWith('about:addons') || url.startsWith('chrome://') || 
-      url.startsWith('edge://') || url.startsWith('about:')) return;
+  // Skip restricted URLs - these cannot be blocked or injected
+  const restrictedPrefixes = ['chrome://', 'edge://', 'about:', 'ntp.msn.com', 'moz-extension://', 'chrome-extension://'];
+  if (restrictedPrefixes.some(prefix => url.includes(prefix) || url.startsWith(prefix))) {
+    console.log('⏭️ Skipping restricted URL:', url);
+    return;
+  }
   
   // Skip our own warning page
   if (url.includes('ui/warning.html')) return;
@@ -289,32 +318,115 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
   if (recentBypassedURLs.has(url)) {
     console.log('✅ URL recently bypassed by user, allowing:', url);
     analysisInProgressByTab.delete(tabId);
-    return; // Let the navigation proceed
+    return;
   }
   
   console.log('🌐 WebNavigation: Before navigate to', url);
   
+  // === FIX #2: Check whitelist FIRST before any DNR rule ===
+  if (isWhitelistedDomain(url)) {
+    console.log('✅ WHITELIST: URL is whitelisted, no protection needed:', url);
+    analysisInProgressByTab.delete(tabId);
+    return;
+  }
+  
+  // === FIX #4: Bypass search engines completely ===
+  const searchEngines = [
+    'bing.com/search',
+    'google.com/search',
+    'duckduckgo.com'
+  ];
+  if (searchEngines.some(engine => url.includes(engine))) {
+    console.log('🔍 SEARCH ENGINE: Bypassing protection for:', url);
+    analysisInProgressByTab.delete(tabId);
+    return;
+  }
+  
   // Mark analysis as in progress BEFORE navigation
   analysisInProgressByTab.set(tabId, { url, startTime: Date.now() });
   
-  // Immediately inject blocking script to freeze page rendering
+  // === FIX #3 & #6: Create UNIQUE rule IDs for all rules to prevent collision ===
   try {
-    // Store URL in session storage for the injected script to retrieve
-    await chrome.tabs.executeScript(tabId, {
-      code: `window.guardianLinkPendingURL = '${url.replace(/'/g, "\\'")}'; window.guardianLinkTabId = ${tabId};`
-    }).catch(() => {
-      // Fallback: use storage
-      chrome.storage.session.set({ [`guardianlink_url_${tabId}`]: url });
+    const baseRuleId = 10000 + tabId; // Base ID for this tab
+    const allowLocalhost = baseRuleId + 100;
+    const allowBing = baseRuleId + 101;
+    const allowAbuseDB = baseRuleId + 102;
+    const allowVT = baseRuleId + 103;
+    const blockRule = baseRuleId; // The actual block rule
+    
+    // Remove any existing rules for this tab
+    const existingRuleIds = blockedTabRules.get(tabId) || [];
+    
+    await chrome.declarativeNetRequest.updateDynamicRules({
+      removeRuleIds: Array.isArray(existingRuleIds) ? existingRuleIds : [existingRuleIds],
+      addRules: [
+        // HIGH-PRIORITY ALLOWLIST (priority 100) - BYPASS the block for trusted services
+        {
+          id: allowLocalhost,
+          priority: 100,
+          action: { type: 'allow' },
+          condition: {
+            urlFilter: '|http://localhost',
+            resourceTypes: ['xmlhttprequest']
+          }
+        },
+        {
+          id: allowBing,
+          priority: 100,
+          action: { type: 'allow' },
+          condition: {
+            urlFilter: 'bing.com/api',
+            resourceTypes: ['xmlhttprequest']
+          }
+        },
+        {
+          id: allowAbuseDB,
+          priority: 100,
+          action: { type: 'allow' },
+          condition: {
+            urlFilter: 'abuse.ch',
+            resourceTypes: ['xmlhttprequest']
+          }
+        },
+        {
+          id: allowVT,
+          priority: 100,
+          action: { type: 'allow' },
+          condition: {
+            urlFilter: 'virustotal.com',
+            resourceTypes: ['xmlhttprequest']
+          }
+        },
+        // LOW-PRIORITY BLOCK (priority 1) - blocks network until verdict known
+        {
+          id: blockRule,
+          priority: 1,
+          action: { type: 'block' },
+          condition: {
+            urlFilter: '||',
+            resourceTypes: ['script', 'image', 'stylesheet', 'xmlhttprequest', 'object', 'media', 'font', 'ping']
+          }
+        }
+      ]
     });
     
-    await chrome.scripting.executeScript({
-      target: { tabId: tabId },
-      function: injectPageFreeze,
-      injectImmediately: true
-    });
-    console.log('🔒 Page freeze injected for tab:', tabId);
+    // Store ALL rule IDs for this tab so we can remove them later
+    blockedTabRules.set(tabId, [blockRule, allowLocalhost, allowBing, allowAbuseDB, allowVT]);
+    console.log('🔐 DNR blocking rule activated for tab:', tabId, 'Rule IDs:', blockRule);
   } catch (error) {
-    console.error('⚠️ Could not inject freeze script:', error.message);
+    console.error('⚠️ Could not set DNR rule:', error.message);
+  }
+  
+  // Send message to content script to show overlay
+  try {
+    await chrome.tabs.sendMessage(tabId, {
+      action: 'FREEZE',
+      url: url
+    }).catch(err => {
+      console.log('⚠️ Content script not ready, will show overlay soon');
+    });
+  } catch (error) {
+    console.log('⚠️ Could not send FREEZE message:', error.message);
   }
   
   pendingAnalysis.set(url, true);
@@ -327,74 +439,72 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
     
     // Only pass serializable data
     const verdict = decision.verdict;
-    const score = Math.round(decision.combinedScore);
+    const score = Math.round(decision.score || 0);
     
-    // Send decision to content script to handle overlay
+    // Send decision to content script
     chrome.tabs.sendMessage(tabId, {
       action: 'analysisComplete',
       verdict: verdict,
       score: score,
       reasoning: decision.reasoning
     }).catch(err => {
-      console.log('⚠️ Content script not ready yet, decision will be handled by page injection');
+      console.log('⚠️ Content script not ready yet');
     });
     
-    // If BLOCK - stop the page load and show warning
+    // If BLOCK - keep blocking, show block page
     if (verdict === 'BLOCK') {
       console.log('🚨 BLOCKING NAVIGATION to:', url);
       
-      // Cancel the navigation by navigating to warning page instead
-      const decisionJson = encodeURIComponent(JSON.stringify(decision));
-      const warningUrl = chrome.runtime.getURL(`ui/warning.html?decision=${decisionJson}`);
+      // Send BLOCK message to content script
+      await chrome.tabs.sendMessage(tabId, {
+        action: 'SHOW_BLOCK_PAGE',
+        url: url,
+        score: score
+      }).catch(() => {});
       
-      chrome.tabs.update(tabId, { url: warningUrl }, () => {
-        console.log('📄 Navigated to warning page');
-        analysisInProgressByTab.delete(tabId);
-      });
+      // Keep DNR rule active - nothing loads
+      logDecisionToStorage(decision);
     }
     // If WARN - keep page frozen, show warning overlay with "Proceed Anyway" button
     else if (verdict === 'WARN') {
       console.log('⚠️ WARNING: Suspicious site detected - keeping page frozen');
       
-      // Inject warning overlay with proceed button - DON'T unfreeze yet
-      try {
-        await chrome.scripting.executeScript({
-          target: { tabId: tabId },
-          function: showWarningOverlayWithButton,
-          args: [score],  // Only pass score, not URL
-          injectImmediately: false
-        });
-      } catch (error) {
-        console.log('⚠️ Could not inject warning overlay:', error.message);
-        // Fallback: unfreeze with warning message
-        try {
-          await chrome.scripting.executeScript({
-            target: { tabId: tabId },
-            function: unfreezeWithWarning,
-            args: [score],
-            injectImmediately: false
-          });
-        } catch (e) {}
-      }
+      // Send WARN message to content script with score
+      await chrome.tabs.sendMessage(tabId, {
+        action: 'SHOW_WARNING',
+        score: score,
+        url: url
+      }).catch(() => {});
       
       logDecisionToStorage(decision);
-      // Don't delete from analysisInProgressByTab yet - wait for user interaction
+      // DNR rule stays active - nothing loads until user clicks Proceed
     }
-    // If ALLOW - unfreeze page and show safe badge
+    // If ALLOW - unblock and reload page
     else {
-      console.log('✅ Safe URL detected, unfreezing page');
+      console.log('✅ Safe URL detected, unblocking and reloading page');
       
-      // Inject unfreeze script with safe badge
+      // Remove ALL DNR rules for this tab
       try {
-        await chrome.scripting.executeScript({
-          target: { tabId: tabId },
-          function: unfreezeWithSafeBadge,
-          args: [score],  // Only pass score
-          injectImmediately: false
-        });
+        const ruleIds = blockedTabRules.get(tabId);
+        if (ruleIds && Array.isArray(ruleIds) && ruleIds.length > 0) {
+          await chrome.declarativeNetRequest.updateDynamicRules({
+            removeRuleIds: ruleIds
+          });
+          blockedTabRules.delete(tabId);
+          console.log('🔓 DNR rules removed for tab:', tabId);
+        }
       } catch (error) {
-        console.log('⚠️ Could not unfreeze page:', error.message);
+        console.error('⚠️ Could not remove DNR rules:', error.message);
       }
+      
+      // Send UNFREEZE message to content script
+      await chrome.tabs.sendMessage(tabId, {
+        action: 'UNFREEZE',
+        score: score
+      }).catch(() => {});
+      
+      // Reload the tab to actually load the page now that blocking is removed
+      chrome.tabs.reload(tabId);
       
       analysisInProgressByTab.delete(tabId);
       logDecisionToStorage(decision);
@@ -402,13 +512,15 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
     
   } catch (error) {
     console.error('❌ Error during navigation analysis:', error);
-    // Remove freeze if analysis fails
+    // Remove blocking rules if analysis fails
     try {
-      await chrome.scripting.executeScript({
-        target: { tabId: tabId },
-        function: unfreezePageAndShowOverlay,
-        args: [url, 0]
-      });
+      const ruleIds = blockedTabRules.get(tabId);
+      if (ruleIds && Array.isArray(ruleIds) && ruleIds.length > 0) {
+        await chrome.declarativeNetRequest.updateDynamicRules({
+          removeRuleIds: ruleIds
+        });
+        blockedTabRules.delete(tabId);
+      }
     } catch (e) {}
     analysisInProgressByTab.delete(tabId);
   } finally {
@@ -418,383 +530,6 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
 });
 
 // Functions to inject into page
-function injectPageFreeze() {
-  // Get URL from window variable set by background script
-  const url = window.guardianLinkPendingURL || document.location.href;
-  
-  // Create freeze overlay
-  const overlay = document.createElement('div');
-  overlay.id = 'guardianlink-analysis-overlay';
-  overlay.style.cssText = `
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.8);
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    z-index: 999999999;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  `;
-  
-  const spinner = document.createElement('div');
-  spinner.style.cssText = `
-    width: 60px;
-    height: 60px;
-    border: 4px solid rgba(255, 255, 255, 0.2);
-    border-top: 4px solid #4CAF50;
-    border-radius: 50%;
-    animation: guardianlink-spin 1s linear infinite;
-    margin-bottom: 20px;
-  `;
-  
-  const message = document.createElement('div');
-  message.style.cssText = `
-    color: white;
-    font-size: 20px;
-    font-weight: 600;
-    text-align: center;
-    margin-bottom: 10px;
-  `;
-  message.textContent = '🔒 GuardianLink Security Check';
-  
-  const subtitle = document.createElement('div');
-  subtitle.style.cssText = `
-    color: rgba(255, 255, 255, 0.8);
-    font-size: 14px;
-    text-align: center;
-    margin-bottom: 5px;
-  `;
-  subtitle.textContent = 'Analyzing website security...';
-  
-  const domain = document.createElement('div');
-  domain.style.cssText = `
-    color: rgba(255, 255, 255, 0.6);
-    font-size: 12px;
-    text-align: center;
-    font-family: monospace;
-    word-break: break-all;
-    max-width: 80%;
-    margin-top: 15px;
-  `;
-  try {
-    domain.textContent = new URL(url).hostname;
-  } catch (e) {
-    domain.textContent = url.substring(0, 50);
-  }
-  
-  overlay.appendChild(spinner);
-  overlay.appendChild(message);
-  overlay.appendChild(subtitle);
-  overlay.appendChild(domain);
-  
-  // Add animation
-  const style = document.createElement('style');
-  style.textContent = `
-    @keyframes guardianlink-spin {
-      to { transform: rotate(360deg); }
-    }
-  `;
-  document.documentElement.appendChild(style);
-  
-  // Freeze the page
-  document.documentElement.style.overflow = 'hidden';
-  document.body.style.overflow = 'hidden';
-  document.documentElement.appendChild(overlay);
-  
-  // Block all interactions
-  document.addEventListener('click', (e) => e.stopImmediatePropagation(), true);
-  document.addEventListener('scroll', (e) => e.preventDefault(), true);
-  document.addEventListener('touchmove', (e) => e.preventDefault(), true);
-  
-  window.guardianLinkFrozen = true;
-  console.log('🔒 Page frozen:', url);
-}
-
-function unfreezePageAndShowOverlay(url, score) {
-  // Remove freeze overlay
-  const overlay = document.getElementById('guardianlink-analysis-overlay');
-  if (overlay) {
-    overlay.remove();
-  }
-  
-  // Restore scrolling
-  document.documentElement.style.overflow = 'auto';
-  document.body.style.overflow = 'auto';
-  
-  window.guardianLinkFrozen = false;
-  
-  // Show security badge
-  if (score >= 80) {
-    showSecurityBadge(url, '✅ Safe', '#4CAF50', score);
-  } else if (score >= 50) {
-    showSecurityBadge(url, '⚠️ Warning', '#FF9800', score);
-  } else {
-    showSecurityBadge(url, '🚫 Suspicious', '#F44336', score);
-  }
-}
-
-function unfreezeWithSafeBadge(score) {
-  // Remove freeze overlay
-  const overlay = document.getElementById('guardianlink-analysis-overlay');
-  if (overlay) {
-    overlay.remove();
-  }
-  
-  // Restore scrolling and remove event blockers
-  document.documentElement.style.overflow = 'auto';
-  document.body.style.overflow = 'auto';
-  window.guardianLinkFrozen = false;
-  
-  // Show safe badge in corner
-  const badge = document.createElement('div');
-  badge.id = 'guardianlink-security-badge';
-  badge.style.cssText = `
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    background: white;
-    border: 3px solid #4CAF50;
-    border-radius: 10px;
-    padding: 15px 20px;
-    z-index: 999999;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    font-weight: 600;
-    font-size: 14px;
-    color: #333;
-  `;
-  badge.innerHTML = `✅ Safe<br><span style="font-size: 12px; color: #666; margin-top: 5px; display: block;">Score: ${score}%</span>`;
-  document.body.appendChild(badge);
-  
-  // Auto-remove badge after 8 seconds
-  setTimeout(() => badge.remove(), 8000);
-}
-
-function unfreezeWithWarning(score) {
-  // Remove freeze overlay
-  const overlay = document.getElementById('guardianlink-analysis-overlay');
-  if (overlay) {
-    overlay.remove();
-  }
-  
-  // Restore scrolling
-  document.documentElement.style.overflow = 'auto';
-  document.body.style.overflow = 'auto';
-  window.guardianLinkFrozen = false;
-  
-  // Show warning badge
-  const badge = document.createElement('div');
-  badge.id = 'guardianlink-security-badge';
-  badge.style.cssText = `
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    background: white;
-    border: 3px solid #FF9800;
-    border-radius: 10px;
-    padding: 15px 20px;
-    z-index: 999999;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    font-weight: 600;
-    font-size: 14px;
-    color: #FF9800;
-  `;
-  badge.innerHTML = `⚠️ Warning<br><span style="font-size: 12px; color: #666; margin-top: 5px; display: block;">Score: ${score}%</span>`;
-  document.body.appendChild(badge);
-}
-
-function showWarningOverlayWithButton(score) {
-  // Get URL from window variable
-  const url = window.guardianLinkPendingURL || document.location.href;
-  
-  // Keep the freeze overlay but change the message to show warning
-  const overlay = document.getElementById('guardianlink-analysis-overlay');
-  if (overlay) {
-    // Update the overlay content
-    overlay.innerHTML = '';
-    overlay.style.background = 'rgba(255, 152, 0, 0.9)';
-    
-    // Warning icon
-    const icon = document.createElement('div');
-    icon.style.cssText = `
-      font-size: 60px;
-      margin-bottom: 20px;
-    `;
-    icon.textContent = '⚠️';
-    
-    // Title
-    const title = document.createElement('div');
-    title.style.cssText = `
-      color: white;
-      font-size: 22px;
-      font-weight: 700;
-      text-align: center;
-      margin-bottom: 10px;
-    `;
-    title.textContent = 'Suspicious Website Detected';
-    
-    // Score display
-    const scoreDisplay = document.createElement('div');
-    scoreDisplay.style.cssText = `
-      color: white;
-      font-size: 18px;
-      font-weight: 600;
-      text-align: center;
-      margin-bottom: 15px;
-    `;
-    scoreDisplay.textContent = `Security Score: ${score}%`;
-    
-    // Description
-    const description = document.createElement('div');
-    description.style.cssText = `
-      color: rgba(255, 255, 255, 0.95);
-      font-size: 13px;
-      text-align: center;
-      margin-bottom: 20px;
-      max-width: 80%;
-      line-height: 1.5;
-    `;
-    description.innerHTML = `This website has shown suspicious characteristics.<br>Are you sure you want to proceed?`;
-    
-    // Button container
-    const buttonContainer = document.createElement('div');
-    buttonContainer.style.cssText = `
-      display: flex;
-      gap: 10px;
-      justify-content: center;
-      margin-bottom: 15px;
-    `;
-    
-    // Cancel button
-    const cancelBtn = document.createElement('button');
-    cancelBtn.textContent = '❌ Go Back';
-    cancelBtn.style.cssText = `
-      padding: 10px 20px;
-      background: white;
-      border: none;
-      border-radius: 6px;
-      font-weight: 600;
-      font-size: 13px;
-      cursor: pointer;
-      color: #FF9800;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-    `;
-    cancelBtn.onclick = (e) => {
-      e.stopImmediatePropagation();
-      window.history.back();
-    };
-    
-    // Proceed button
-    const proceedBtn = document.createElement('button');
-    proceedBtn.textContent = '✅ Proceed Anyway';
-    proceedBtn.style.cssText = `
-      padding: 10px 20px;
-      background: white;
-      border: none;
-      border-radius: 6px;
-      font-weight: 600;
-      font-size: 13px;
-      cursor: pointer;
-      color: #FF9800;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-    `;
-    proceedBtn.onmouseenter = () => {
-      proceedBtn.style.background = '#f0f0f0';
-    };
-    proceedBtn.onmouseleave = () => {
-      proceedBtn.style.background = 'white';
-    };
-    proceedBtn.onclick = (e) => {
-      e.stopImmediatePropagation();
-      // Remove overlay and unfreeze
-      overlay.remove();
-      document.documentElement.style.overflow = 'auto';
-      document.body.style.overflow = 'auto';
-      window.guardianLinkFrozen = false;
-      
-      // Show confirmation badge
-      const badge = document.createElement('div');
-      badge.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: white;
-        border: 3px solid #FF9800;
-        border-radius: 10px;
-        padding: 15px 20px;
-        z-index: 999999;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        font-weight: 600;
-        font-size: 14px;
-        color: #FF9800;
-      `;
-      badge.innerHTML = `⚠️ You proceeded<br><span style="font-size: 12px; color: #666; margin-top: 5px; display: block;">Score: ${score}%</span>`;
-      document.body.appendChild(badge);
-      
-      setTimeout(() => badge.remove(), 8000);
-    };
-    
-    buttonContainer.appendChild(cancelBtn);
-    buttonContainer.appendChild(proceedBtn);
-    
-    // Domain info
-    const domainInfo = document.createElement('div');
-    domainInfo.style.cssText = `
-      color: rgba(255, 255, 255, 0.7);
-      font-size: 11px;
-      text-align: center;
-      font-family: monospace;
-      word-break: break-all;
-      max-width: 80%;
-    `;
-    try {
-      domainInfo.textContent = new URL(url).hostname;
-    } catch (e) {
-      domainInfo.textContent = url.substring(0, 50);
-    }
-    
-    overlay.appendChild(icon);
-    overlay.appendChild(title);
-    overlay.appendChild(scoreDisplay);
-    overlay.appendChild(description);
-    overlay.appendChild(buttonContainer);
-    overlay.appendChild(domainInfo);
-    
-    console.log('⚠️ Warning overlay with buttons shown for suspicious site');
-  }
-}
-
-function showSecurityBadge(url, status, color, score) {
-  const badge = document.createElement('div');
-  badge.id = 'guardianlink-security-badge';
-  badge.style.cssText = `
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    background: white;
-    border: 3px solid ${color};
-    border-radius: 10px;
-    padding: 15px 20px;
-    z-index: 999999;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    font-weight: 600;
-    font-size: 14px;
-    color: #333;
-  `;
-  badge.innerHTML = `${status}<br><span style="font-size: 12px; color: #666; margin-top: 5px; display: block;">Score: ${score}%</span>`;
-  document.body.appendChild(badge);
-  
-  // Auto-remove badge after 8 seconds
-  setTimeout(() => badge.remove(), 8000);
-}
-
 // Handle notification button clicks
 chrome.notifications.onButtonClicked.addListener((notificationId, buttonIndex) => {
   if (buttonIndex === 0) {
@@ -822,7 +557,7 @@ async function analyzeURL(urlString, tabId, context = 'unknown') {
       logDecisionToStorage(cloudResult);
       return cloudResult;
     }
-    console.log('⚠️ Website API unavailable, falling back to local analysis');
+    console.log('⚠️ Website API unavailable, will use local analysis with WARN fallback for safety');
 
     // PHASE 1: Whitelist
     if (isWhitelistedDomain(urlString)) {
@@ -955,19 +690,40 @@ async function analyzeURL(urlString, tabId, context = 'unknown') {
     const normalizedScore = Math.min(totalScore, 100);
     console.log('📊 PHASE 8: Normalized Score:', normalizedScore);
 
-    // PHASE 9: Determine verdict
+    // PHASE 9: Determine verdict based on score (0-100, higher = worse)
+    // === FIX #1: Backend offline MUST NOT cause BLOCK ===
+    // === FIX #8: score=0 does NOT mean CRITICAL ===
     let verdict = 'ALLOW';
     let riskLevel = 'SAFE';
+    let backendFailed = !cloudResult; // Did backend API fail?
 
-    if (normalizedScore >= CONFIG.THRESHOLDS.BLOCK) {
+    // Check if we have explicit threats (not just heuristic scores)
+    const hasExplicitBlacklist = factors.some(f => f.name === 'Local Blacklist');
+    const hasGoogleSafeBrowsing = factors.some(f => f.name === 'Google Safe Browsing');
+    const hasMultipleThreats = factors.length >= 3;
+
+    // CRITICAL threats = BLOCK
+    if (hasExplicitBlacklist || hasGoogleSafeBrowsing) {
       verdict = 'BLOCK';
-      riskLevel = normalizedScore >= 80 ? 'CRITICAL' : 'HIGH';
-    } else if (normalizedScore >= CONFIG.THRESHOLDS.WARN) {
-      verdict = 'WARN';
-      riskLevel = normalizedScore >= 55 ? 'MEDIUM' : 'LOW';
+      riskLevel = 'CRITICAL';
     }
+    // Only heuristics (no backend, no blacklist) = WARN (safer default)
+    else if (backendFailed && !hasMultipleThreats) {
+      verdict = 'WARN';
+      riskLevel = 'MEDIUM';
+    }
+    // Score-based determination (backend succeeded or multiple threats)
+    else if (normalizedScore < CONFIG.THRESHOLDS.BLOCK) {
+      verdict = 'BLOCK';
+      riskLevel = normalizedScore < 25 ? 'CRITICAL' : 'HIGH';
+    }
+    else if (normalizedScore < CONFIG.THRESHOLDS.WARN) {
+      verdict = 'WARN';
+      riskLevel = normalizedScore >= 65 ? 'MEDIUM' : 'LOW';
+    }
+    // Score >= 80 = ALLOW/SAFE (default)
 
-    console.log(`✅ VERDICT: ${verdict} | RISK: ${riskLevel} | SCORE: ${normalizedScore}`);
+    console.log(`✅ VERDICT: ${verdict} | RISK: ${riskLevel} | SCORE: ${normalizedScore} | Backend: ${backendFailed ? 'FAILED' : 'OK'}`);
     console.log(`⏱️ Analysis time: ${Date.now() - startTime}ms`);
 
     return {
@@ -1020,14 +776,20 @@ async function analyzeWithWebsite(urlString) {
     console.log('✅ Website API result received:', data.scanId, 'Status:', data.overallStatus);
     
     // Transform website API response to extension format
+    // Website API returns percentage (0-100 where higher = safer)
+    // Our system uses score (0-100 where higher = riskier)
+    // So we invert it: ourScore = 100 - apiSafetyScore
+    const apiSafetyScore = data.percentage || 100;
+    const ourRiskScore = 100 - apiSafetyScore;
+    
     const decision = {
       verdict: data.overallStatus === 'danger' ? 'BLOCK' : data.overallStatus === 'warning' ? 'WARN' : 'ALLOW',
       riskLevel: data.overallStatus === 'danger' ? 'HIGH' : data.overallStatus === 'warning' ? 'MEDIUM' : 'SAFE',
-      score: data.percentage || 0,
+      score: ourRiskScore,
       shouldBlock: data.overallStatus === 'danger',
       canBypass: data.overallStatus === 'warning',
       url: urlString,
-      reasoning: `Security Score: ${data.percentage}% - ${data.overallStatus.toUpperCase()}`,
+      reasoning: `Security Score: ${ourRiskScore}% - ${data.overallStatus.toUpperCase()}`,
       source: 'WEBSITE_API',
       scanId: data.scanId,
       timestamp: data.timestamp

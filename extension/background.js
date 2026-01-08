@@ -318,18 +318,22 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
     
     console.log('📋 Navigation decision:', decision.verdict, 'for', url);
     
+    // Only pass serializable data
+    const verdict = decision.verdict;
+    const score = Math.round(decision.combinedScore);
+    
     // Send decision to content script to handle overlay
     chrome.tabs.sendMessage(tabId, {
       action: 'analysisComplete',
-      decision: decision,
-      verdict: decision.verdict,
-      score: decision.combinedScore
+      verdict: verdict,
+      score: score,
+      reasoning: decision.reasoning
     }).catch(err => {
       console.log('⚠️ Content script not ready yet, decision will be handled by page injection');
     });
     
     // If BLOCK - stop the page load and show warning
-    if (decision.verdict === 'BLOCK') {
+    if (verdict === 'BLOCK') {
       console.log('🚨 BLOCKING NAVIGATION to:', url);
       
       // Cancel the navigation by navigating to warning page instead
@@ -341,51 +345,48 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
         analysisInProgressByTab.delete(tabId);
       });
     }
-    // If WARN - show notification but let page load
-    else if (decision.verdict === 'WARN') {
-      console.log('⚠️ WARNING: Suspicious site detected');
+    // If WARN - keep page frozen, show warning overlay with "Proceed Anyway" button
+    else if (verdict === 'WARN') {
+      console.log('⚠️ WARNING: Suspicious site detected - keeping page frozen');
       
-      // Show browser notification
-      chrome.notifications.create({
-        type: 'basic',
-        iconUrl: chrome.runtime.getURL('assets/icon-128.png'),
-        title: '⚠️ Suspicious Website Detected',
-        message: `Score: ${decision.combinedScore}% - ${new URL(url).hostname}`,
-        buttons: [
-          { title: 'View Details' },
-          { title: 'Proceed Anyway' }
-        ]
-      });
-      
-      // Inject unfreeze script
+      // Inject warning overlay with proceed button - DON'T unfreeze yet
       try {
         await chrome.scripting.executeScript({
           target: { tabId: tabId },
-          function: unfreezePageAndShowOverlay,
-          args: [url, decision.combinedScore],
+          function: showWarningOverlayWithButton,
+          args: [url, score],
           injectImmediately: false
         });
       } catch (error) {
-        console.log('⚠️ Could not unfreeze page:', error);
+        console.log('⚠️ Could not inject warning overlay:', error.message);
+        // Fallback: unfreeze with warning message
+        try {
+          await chrome.scripting.executeScript({
+            target: { tabId: tabId },
+            function: unfreezeWithWarning,
+            args: [score],
+            injectImmediately: false
+          });
+        } catch (e) {}
       }
       
-      analysisInProgressByTab.delete(tabId);
       logDecisionToStorage(decision);
+      // Don't delete from analysisInProgressByTab yet - wait for user interaction
     }
-    // If ALLOW - just log and continue
+    // If ALLOW - unfreeze page and show safe badge
     else {
-      console.log('✅ Safe URL detected, allowing navigation');
+      console.log('✅ Safe URL detected, unfreezing page');
       
-      // Inject unfreeze script
+      // Inject unfreeze script with safe badge
       try {
         await chrome.scripting.executeScript({
           target: { tabId: tabId },
-          function: unfreezePageAndShowOverlay,
-          args: [url, decision.combinedScore],
+          function: unfreezeWithSafeBadge,
+          args: [score],
           injectImmediately: false
         });
       } catch (error) {
-        console.log('⚠️ Could not unfreeze page:', error);
+        console.log('⚠️ Could not unfreeze page:', error.message);
       }
       
       analysisInProgressByTab.delete(tabId);
@@ -522,6 +523,234 @@ function unfreezePageAndShowOverlay(url, score) {
     showSecurityBadge(url, '⚠️ Warning', '#FF9800', score);
   } else {
     showSecurityBadge(url, '🚫 Suspicious', '#F44336', score);
+  }
+}
+
+function unfreezeWithSafeBadge(score) {
+  // Remove freeze overlay
+  const overlay = document.getElementById('guardianlink-analysis-overlay');
+  if (overlay) {
+    overlay.remove();
+  }
+  
+  // Restore scrolling and remove event blockers
+  document.documentElement.style.overflow = 'auto';
+  document.body.style.overflow = 'auto';
+  window.guardianLinkFrozen = false;
+  
+  // Show safe badge in corner
+  const badge = document.createElement('div');
+  badge.id = 'guardianlink-security-badge';
+  badge.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: white;
+    border: 3px solid #4CAF50;
+    border-radius: 10px;
+    padding: 15px 20px;
+    z-index: 999999;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    font-weight: 600;
+    font-size: 14px;
+    color: #333;
+  `;
+  badge.innerHTML = `✅ Safe<br><span style="font-size: 12px; color: #666; margin-top: 5px; display: block;">Score: ${score}%</span>`;
+  document.body.appendChild(badge);
+  
+  // Auto-remove badge after 8 seconds
+  setTimeout(() => badge.remove(), 8000);
+}
+
+function unfreezeWithWarning(score) {
+  // Remove freeze overlay
+  const overlay = document.getElementById('guardianlink-analysis-overlay');
+  if (overlay) {
+    overlay.remove();
+  }
+  
+  // Restore scrolling
+  document.documentElement.style.overflow = 'auto';
+  document.body.style.overflow = 'auto';
+  window.guardianLinkFrozen = false;
+  
+  // Show warning badge
+  const badge = document.createElement('div');
+  badge.id = 'guardianlink-security-badge';
+  badge.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: white;
+    border: 3px solid #FF9800;
+    border-radius: 10px;
+    padding: 15px 20px;
+    z-index: 999999;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    font-weight: 600;
+    font-size: 14px;
+    color: #FF9800;
+  `;
+  badge.innerHTML = `⚠️ Warning<br><span style="font-size: 12px; color: #666; margin-top: 5px; display: block;">Score: ${score}%</span>`;
+  document.body.appendChild(badge);
+}
+
+function showWarningOverlayWithButton(url, score) {
+  // Keep the freeze overlay but change the message to show warning
+  const overlay = document.getElementById('guardianlink-analysis-overlay');
+  if (overlay) {
+    // Update the overlay content
+    overlay.innerHTML = '';
+    overlay.style.background = 'rgba(255, 152, 0, 0.9)';
+    
+    // Warning icon
+    const icon = document.createElement('div');
+    icon.style.cssText = `
+      font-size: 60px;
+      margin-bottom: 20px;
+    `;
+    icon.textContent = '⚠️';
+    
+    // Title
+    const title = document.createElement('div');
+    title.style.cssText = `
+      color: white;
+      font-size: 22px;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 10px;
+    `;
+    title.textContent = 'Suspicious Website Detected';
+    
+    // Score display
+    const scoreDisplay = document.createElement('div');
+    scoreDisplay.style.cssText = `
+      color: white;
+      font-size: 18px;
+      font-weight: 600;
+      text-align: center;
+      margin-bottom: 15px;
+    `;
+    scoreDisplay.textContent = `Security Score: ${score}%`;
+    
+    // Description
+    const description = document.createElement('div');
+    description.style.cssText = `
+      color: rgba(255, 255, 255, 0.95);
+      font-size: 13px;
+      text-align: center;
+      margin-bottom: 20px;
+      max-width: 80%;
+      line-height: 1.5;
+    `;
+    description.innerHTML = `This website has shown suspicious characteristics.<br>Are you sure you want to proceed?`;
+    
+    // Button container
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.cssText = `
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-bottom: 15px;
+    `;
+    
+    // Cancel button
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = '❌ Go Back';
+    cancelBtn.style.cssText = `
+      padding: 10px 20px;
+      background: white;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      color: #FF9800;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    `;
+    cancelBtn.onclick = (e) => {
+      e.stopImmediatePropagation();
+      window.history.back();
+    };
+    
+    // Proceed button
+    const proceedBtn = document.createElement('button');
+    proceedBtn.textContent = '✅ Proceed Anyway';
+    proceedBtn.style.cssText = `
+      padding: 10px 20px;
+      background: white;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      color: #FF9800;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    `;
+    proceedBtn.onmouseenter = () => {
+      proceedBtn.style.background = '#f0f0f0';
+    };
+    proceedBtn.onmouseleave = () => {
+      proceedBtn.style.background = 'white';
+    };
+    proceedBtn.onclick = (e) => {
+      e.stopImmediatePropagation();
+      // Remove overlay and unfreeze
+      overlay.remove();
+      document.documentElement.style.overflow = 'auto';
+      document.body.style.overflow = 'auto';
+      window.guardianLinkFrozen = false;
+      
+      // Show confirmation badge
+      const badge = document.createElement('div');
+      badge.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: white;
+        border: 3px solid #FF9800;
+        border-radius: 10px;
+        padding: 15px 20px;
+        z-index: 999999;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        font-weight: 600;
+        font-size: 14px;
+        color: #FF9800;
+      `;
+      badge.innerHTML = `⚠️ You proceeded<br><span style="font-size: 12px; color: #666; margin-top: 5px; display: block;">Score: ${score}%</span>`;
+      document.body.appendChild(badge);
+      
+      setTimeout(() => badge.remove(), 8000);
+    };
+    
+    buttonContainer.appendChild(cancelBtn);
+    buttonContainer.appendChild(proceedBtn);
+    
+    // Domain info
+    const domainInfo = document.createElement('div');
+    domainInfo.style.cssText = `
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 11px;
+      text-align: center;
+      font-family: monospace;
+      word-break: break-all;
+      max-width: 80%;
+    `;
+    try {
+      domainInfo.textContent = new URL(url).hostname;
+    } catch (e) {
+      domainInfo.textContent = url.substring(0, 50);
+    }
+    
+    overlay.appendChild(icon);
+    overlay.appendChild(title);
+    overlay.appendChild(scoreDisplay);
+    overlay.appendChild(description);
+    overlay.appendChild(buttonContainer);
+    overlay.appendChild(domainInfo);
   }
 }
 

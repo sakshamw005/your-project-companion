@@ -491,16 +491,15 @@ console.log('✅ GuardianLink v2.0 Content Script Ready');
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'analysisComplete') {
     console.log('📊 Analysis complete:', request.verdict, 'Score:', request.score);
-    analysisResult = request.decision;
     
     if (request.verdict === 'BLOCK') {
-      // Page will be replaced with warning, no need to show overlay
       console.log('🚫 Page will be replaced with warning');
     } else if (request.verdict === 'WARN') {
-      showSecurityWarningOverlay(request.score, request.decision);
+      console.log('⚠️ Keeping page frozen, showing warning with proceed button');
+      // Background script will handle this via injected script
     } else {
-      // Safe - just show brief badge
-      showSecurityBadge('✅ Safe', '#4CAF50', request.score);
+      console.log('✅ Safe site, unfrozen');
+      // Background script will handle this via injected script
     }
     
     sendResponse({ status: 'received' });
@@ -513,77 +512,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 // Show security warning overlay
-function showSecurityWarningOverlay(score, decision) {
-  const overlay = document.createElement('div');
-  overlay.id = 'guardianlink-warning-overlay';
-  overlay.style.cssText = `
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(255, 152, 0, 0.15);
-    border: 3px solid #FF9800;
-    z-index: 999998;
-    pointer-events: none;
-  `;
-  
-  const badge = document.createElement('div');
-  badge.style.cssText = `
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    background: white;
-    border: 3px solid #FF9800;
-    border-radius: 10px;
-    padding: 15px 20px;
-    z-index: 999999;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-    font-weight: 600;
-    font-size: 14px;
-    color: #FF9800;
-  `;
-  badge.innerHTML = `⚠️ Warning<br><span style="font-size: 12px; color: #666; margin-top: 5px; display: block;">Score: ${score}%</span>`;
-  
-  document.body.appendChild(overlay);
-  document.body.appendChild(badge);
-  
-  console.log('⚠️ Security warning overlay shown for suspicious site');
-  
-  // Auto-remove after 10 seconds
-  setTimeout(() => {
-    overlay.remove();
-    badge.remove();
-  }, 10000);
-}
-
-function showSecurityBadge(status, color, score) {
-  const badge = document.createElement('div');
-  badge.id = 'guardianlink-security-badge';
-  badge.style.cssText = `
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    background: white;
-    border: 3px solid ${color};
-    border-radius: 10px;
-    padding: 15px 20px;
-    z-index: 999999;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    font-weight: 600;
-    font-size: 14px;
-    color: #333;
-  `;
-  badge.innerHTML = `${status}<br><span style="font-size: 12px; color: #666; margin-top: 5px; display: block;">Score: ${score}%</span>`;
-  document.body.appendChild(badge);
-  
-  console.log('✅ Security badge shown:', status);
-  
-  // Auto-remove after 8 seconds
-  setTimeout(() => badge.remove(), 8000);
-}
+// (Handled by background.js injected script now)
 
 function showDownloadBlockedNotification(filename, reason) {
   const notification = document.createElement('div');

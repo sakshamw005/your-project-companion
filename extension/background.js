@@ -30,6 +30,21 @@ let userId = null;
 let isAuthenticated = false;
 let recentBypassedURLs = new Map(); // Store bypassed URLs with timestamp to prevent re-blocking
 
+// === FIX #1: NUKE ALL STALE DNR RULES ON STARTUP ===
+// This removes any leftover blocking rules from previous runs that may not be removed
+chrome.declarativeNetRequest.getDynamicRules(rules => {
+  const ids = rules.map(r => r.id);
+  if (ids.length > 0) {
+    chrome.declarativeNetRequest.updateDynamicRules({
+      removeRuleIds: ids
+    }).then(() => {
+      console.warn('🧹 GuardianLink: Cleared', ids.length, 'stale DNR rules on startup');
+    }).catch(err => {
+      console.log('⚠️ Could not clear stale rules:', err.message);
+    });
+  }
+});
+
 // Initialize extension
 chrome.runtime.onInstalled.addListener(() => {
   console.log('🛡️ GuardianLink v2.0 Enhanced Edition - INSTALLED WITH WEBSITE SYNC');
@@ -411,6 +426,7 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
           priority: 100,
           action: { type: 'allow' },
           condition: {
+            tabIds: [tabId],
             urlFilter: '|http://localhost',
             resourceTypes: ['xmlhttprequest']
           }
@@ -420,6 +436,7 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
           priority: 100,
           action: { type: 'allow' },
           condition: {
+            tabIds: [tabId],
             urlFilter: 'bing.com/api',
             resourceTypes: ['xmlhttprequest']
           }
@@ -429,6 +446,7 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
           priority: 100,
           action: { type: 'allow' },
           condition: {
+            tabIds: [tabId],
             urlFilter: 'abuse.ch',
             resourceTypes: ['xmlhttprequest']
           }
@@ -438,6 +456,7 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
           priority: 100,
           action: { type: 'allow' },
           condition: {
+            tabIds: [tabId],
             urlFilter: 'virustotal.com',
             resourceTypes: ['xmlhttprequest']
           }
@@ -449,6 +468,7 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
           priority: 1,
           action: { type: 'block' },
           condition: {
+            tabIds: [tabId],
             urlFilter: '||',
             resourceTypes: ['script', 'image', 'stylesheet', 'xmlhttprequest', 'object', 'media', 'font', 'ping']
           }
@@ -510,6 +530,7 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
             priority: 50, // Higher than resource block, lower than allow
             action: { type: 'block' },
             condition: {
+              tabIds: [tabId],
               urlFilter: '||',
               resourceTypes: ['main_frame']
             }

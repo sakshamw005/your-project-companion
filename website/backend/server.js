@@ -1059,7 +1059,39 @@ try {
       }
     );
     
-    console.log(`✅ Scan complete. Score: ${results.percentage}% (${results.overallStatus})`);
+    // Detailed score breakdown logging
+    console.log(`\n${'='.repeat(60)}`);
+    console.log(`✅ SCAN COMPLETE: ${scanId}`);
+    console.log(`URL: ${url}`);
+    console.log(`Overall Score: ${results.percentage}% (${results.overallStatus.toUpperCase()})`);
+    console.log(`${'='.repeat(60)}`);
+    console.log('📊 PHASE BREAKDOWN:');
+    
+    for (const [phaseKey, phaseData] of Object.entries(results.phases)) {
+      const score = phaseData.score || 0;
+      const maxScore = phaseData.maxScore || 0;
+      const status = phaseData.status || 'unknown';
+      const percentage = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
+      
+      console.log(`  ├─ ${phaseData.name}`);
+      console.log(`  │  Score: ${score}/${maxScore} (${percentage}%) - ${status.toUpperCase()}`);
+      
+      if (phaseData.findings && Array.isArray(phaseData.findings)) {
+        phaseData.findings.forEach(finding => {
+          console.log(`  │  └─ ${finding}`);
+        });
+      }
+      if (phaseData.reason) {
+        console.log(`  │  └─ ${phaseData.reason}`);
+      }
+      if (phaseData.threats) {
+        console.log(`  │  └─ Threats: ${phaseData.threats}`);
+      }
+      if (phaseData.error) {
+        console.log(`  │  └─ Error: ${phaseData.error}`);
+      }
+    }
+    console.log(`${'='.repeat(60)}\n`);
     
     res.json(results);
   } catch (error) {
@@ -1069,44 +1101,59 @@ try {
   }
 });
 
-// Scan history for authenticated user
+// Scan history (public - no auth required)
 app.get('/api/scans', (req, res) => {
   const limit = req.query.limit || 50;
   
   db.all(
-    'SELECT id, url, status, created_at, scan_result FROM scans WHERE user_id = ? ORDER BY created_at DESC LIMIT ?',
-    [req.userId, limit],
+    'SELECT id, url, status, created_at, scan_result FROM scans ORDER BY created_at DESC LIMIT ?',
+    [limit],
     (err, rows) => {
       if (err) {
         return res.status(500).json({ error: 'Failed to fetch scans' });
       }
       
-      // Parse JSON results
-      const scans = rows.map(row => ({
-        ...row,
-        scan_result: row.scan_result ? JSON.parse(row.scan_result) : null
-      }));
+      // Parse JSON results and extract score
+      const scans = rows.map(row => {
+        const result = row.scan_result ? JSON.parse(row.scan_result) : null;
+        return {
+          id: row.id,
+          url: row.url,
+          status: row.status,
+          created_at: row.created_at,
+          score: result ? result.percentage : 0,
+          overallStatus: result ? result.overallStatus : 'unknown',
+          scan_result: result
+        };
+      });
       
       res.json(scans);
     }
   );
 });
 
-// Get specific scan details
+// Get specific scan details (public)
 app.get('/api/scans/:scanId', (req, res) => {
   const { scanId } = req.params;
   
   db.get(
-    'SELECT id, url, status, created_at, scan_result FROM scans WHERE id = ? AND user_id = ?',
-    [scanId, req.userId],
+    'SELECT id, url, status, created_at, scan_result FROM scans WHERE id = ?',
+    [scanId],
     (err, row) => {
       if (err || !row) {
         return res.status(404).json({ error: 'Scan not found' });
       }
       
+      const result = row.scan_result ? JSON.parse(row.scan_result) : null;
+      
       res.json({
-        ...row,
-        scan_result: row.scan_result ? JSON.parse(row.scan_result) : null
+        id: row.id,
+        url: row.url,
+        status: row.status,
+        created_at: row.created_at,
+        score: result ? result.percentage : 0,
+        overallStatus: result ? result.overallStatus : 'unknown',
+        scan_result: result
       });
     }
   );

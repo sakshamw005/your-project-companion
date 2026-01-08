@@ -70,9 +70,12 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
+    // Allow chrome extension origins, localhost, or no origin (same-site requests)
+    if (!origin || allowedOrigins.includes(origin) || (origin && origin.startsWith('chrome-extension://'))) {
+      console.log('✅ CORS allowed for origin:', origin || 'same-site');
       callback(null, true);
     } else {
+      console.log('❌ CORS rejected for origin:', origin);
       callback(new Error("Not allowed by CORS"));
     }
   },

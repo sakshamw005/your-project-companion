@@ -299,15 +299,22 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
   
   // Immediately inject blocking script to freeze page rendering
   try {
+    // Store URL in session storage for the injected script to retrieve
+    await chrome.tabs.executeScript(tabId, {
+      code: `window.guardianLinkPendingURL = '${url.replace(/'/g, "\\'")}'; window.guardianLinkTabId = ${tabId};`
+    }).catch(() => {
+      // Fallback: use storage
+      chrome.storage.session.set({ [`guardianlink_url_${tabId}`]: url });
+    });
+    
     await chrome.scripting.executeScript({
       target: { tabId: tabId },
       function: injectPageFreeze,
-      args: [url],
       injectImmediately: true
     });
     console.log('🔒 Page freeze injected for tab:', tabId);
   } catch (error) {
-    console.error('⚠️ Could not inject freeze script:', error);
+    console.error('⚠️ Could not inject freeze script:', error.message);
   }
   
   pendingAnalysis.set(url, true);
@@ -354,7 +361,7 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
         await chrome.scripting.executeScript({
           target: { tabId: tabId },
           function: showWarningOverlayWithButton,
-          args: [url, score],
+          args: [score],  // Only pass score, not URL
           injectImmediately: false
         });
       } catch (error) {
@@ -382,7 +389,7 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
         await chrome.scripting.executeScript({
           target: { tabId: tabId },
           function: unfreezeWithSafeBadge,
-          args: [score],
+          args: [score],  // Only pass score
           injectImmediately: false
         });
       } catch (error) {
@@ -411,7 +418,10 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
 });
 
 // Functions to inject into page
-function injectPageFreeze(url) {
+function injectPageFreeze() {
+  // Get URL from window variable set by background script
+  const url = window.guardianLinkPendingURL || document.location.href;
+  
   // Create freeze overlay
   const overlay = document.createElement('div');
   overlay.id = 'guardianlink-analysis-overlay';
@@ -501,6 +511,7 @@ function injectPageFreeze(url) {
   document.addEventListener('touchmove', (e) => e.preventDefault(), true);
   
   window.guardianLinkFrozen = true;
+  console.log('🔒 Page frozen:', url);
 }
 
 function unfreezePageAndShowOverlay(url, score) {
@@ -597,7 +608,10 @@ function unfreezeWithWarning(score) {
   document.body.appendChild(badge);
 }
 
-function showWarningOverlayWithButton(url, score) {
+function showWarningOverlayWithButton(score) {
+  // Get URL from window variable
+  const url = window.guardianLinkPendingURL || document.location.href;
+  
   // Keep the freeze overlay but change the message to show warning
   const overlay = document.getElementById('guardianlink-analysis-overlay');
   if (overlay) {
@@ -751,6 +765,8 @@ function showWarningOverlayWithButton(url, score) {
     overlay.appendChild(description);
     overlay.appendChild(buttonContainer);
     overlay.appendChild(domainInfo);
+    
+    console.log('⚠️ Warning overlay with buttons shown for suspicious site');
   }
 }
 

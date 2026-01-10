@@ -21,6 +21,12 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://localhost:5432/guardianlink'
 });
 
+// Helper function to convert SQLite ? placeholders to PostgreSQL $1, $2, etc
+function convertSqlPlaceholders(sql) {
+  let paramIndex = 1;
+  return sql.replace(/\?/g, () => `$${paramIndex++}`);
+}
+
 // Wrapper for compatibility with callback-based queries
 const db = {
   run: (sql, params = [], callback) => {
@@ -28,7 +34,8 @@ const db = {
       callback = params;
       params = [];
     }
-    pool.query(sql, params, (err, result) => {
+    const pgSql = convertSqlPlaceholders(sql);
+    pool.query(pgSql, params, (err, result) => {
       callback(err, result);
     });
   },
@@ -37,7 +44,8 @@ const db = {
       callback = params;
       params = [];
     }
-    pool.query(sql, params, (err, result) => {
+    const pgSql = convertSqlPlaceholders(sql);
+    pool.query(pgSql, params, (err, result) => {
       callback(err, result?.rows?.[0]);
     });
   },
@@ -46,7 +54,8 @@ const db = {
       callback = params;
       params = [];
     }
-    pool.query(sql, params, (err, result) => {
+    const pgSql = convertSqlPlaceholders(sql);
+    pool.query(pgSql, params, (err, result) => {
       callback(err, result?.rows);
     });
   },

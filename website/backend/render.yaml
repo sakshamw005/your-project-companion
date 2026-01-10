@@ -4,8 +4,35 @@ services:
     runtime: node
     buildCommand: npm install
     startCommand: npm start
+    
+    # Environment Variables (set these in Render dashboard or here)
     envVars:
       - key: NODE_ENV
         value: production
+      
       - key: PORT
         value: 3001
+      
+      # API Keys - ADD YOUR OWN KEYS
+      - key: VIRUSTOTAL_API_KEY
+        sync: false  # Set via Render dashboard
+      
+      - key: ABUSEIPDB_API_KEY
+        sync: false  # Set via Render dashboard
+      
+      - key: WHOIS_API_KEY
+        sync: false  # Set via Render dashboard
+      
+      - key: GOOGLE_SAFE_BROWSING_API_KEY
+        sync: false  # Set via Render dashboard
+      
+      # Frontend URL - UPDATE THIS
+      - key: FRONTEND_URL
+        value: https://your-frontend-domain.com
+      
+      # Database - Use SQLite
+      - key: DATABASE_URL
+        value: ./guardianlink.db
+    
+    # Health check
+    healthCheckPath: /api/health

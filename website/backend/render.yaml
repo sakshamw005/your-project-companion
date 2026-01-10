@@ -3,7 +3,7 @@ services:
     name: guardianlink-backend
     runtime: node
     plan: standard
-    buildCommand: npm ci
+    buildCommand: npm install
     startCommand: npm start
     
     # Environment Variables (set these in Render dashboard or here)

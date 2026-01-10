@@ -8,7 +8,7 @@ console.log('🛡️ GuardianLink v2.0 Background Worker Ready');
 
 // ========== GLOBAL STATE ==========
 const CONFIG = {
-  WEBSITE_API: 'http://localhost:3001',
+  WEBSITE_API: 'https://guardianlink-backend.onrender.com',
   BLOCK_TIMEOUT: 30000,
   POLL_INTERVAL: 1500,
   MAX_POLL_ATTEMPTS: 20,

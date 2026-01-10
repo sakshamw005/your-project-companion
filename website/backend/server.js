@@ -107,6 +107,7 @@ initDatabase();
 // ========== MIDDLEWARE ==========
 const allowedOrigins = [
   "http://localhost:3000",
+  "https://guardianlink-backend.onrender.com",
   "http://localhost:3001",
   "http://localhost:5173",
   "http://localhost:5174",

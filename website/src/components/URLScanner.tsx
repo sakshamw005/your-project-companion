@@ -69,7 +69,7 @@ const SCAN_PHASES = [
 ];
 
 // Default to localhost, but can be configured
-const BACKEND_URL = "http://localhost:3001";
+const BACKEND_URL = "https://guardianlink-backend.onrender.com";
 
 export function URLScanner() {
   const [url, setUrl] = useState("");

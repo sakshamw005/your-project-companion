@@ -16,11 +16,11 @@
   ],
   "host_permissions": [
     "<all_urls>",
-    "http://localhost:3001/*",
+    "https://guardianlink-backend.onrender.com/*",
     "http://localhost:3000/*"
   ],
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; style-src 'self' 'unsafe-inline'; object-src 'self'; connect-src 'self' http://localhost:3001 http://localhost:3000; frame-ancestors 'self'"
+    "extension_pages": "script-src 'self'; style-src 'self' 'unsafe-inline'; object-src 'self'; connect-src 'self' https://guardianlink-backend.onrender.com http://localhost:3000; frame-ancestors 'self'"
   },
   "background": {
     "service_worker": "background.js"

@@ -11,9 +11,21 @@
             box-sizing: border-box;
         }
 
+        :root {
+            --primary: #0f172a;
+            --secondary: #1e293b;
+            --accent: #3b82f6;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --border: #334155;
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #0f172a 0%, #1a1f2e 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -22,95 +34,131 @@
         }
 
         .container {
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4), 0 0 40px rgba(59, 130, 246, 0.1);
             max-width: 600px;
             width: 100%;
             overflow: hidden;
+            animation: slideUp 0.5s ease;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
         }
 
         .header {
-            padding: 40px 30px 30px;
+            padding: 36px 28px;
             text-align: center;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(239, 68, 68, 0.1) 100%);
+            border-bottom: 1px solid var(--border);
+            animation: slideDown 0.4s ease;
         }
 
         .logo {
-            font-size: 48px;
-            margin-bottom: 15px;
+            font-size: 44px;
+            margin-bottom: 12px;
+            animation: pulse 2s ease-in-out infinite;
         }
 
         .header h1 {
-            font-size: 28px;
-            margin-bottom: 10px;
+            font-size: 24px;
+            margin-bottom: 6px;
             font-weight: 700;
+            color: var(--text-primary);
         }
 
         .header p {
-            font-size: 14px;
-            opacity: 0.95;
+            font-size: 13px;
+            color: var(--text-secondary);
         }
 
         .content {
-            padding: 40px 30px;
+            padding: 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
         }
 
         .risk-indicator {
             display: flex;
-            align-items: center;
-            padding: 20px;
-            background: #f5f5f5;
-            border-radius: 8px;
-            margin-bottom: 25px;
-            border-left: 4px solid;
+            align-items: flex-start;
+            gap: 16px;
+            padding: 18px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            backdrop-filter: blur(8px);
+            animation: fadeIn 0.5s ease 0.1s both;
         }
 
         .risk-indicator.critical {
-            border-color: #d32f2f;
-            background: #ffebee;
+            border-color: rgba(239, 68, 68, 0.3);
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(239, 68, 68, 0.05) 100%);
         }
 
         .risk-indicator.high {
-            border-color: #f57c00;
-            background: #fff3e0;
+            border-color: rgba(245, 158, 11, 0.3);
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(245, 158, 11, 0.05) 100%);
         }
 
         .risk-indicator.medium {
-            border-color: #fbc02d;
-            background: #fffde7;
+            border-color: rgba(234, 179, 8, 0.3);
+            background: linear-gradient(135deg, rgba(234, 179, 8, 0.15) 0%, rgba(234, 179, 8, 0.05) 100%);
         }
 
         .risk-indicator.low {
-            border-color: #388e3c;
-            background: #e8f5e9;
+            border-color: rgba(16, 185, 129, 0.3);
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(16, 185, 129, 0.05) 100%);
         }
 
         .risk-icon {
             font-size: 32px;
-            margin-right: 15px;
+            flex-shrink: 0;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        .risk-info {
+            flex: 1;
         }
 
         .risk-info h2 {
             font-size: 18px;
-            margin-bottom: 5px;
-            color: #333;
+            margin-bottom: 4px;
+            color: var(--text-primary);
+            font-weight: 600;
         }
 
         .risk-info p {
             font-size: 13px;
-            color: #666;
+            color: var(--text-secondary);
+            line-height: 1.5;
         }
 
         .details {
-            margin-bottom: 25px;
+            margin-bottom: 8px;
         }
 
         .details h3 {
-            font-size: 13px;
+            font-size: 11px;
             font-weight: 700;
-            color: #333;
+            color: var(--text-secondary);
             text-transform: uppercase;
             margin-bottom: 12px;
             letter-spacing: 0.5px;
@@ -118,8 +166,9 @@
 
         .detail-row {
             display: flex;
+            flex-direction: column;
             padding: 10px 0;
-            border-bottom: 1px solid #eee;
+            border-bottom: 1px solid rgba(52, 65, 85, 0.5);
             font-size: 13px;
         }
 
@@ -129,208 +178,262 @@
 
         .detail-label {
             font-weight: 600;
-            color: #666;
-            min-width: 100px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+            font-size: 11px;
+            text-transform: uppercase;
         }
 
         .detail-value {
-            color: #333;
+            color: var(--text-primary);
             word-break: break-all;
-            flex: 1;
-            margin-left: 10px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.4;
         }
 
         .risks-list {
-            background: #fafafa;
-            padding: 15px;
-            border-radius: 6px;
-            margin-bottom: 20px;
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(239, 68, 68, 0.05) 100%);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            animation: fadeIn 0.5s ease 0.2s both;
         }
 
         .risks-list h4 {
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 700;
-            color: #d32f2f;
+            color: #fca5a5;
             margin-bottom: 10px;
             text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         .risks-list ul {
             list-style: none;
             padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
         }
 
         .risks-list li {
-            padding: 6px 0;
-            font-size: 13px;
-            color: #555;
-            padding-left: 20px;
+            padding: 6px 0 6px 20px;
+            font-size: 12px;
+            color: var(--text-secondary);
             position: relative;
         }
 
         .risks-list li:before {
-            content: "⚠";
+            content: "•";
             position: absolute;
-            left: 0;
-            color: #d32f2f;
+            left: 8px;
+            color: #fca5a5;
+            font-weight: bold;
         }
 
-        .actions {
+        .score-bar-container {
+            animation: fadeIn 0.5s ease 0.3s both;
+        }
+
+        .score-label {
             display: flex;
-            gap: 10px;
-            justify-content: center;
-        }
-
-        button {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 6px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            min-width: 130px;
-        }
-
-        .btn-back {
-            background: #e0e0e0;
-            color: #333;
-        }
-
-        .btn-back:hover {
-            background: #d0d0d0;
-        }
-
-        .btn-proceed {
-            background: #667eea;
-            color: white;
-        }
-
-        .btn-proceed:hover {
-            background: #5568d3;
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-        }
-
-        .btn-proceed:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-            opacity: 0.6;
-        }
-
-        .footer {
-            padding: 15px 30px;
-            background: #f5f5f5;
-            border-top: 1px solid #eee;
-            font-size: 11px;
-            color: #999;
-            text-align: center;
-        }
-
-        .hidden {
-            display: none;
-        }
-
-        .warning-message {
-            background: #fff3cd;
-            border: 1px solid #ffc107;
-            color: #856404;
-            padding: 12px 15px;
-            border-radius: 4px;
-            margin-bottom: 20px;
-            font-size: 13px;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 12px;
+            color: var(--text-secondary);
         }
 
         .score-bar {
-            margin: 15px 0;
-            height: 8px;
-            background: #eee;
-            border-radius: 4px;
+            height: 6px;
+            background: rgba(100, 116, 139, 0.2);
+            border-radius: 3px;
             overflow: hidden;
+            border: 1px solid var(--border);
         }
 
         .score-fill {
             height: 100%;
-            border-radius: 4px;
-            transition: width 0.3s ease;
+            border-radius: 3px;
+            transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             width: 0%;
-            background: #d32f2f;
+            background: linear-gradient(90deg, var(--danger) 0%, #dc2626 100%);
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+        }
+
+        .actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-top: 8px;
+            animation: fadeIn 0.5s ease 0.4s both;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            min-width: 120px;
+            backdrop-filter: blur(8px);
+        }
+
+        .btn-back {
+            background: linear-gradient(135deg, rgba(100, 116, 139, 0.1) 0%, rgba(100, 116, 139, 0.05) 100%);
+            color: var(--text-primary);
+            border-color: var(--border);
+        }
+
+        .btn-back:hover {
+            background: linear-gradient(135deg, rgba(100, 116, 139, 0.2) 0%, rgba(100, 116, 139, 0.1) 100%);
+            border-color: rgba(100, 116, 139, 0.4);
+            transform: translateY(-1px);
+        }
+
+        .btn-proceed {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(59, 130, 246, 0.1) 100%);
+            color: var(--accent);
+            border-color: var(--accent);
+        }
+
+        .btn-proceed:hover {
+            background: linear-gradient(135deg, var(--accent) 0%, #2563eb 100%);
+            color: white;
+            border-color: var(--accent);
+            box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
+            transform: translateY(-1px);
+        }
+
+        .btn-proceed:disabled {
+            background: rgba(100, 116, 139, 0.1);
+            color: var(--text-secondary);
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .footer {
+            padding: 14px 28px;
+            background: linear-gradient(90deg, rgba(59, 130, 246, 0.05) 0%, rgba(59, 130, 246, 0.02) 100%);
+            border-top: 1px solid var(--border);
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-align: center;
+            letter-spacing: 0.3px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .warning-message {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(245, 158, 11, 0.05) 100%);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            color: var(--text-secondary);
+            padding: 12px 14px;
+            border-radius: 8px;
+            font-size: 12px;
+            line-height: 1.5;
+            animation: fadeIn 0.5s ease 0.15s both;
+        }
+
+        .warning-message strong {
+            color: var(--warning);
         }
 
         .critical-message {
-            background: #f8d7da;
-            border-color: #f5c6cb;
-            color: #721c24;
-            margin-top: 15px;
+            border-color: rgba(239, 68, 68, 0.3);
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(239, 68, 68, 0.05) 100%);
+            margin-top: 8px;
+        }
+
+        .critical-message strong {
+            color: #fca5a5;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--accent);
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <div class="logo">🛡️</div>
-            <h1>GuardianLink</h1>
-            <p>Security Warning - Suspicious URL Detected</p>
+            <div class="logo">⚠️</div>
+            <h1>Security Alert</h1>
+            <p>Suspicious activity detected</p>
         </div>
 
         <div class="content">
-            <div id="riskIndicator" class="risk-indicator">
-                <div class="risk-icon">⚠️</div>
+            <div id="riskIndicator" class="risk-indicator critical">
+                <div class="risk-icon">🔒</div>
                 <div class="risk-info">
-                    <h2 id="riskLevel">LOADING...</h2>
-                    <p id="riskDescription">Analyzing URL...</p>
+                    <h2 id="riskLevel">ANALYZING...</h2>
+                    <p id="riskDescription">Scanning URL for security threats...</p>
                 </div>
             </div>
 
-            <div class="warning-message hidden" id="warningMessage">
-                <strong>You are about to visit a potentially dangerous website.</strong>
-                <br>Proceed only if you are absolutely certain this is a legitimate URL.
-            </div>
+            <div class="warning-message hidden" id="warningMessage"></div>
 
             <div id="risksContainer" class="risks-list hidden">
-                <h4>Detected Risks</h4>
+                <h4>Detected Threats</h4>
                 <ul id="risksList"></ul>
             </div>
 
             <div class="details">
-                <h3>URL Details</h3>
+                <h3>Details</h3>
                 <div class="detail-row">
-                    <div class="detail-label">Full URL</div>
-                    <div class="detail-value" id="urlDetail"></div>
+                    <div class="detail-label">URL</div>
+                    <div class="detail-value" id="urlDetail">Loading...</div>
                 </div>
                 <div class="detail-row">
                     <div class="detail-label">Domain</div>
-                    <div class="detail-value" id="domainDetail"></div>
-                </div>
-                <div class="detail-row">
-                    <div class="detail-label">Risk Score</div>
-                    <div class="detail-value" id="scoreDetail"></div>
+                    <div class="detail-value" id="domainDetail">—</div>
                 </div>
             </div>
 
-            <div id="scoreBarContainer" class="score-bar hidden">
-                <div class="score-fill" id="scoreFill"></div>
+            <div class="score-bar-container hidden" id="scoreBarContainer">
+                <div class="score-label">
+                    <span>Threat Level</span>
+                    <span id="scoreValue">0%</span>
+                </div>
+                <div class="score-bar">
+                    <div class="score-fill" id="scoreFill"></div>
+                </div>
             </div>
 
             <div class="actions">
-                <button class="btn-back" id="goBackBtn">← Go Back</button>
-                <button class="btn-proceed hidden" id="proceedBtn">
-                    Proceed Anyway
-                </button>
+                <button class="btn-back" id="goBackBtn">Go Back</button>
+                <button class="btn-proceed hidden" id="proceedBtn">Proceed</button>
             </div>
 
             <div id="criticalMessage" class="warning-message critical-message hidden">
-                <strong>This URL has been BLOCKED.</strong><br>
-                It exhibits critical security threats. Proceeding is not recommended.
+                <strong>This site has been blocked.</strong> It presents critical security threats.
             </div>
         </div>
 
         <div class="footer">
-            Protected by GuardianLink v1.0.0 | 
-            <span id="timestamp"></span>
+            GuardianLink Enterprise Security | Protected
         </div>
     </div>
 
-    <script src="../utils/urlParser.js"></script>
     <script src="warning.js"></script>
 </body>
 </html>

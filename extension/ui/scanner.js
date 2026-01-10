@@ -1,7 +1,6 @@
 /**
  * Scanner Page Script
- * Shows scanning progress to user
- * FIXED: Proper communication with background
+ * Enterprise security scan interface with real-time feedback
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -9,71 +8,56 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function initializeScanner() {
-  console.log('🔧 Scanner page initializing...');
+  console.log('[GuardianLink] Scanner page initializing...');
   
-  // Get URL and tabId from query parameters
   const params = new URLSearchParams(window.location.search);
   const url = decodeURIComponent(params.get('url') || '');
   const tabId = parseInt(params.get('tabId') || '0');
   
-  // Display URL
   const urlElement = document.getElementById('scanUrl');
   if (url) {
     try {
       const urlObj = new URL(url);
-      urlElement.innerHTML = `
-        <div style="margin-bottom: 5px; opacity: 0.8;">Domain:</div>
-        <div style="font-weight: bold;">${urlObj.hostname}</div>
-        <div style="margin-top: 5px; font-size: 12px; opacity: 0.7;">${urlObj.pathname.substring(0, 50)}${urlObj.pathname.length > 50 ? '...' : ''}</div>
-      `;
+      urlElement.innerHTML = `<div style="opacity: 0.7; font-size: 10px; margin-bottom: 4px;">DOMAIN</div><div style="font-weight: 600;">${urlObj.hostname}</div><div style="font-size: 11px; opacity: 0.6; margin-top: 4px;">${urlObj.pathname.substring(0, 50)}${urlObj.pathname.length > 50 ? '...' : ''}</div>`;
     } catch {
       urlElement.textContent = url.substring(0, 80) + (url.length > 80 ? '...' : '');
     }
   }
   
-  // Initialize phases
   initializePhases();
-  
-  // Start progress animation
   startProgressAnimation();
   
-  // Register with background
   try {
     await chrome.runtime.sendMessage({ 
       action: 'SCANNER_READY',
       tabId: tabId,
       url: url
     });
-    console.log('✅ Scanner page registered with background');
+    console.log('[GuardianLink] Scanner registered with background');
   } catch (error) {
-    console.log('⚠️ Could not register scanner:', error.message);
+    console.log('[GuardianLink] Scanner registration:', error.message);
   }
   
-  // Notify background that scanner is ready
   setTimeout(() => {
     chrome.runtime.sendMessage({ action: 'SCANNER_READY' }).catch(() => {});
   }, 100);
   
-  // Add proceed button after delay
   setTimeout(() => {
     setupProceedButton(url, tabId);
   }, 2000);
   
-  // Listen for messages from background
   setupMessageListener(tabId, url);
-  
-  // Simulate initial scan phases
   simulateInitialPhases();
 }
 
 function initializePhases() {
   const phases = [
-    { id: 'initial', name: 'Initializing Scan', status: 'checking' },
+    { id: 'initial', name: 'Initializing', status: 'checking' },
     { id: 'whitelist', name: 'Whitelist Check', status: 'pending' },
-    { id: 'blacklist', name: 'Blacklist Check', status: 'pending' },
-    { id: 'reputation', name: 'Domain Reputation', status: 'pending' },
+    { id: 'blacklist', name: 'Blacklist Scan', status: 'pending' },
+    { id: 'reputation', name: 'Reputation', status: 'pending' },
     { id: 'backend', name: 'Backend Analysis', status: 'pending' },
-    { id: 'final', name: 'Final Decision', status: 'pending' }
+    { id: 'final', name: 'Final Verdict', status: 'pending' }
   ];
   
   const container = document.getElementById('phasesContainer');

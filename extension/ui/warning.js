@@ -5,7 +5,7 @@
  */
 
 // === DEBUG MODE ===
-const DEBUG = true; // Set to false in production
+const DEBUG = true; // Set to true for development debugging
 function debugLog(...args) {
   if (DEBUG) console.log('[GuardianLink Warning]', ...args);
 }
@@ -46,7 +46,7 @@ async function checkBackgroundReady() {
     const response = await chrome.runtime.sendMessage({ action: 'ping' });
     return response && response.status === 'ok';
   } catch (error) {
-    console.error('❌ Background not responding:', error);
+    console.error('[GuardianLink] Background check failed:', error);
     return false;
   }
 }
@@ -77,46 +77,82 @@ function withTimeout(promise, ms) {
 // Get decision data from storage
 async function getDecisionData() {
   try {
-    console.log('🔍 Attempting to retrieve decision data...');
+    debugLog('Attempting to retrieve decision data...');
     
     // First: Try session storage (preferred, used by content.js)
     const sessionResult = await chrome.storage.session.get(['guardianlink_warning_decision']);
     if (sessionResult.guardianlink_warning_decision) {
-      console.log('✅ Found decision in session storage');
+      debugLog('✅ Found decision in session storage:', sessionResult.guardianlink_warning_decision);
       return sessionResult.guardianlink_warning_decision;
     }
     
+    debugLog('No decision in session storage, checking URL parameters');
+    
     // Second: Check URL parameters as fallback
     if (urlFromParams) {
-      console.log('🔍 Looking for decision via parameters - URL:', urlFromParams, 'Verdict:', verdictFromParams);
+      debugLog('URL from params:', urlFromParams, 'Verdict:', verdictFromParams);
       
-      // Create a basic decision from params
       try {
+        const decodedUrl = decodeURIComponent(urlFromParams);
         const basicDecision = {
-          url: decodeURIComponent(urlFromParams),
+          url: decodedUrl,
           verdict: verdictFromParams || 'WARN',
-          score: 60, // Default score
+          score: verdictFromParams === 'BLOCK' ? 85 : 60,
           riskLevel: verdictFromParams === 'BLOCK' ? 'CRITICAL' : 'MEDIUM',
-          reasoning: 'Security threat detected',
+          reasoning: verdictFromParams === 'BLOCK' 
+            ? 'This site has been blocked due to critical security threats'
+            : 'This site shows signs of suspicious activity',
           timestamp: new Date().toISOString(),
           details: {
-            domain: new URL(decodeURIComponent(urlFromParams)).hostname,
-            risks: ['Suspicious domain', 'Potential security risk'],
+            domain: new URL(decodedUrl).hostname,
+            risks: verdictFromParams === 'BLOCK' 
+              ? ['Critical security threat detected', 'Site contains malware']
+              : ['Suspicious domain', 'Potential phishing risk'],
             phaseBreakdown: {}
           }
         };
+        debugLog('✅ Created decision from URL params:', basicDecision);
         return basicDecision;
       } catch (e) {
-        console.error('Error creating decision from params:', e);
+        console.error('[GuardianLink] Error creating decision from params:', e);
       }
     }
     
+    debugLog('No URL parameters found, using generic default');
+    
+    // Return a generic default
+    return {
+      url: 'Unknown website',
+      verdict: 'WARN',
+      score: 50,
+      riskLevel: 'MEDIUM',
+      reasoning: 'Security analysis in progress',
+      timestamp: new Date().toISOString(),
+      details: {
+        domain: 'Unknown',
+        risks: ['Unable to retrieve security details'],
+        phaseBreakdown: {}
+      }
+    };
+    
   } catch (error) {
-    console.error('Error retrieving decision from storage:', error);
+    console.error('[GuardianLink] Error retrieving decision:', error);
+    
+    // Return safe default on error
+    return {
+      url: 'Unknown website',
+      verdict: 'WARN',
+      score: 50,
+      riskLevel: 'MEDIUM',
+      reasoning: 'Error during security analysis',
+      timestamp: new Date().toISOString(),
+      details: {
+        domain: 'Unknown',
+        risks: ['Error retrieving security information'],
+        phaseBreakdown: {}
+      }
+    };
   }
-  
-  console.log('⚠️ No decision found');
-  return null;
 }
 
 // Get original URL from session storage
@@ -139,105 +175,138 @@ async function getOriginalUrl() {
   }
 }
 
+// Store decision globally for use in event listeners
+let globalDecision = null;
+let globalOriginalUrl = null;
+
 // Initialize warning page
 async function initWarning() {
-  // Check if background is ready first
-  const bgReady = await checkBackgroundReady();
-  if (!bgReady) {
-    console.error('⚠️ Background script not ready, retrying...');
-    setTimeout(initWarning, 1000);
-    return;
-  }
+  debugLog('Initializing warning page...');
   
-  const decision = await getDecisionData();
+  // ALWAYS set up event listeners, even if data loading fails
+  setupEventListeners();
   
-  if (!decision) {
-    document.querySelector('.content').innerHTML = 
-      '<p style="padding: 20px; color: #666;">No security decision data found. Please try again.</p>';
-    return;
-  }
+  try {
+    const bgReady = await checkBackgroundReady();
+    if (!bgReady) {
+      console.warn('[GuardianLink] Background not ready immediately, will retry');
+      setTimeout(initWarning, 1000);
+      return;
+    }
+    
+    debugLog('Fetching decision data...');
+    const decision = await getDecisionData();
+    
+    if (!decision) {
+      console.error('[GuardianLink] No decision data received');
+      return;
+    }
 
-  displayWarning(decision);
-  await setupEventListeners(decision);
+    debugLog('Decision data retrieved:', decision);
+    globalDecision = decision;
+    globalOriginalUrl = await getOriginalUrl();
+    displayWarning(decision);
+  } catch (error) {
+    console.error('[GuardianLink] Error during initialization:', error);
+  }
 }
 
 // Setup event listeners (CSP compliant)
-async function setupEventListeners(decision) {
+function setupEventListeners() {
+  debugLog('Setting up event listeners...');
+  
   const goBackBtn = document.getElementById('goBackBtn');
   const proceedBtn = document.getElementById('proceedBtn');
-  const originalUrl = await getOriginalUrl();
+
+  debugLog('Go Back button element:', goBackBtn);
+  debugLog('Proceed button element:', proceedBtn);
 
   if (goBackBtn) {
-    goBackBtn.addEventListener('click', async () => {
-      debugLog('🔙 User clicked Go Back');
-      
-      try {
-        // Get current tab
-        const [currentTab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        
-        if (currentTab) {
-          // Check if we came from a scanner page or directly
-          const referrer = document.referrer;
-          debugLog('Referrer:', referrer);
-          
-          if (referrer && referrer.includes('scanner.html')) {
-            // Go back to scanner
-            window.history.back();
-          } else {
-            // Navigate to a safe page
-            await chrome.tabs.update(currentTab.id, { 
-              url: 'chrome://newtab/' 
-            });
-          }
-        } else {
-          // Fallback: navigate to new tab
-          chrome.tabs.create({ url: 'chrome://newtab/' });
-        }
-      } catch (error) {
-        console.error('❌ Error in go back:', error);
-        // Fallback: navigate to new tab
-        chrome.tabs.create({ url: 'chrome://newtab/' });
-      }
-    });
+    goBackBtn.addEventListener('click', handleGoBack);
+    debugLog('✅ Go Back listener attached');
+  } else {
+    console.error('❌ Go Back button not found');
   }
 
   if (proceedBtn) {
-    proceedBtn.addEventListener('click', async () => {
-      debugLog('⚠️ User clicked Proceed Anyway');
-      
-      if (!originalUrl) {
-        console.error('❌ No original URL available');
-        return;
-      }
-      
-      // Use tabId from URL parameters (already extracted at top)
-      const tabId = tabIdFromParams;
-      
-      // Disable button to prevent double-click
-      proceedBtn.disabled = true;
-      proceedBtn.textContent = 'Proceeding...';
-      
-      try {
-        // Send message to background
-        const response = await chrome.runtime.sendMessage({
-          action: 'INTERSTITIAL_PROCEED',
-          url: originalUrl,
-          tabId: tabId
-        });
-        
-        if (response && response.status === 'bypassed') {
-          debugLog('✅ Bypass successful, navigating...');
-          // Background will handle navigation
-        } else {
-          // Fallback: Navigate directly
-          window.location.href = originalUrl;
+    proceedBtn.addEventListener('click', handleProceed);
+    debugLog('✅ Proceed listener attached');
+  }
+}
+
+// Handle Go Back button click
+function handleGoBack(e) {
+  if (e) e.preventDefault();
+  debugLog('🔙 Go Back clicked');
+  
+  try {
+    debugLog('Attempting to go back in history (2 steps to skip scanner)...');
+    // Go back 2 steps: warning page -> scanner page -> original page before extension
+    // This avoids re-triggering the scan on the suspicious URL
+    window.history.go(-2);
+    
+    // Fallback: If still on the page after 800ms, open new tab
+    setTimeout(() => {
+      const stillOnWarningPage = window.location.href.includes('warning.html');
+      if (stillOnWarningPage) {
+        debugLog('Still on warning page after history.go(-2), opening new tab...');
+        try {
+          chrome.tabs.create({ url: 'chrome://newtab/' });
+        } catch (e2) {
+          console.error('Cannot create tab:', e2);
         }
-      } catch (error) {
-        console.error('❌ Error during proceed:', error);
-        // Fallback: Navigate directly
-        window.location.href = originalUrl;
       }
+    }, 800);
+  } catch (error) {
+    console.error('[GuardianLink] Go back error:', error);
+    debugLog('History failed, opening new tab instead');
+    try {
+      chrome.tabs.create({ url: 'chrome://newtab/' });
+    } catch (e) {
+      console.error('[GuardianLink] Cannot create tab:', e);
+    }
+  }
+}
+
+// Handle Proceed Anyway button click
+async function handleProceed(e) {
+  if (e) e.preventDefault();
+  debugLog('✅ Proceed clicked');
+  
+  if (!globalOriginalUrl) {
+    console.error('[GuardianLink] No original URL available');
+    alert('Cannot proceed: Original URL not available');
+    return;
+  }
+  
+  const proceedBtn = document.getElementById('proceedBtn');
+  if (proceedBtn) {
+    proceedBtn.disabled = true;
+    proceedBtn.textContent = 'Proceeding...';
+  }
+  
+  try {
+    const tabId = tabIdFromParams || 0;
+    debugLog('Sending INTERSTITIAL_PROCEED message for URL:', globalOriginalUrl);
+    
+    const response = await chrome.runtime.sendMessage({
+      action: 'INTERSTITIAL_PROCEED',
+      url: globalOriginalUrl,
+      tabId: tabId
     });
+    
+    debugLog('Proceed response:', response);
+    
+    if (response && response.status === 'bypassed') {
+      debugLog('Bypass successful');
+    } else {
+      debugLog('Navigating to original URL');
+      window.location.href = globalOriginalUrl;
+    }
+  } catch (error) {
+    console.error('[GuardianLink] Proceed error:', error);
+    debugLog('Falling back to direct navigation');
+    window.location.href = globalOriginalUrl;
   }
 }
 
@@ -299,36 +368,47 @@ async function displayWarning(decision) {
   // Update details with null checks
   const urlDetail = document.getElementById('urlDetail');
   const domainDetail = document.getElementById('domainDetail');
-  const scoreDetail = document.getElementById('scoreDetail');
   
-  if (urlDetail) urlDetail.textContent = url;
+  if (urlDetail) {
+    urlDetail.textContent = url;
+    debugLog('Set URL detail:', url);
+  }
+  
   if (domainDetail) {
     try {
       const urlObj = new URL(url);
       domainDetail.textContent = urlObj.hostname;
+      debugLog('Set domain detail:', urlObj.hostname);
     } catch {
       domainDetail.textContent = url.split('/')[2] || url;
+      debugLog('Set domain detail (fallback):', domainDetail.textContent);
     }
   }
-  if (scoreDetail) scoreDetail.textContent = `${score.toFixed(1)} / 100`;
 
   // Show score bar
   const scoreBarContainer = document.getElementById('scoreBarContainer');
   const scoreFill = document.getElementById('scoreFill');
-  scoreBarContainer.classList.remove('hidden');
+  const scoreValue = document.getElementById('scoreValue');
   
-  const scorePercent = Math.min(score, 100);
-  scoreFill.style.width = scorePercent + '%';
+  if (scoreBarContainer) {
+    scoreBarContainer.classList.remove('hidden');
+  }
   
-  // Color based on score
-  if (scorePercent >= 75) {
-    scoreFill.style.background = '#d32f2f'; // Red - Critical
-  } else if (scorePercent >= 50) {
-    scoreFill.style.background = '#f57c00'; // Orange - High
-  } else if (scorePercent >= 25) {
-    scoreFill.style.background = '#fbc02d'; // Yellow - Medium
-  } else {
-    scoreFill.style.background = '#388e3c'; // Green - Low
+  if (scoreFill && scoreValue) {
+    const scorePercent = Math.min(score, 100);
+    scoreFill.style.width = scorePercent + '%';
+    scoreValue.textContent = scorePercent.toFixed(0) + '%';
+    
+    // Color based on score
+    if (scorePercent >= 75) {
+      scoreFill.style.background = 'linear-gradient(90deg, #ef4444 0%, #dc2626 100%)'; // Red - Critical
+    } else if (scorePercent >= 50) {
+      scoreFill.style.background = 'linear-gradient(90deg, #f97316 0%, #ea580c 100%)'; // Orange - High
+    } else if (scorePercent >= 25) {
+      scoreFill.style.background = 'linear-gradient(90deg, #eab308 0%, #ca8a04 100%)'; // Yellow - Medium
+    } else {
+      scoreFill.style.background = 'linear-gradient(90deg, #10b981 0%, #059669 100%)'; // Green - Low
+    }
   }
 
   // Show risks if available
@@ -344,35 +424,36 @@ async function displayWarning(decision) {
   }
 
   // Show warning message for WARN verdict
-  if (verdict === 'WARN' || actualRiskLevel === 'MEDIUM') {
-    document.getElementById('warningMessage').classList.remove('hidden');
-    document.getElementById('proceedBtn').classList.remove('hidden');
-  }
-
-  // Show critical message
-  if (verdict === 'BLOCK' || actualRiskLevel === 'CRITICAL') {
-    document.getElementById('criticalMessage').classList.remove('hidden');
-    
-    // For localhost/development, still allow proceeding at own risk
-    if (isLocalhost) {
+  const warningMsg = document.getElementById('warningMessage');
+  if (warningMsg) {
+    if (verdict === 'WARN' || actualRiskLevel === 'MEDIUM') {
+      warningMsg.textContent = 'This website shows signs of suspicious activity. Proceed only if you trust the source.';
+      warningMsg.classList.remove('hidden');
       document.getElementById('proceedBtn').classList.remove('hidden');
-      // Change button text
-      const proceedBtn = document.getElementById('proceedBtn');
-      proceedBtn.textContent = '⚡ Proceed (Development Only)';
-      proceedBtn.style.background = '#ff9800'; // Orange for development
-    } else {
-      document.getElementById('proceedBtn').classList.add('hidden');
     }
-  } else if (canBypass !== false) {
-    document.getElementById('proceedBtn').classList.remove('hidden');
   }
 
-  // Update timestamp with null check
-  const timestamp = document.getElementById('timestamp');
-  if (timestamp) {
-    timestamp.textContent = new Date().toLocaleString();
+  // Update critical message
+  const criticalMsg = document.getElementById('criticalMessage');
+  if (criticalMsg) {
+    if (verdict === 'BLOCK' || actualRiskLevel === 'CRITICAL') {
+      criticalMsg.classList.remove('hidden');
+      
+      // For localhost/development, still allow proceeding at own risk
+      if (isLocalhost) {
+        document.getElementById('proceedBtn').classList.remove('hidden');
+        const proceedBtn = document.getElementById('proceedBtn');
+        proceedBtn.textContent = 'Proceed (Dev)';
+      } else {
+        document.getElementById('proceedBtn').classList.add('hidden');
+      }
+    } else if (canBypass !== false) {
+      document.getElementById('proceedBtn').classList.remove('hidden');
+    }
   }
 
+  debugLog('Warning display complete');
+  
   // Log decision
   logDecision(decision);
 }

@@ -5,7 +5,7 @@ const fetch = require('node-fetch');
 const path = require('path');
 const rulesManager = require('./lib/rulesManager');
 const jwt = require('jsonwebtoken');
-const sqlite3 = require('sqlite3').verbose();
+const { Pool } = require('pg');
 const crypto = require('crypto');
 const heuristicsManager = require('./lib/heuristicsManager');
 
@@ -17,48 +17,92 @@ const scanResults = new Map(); // Store scan results by scanId
 const scanStartTimes = new Map(); // Track when scans started
 
 // ========== DATABASE SETUP ==========
-const db = new sqlite3.Database(process.env.DATABASE_URL || './guardianlink.db');
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL || 'postgresql://localhost:5432/guardianlink'
+});
+
+// Wrapper for compatibility with callback-based queries
+const db = {
+  run: (sql, params = [], callback) => {
+    if (typeof params === 'function') {
+      callback = params;
+      params = [];
+    }
+    pool.query(sql, params, (err, result) => {
+      callback(err, result);
+    });
+  },
+  get: (sql, params = [], callback) => {
+    if (typeof params === 'function') {
+      callback = params;
+      params = [];
+    }
+    pool.query(sql, params, (err, result) => {
+      callback(err, result?.rows?.[0]);
+    });
+  },
+  all: (sql, params = [], callback) => {
+    if (typeof params === 'function') {
+      callback = params;
+      params = [];
+    }
+    pool.query(sql, params, (err, result) => {
+      callback(err, result?.rows);
+    });
+  },
+  serialize: (callback) => {
+    callback();
+  }
+};
 
 // Initialize database tables
-db.serialize(() => {
-  // Drop old scans table if it exists with wrong schema
-  db.run(`DROP TABLE IF EXISTS scans`, (err) => {
-    if (err) console.log('Note: scans table did not exist');
-  });
-  
-  // Users table
-  db.run(`CREATE TABLE IF NOT EXISTS users (
-    id TEXT PRIMARY KEY,
-    email TEXT UNIQUE NOT NULL,
-    username TEXT UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
-    extension_token TEXT UNIQUE,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    last_login DATETIME
-  )`);
+const initDatabase = async () => {
+  try {
+    // Create tables with PostgreSQL syntax
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        email TEXT UNIQUE NOT NULL,
+        username TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        extension_token TEXT UNIQUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        last_login TIMESTAMP
+      )
+    `);
 
-  // Scan history - user_id can be NULL for public scans
-  db.run(`CREATE TABLE IF NOT EXISTS scans (
-    id TEXT PRIMARY KEY,
-    user_id TEXT,
-    url TEXT NOT NULL,
-    scan_result TEXT,
-    status TEXT DEFAULT 'pending',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(user_id) REFERENCES users(id)
-  )`);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS scans (
+        id TEXT PRIMARY KEY,
+        user_id TEXT,
+        url TEXT NOT NULL,
+        scan_result TEXT,
+        status TEXT DEFAULT 'pending',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(user_id) REFERENCES users(id)
+      )
+    `);
 
-  // Extension sessions (for real-time sync) - user_id can be NULL for public extension usage
-  db.run(`CREATE TABLE IF NOT EXISTS extension_sessions (
-    id TEXT PRIMARY KEY,
-    user_id TEXT,
-    extension_token TEXT UNIQUE,
-    device_info TEXT,
-    last_activity DATETIME,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(user_id) REFERENCES users(id)
-  )`);
-});
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS extension_sessions (
+        id TEXT PRIMARY KEY,
+        user_id TEXT,
+        extension_token TEXT UNIQUE,
+        device_info TEXT,
+        last_activity TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(user_id) REFERENCES users(id)
+      )
+    `);
+    
+    console.log('✅ Database tables initialized');
+  } catch (err) {
+    console.error('❌ Database initialization error:', err.message);
+  }
+};
+
+// Initialize database on startup
+initDatabase();
 
 // ========== MIDDLEWARE ==========
 const allowedOrigins = [
@@ -72,19 +116,37 @@ const allowedOrigins = [
   "http://127.0.0.1:5174"
 ];
 
-app.use(cors({
+// CORS configuration that accepts both Chrome and Firefox extensions
+const corsOptions = {
   origin: function (origin, callback) {
-    // Allow chrome extension origins, localhost, or no origin (same-site requests)
-    if (!origin || allowedOrigins.includes(origin) || (origin && origin.startsWith('chrome-extension://'))) {
-      console.log('✅ CORS allowed for origin:', origin || 'same-site');
+    // Allow requests from:
+    // 1. Chrome extension (chrome-extension://)
+    // 2. Firefox extension (moz-extension://)
+    // 3. Localhost (development)
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'http://127.0.0.1:3000',
+      'http://127.0.0.1:3001'
+    ];
+
+    // Allow all extension URLs (Chrome and Firefox)
+    if (!origin || 
+        origin.startsWith('chrome-extension://') || 
+        origin.startsWith('moz-extension://') ||
+        allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       console.log('❌ CORS rejected for origin:', origin);
-      callback(new Error("Not allowed by CORS"));
+      callback(new Error('Not allowed by CORS'));
     }
   },
-  credentials: true
-}));
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // Load rules (whitelist / blacklist) into memory
@@ -976,13 +1038,41 @@ function isSearchEngine(url) {
  */
 async function processScanInBackground(url, scanId, source) {
   try {
-    // Update status to show processing has started
-    scanResults.set(scanId, {
-      ...scanResults.get(scanId),
-      status: 'in_progress',
-      message: 'Running security checks...',
-      updatedAt: new Date().toISOString()
-    });
+    // ✅ Skip non-HTTP URLs
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      console.log(`⏭️ Skipping non-HTTP URL: ${url}`);
+      const result = {
+        scanId,
+        url,
+        verdict: 'ALLOW',
+        score: 100,
+        riskLevel: 'SAFE',
+        timestamp: new Date().toISOString(),
+        phases: {
+          urlValidation: { 
+            name: 'URL Validation', 
+            score: 100, 
+            maxScore: 100, 
+            status: 'safe', 
+            reason: 'Non-HTTP URL (system page)',
+            evidence: 'Automatically allowed'
+          }
+        },
+        totalScore: 100,
+        maxTotalScore: 100,
+        percentage: 100,
+        overallStatus: 'safe',
+        source: source || 'website'
+      };
+      
+      scanResults.set(scanId, {
+        ...result,
+        completed: true,
+        completedAt: new Date().toISOString()
+      });
+      
+      return;
+    }
     
     // Phase 1: Whitelist check (fast)
     const whitelistMatch = rulesManager.isWhitelisted(url);

@@ -97,16 +97,25 @@ async function clearAllBlockingRules() {
 chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
   const { url, tabId, frameId } = details;
   
-  // Only process main frame (frameId === 0)
+  // ✅ Only process main frame
   if (frameId !== 0) return;
   
   console.log(`🌐 Navigation to: ${url}`);
   
-  // Skip our own pages and chrome URLs
-  if (url.includes('ui/warning.html') || 
-      url.includes('ui/scanner.html') ||
+  // ✅ SKIP SYSTEM PAGES (Firefox fix!)
+  if (url.startsWith('about:') ||
       url.startsWith('chrome://') || 
-      url.startsWith('chrome-extension://')) {
+      url.startsWith('chrome-extension://') ||
+      url.startsWith('moz-extension://') ||
+      url.startsWith('edge://') ||
+      url.startsWith('file://')) {
+    console.log(`⏭️ Skipping system page: ${url}`);
+    return;
+  }
+  
+  // Skip our own extension pages
+  if (url.includes('/ui/warning.html') || 
+      url.includes('/ui/scanner.html')) {
     return;
   }
   
@@ -501,7 +510,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       return true;
     
     case 'GO_BACK':
-      handleGoBack(request.tabId);
+      console.log(`📨 GO_BACK requested from tab ${sender.tab?.id}`);
+      if (sender.tab?.id) {
+        handleGoBack(sender.tab.id);
+      }
+      sendResponse({ success: true });
       break;
     
     default:
@@ -530,8 +543,11 @@ async function handleGoBack(tabId) {
     // Clear any blocked state for this tab
     state.blockedTabs.delete(tabId);
     
-    // Navigate to new tab page
-    await chrome.tabs.update(tabId, { url: 'chrome://newtab/' });
+    // ✅ FIREFOX FIX: Use about:blank instead of chrome://newtab/
+    // Firefox doesn't support chrome:// URLs in extensions
+    await chrome.tabs.update(tabId, { url: 'about:blank' });
+    
+    console.log(`✅ Successfully navigated to about:blank`);
     
   } catch (error) {
     console.error('❌ Error in handleGoBack:', error);
@@ -659,17 +675,36 @@ async function handleProceedAnyway(request, sender, sendResponse) {
   sendResponse({ status: 'bypassed' });
 }
 
+// ========== HELPER FUNCTION: GET RISK LEVEL FROM SCORE ==========
+function calculateRiskLevel(safetyScore) {
+  // safetyScore is percentage (0-100 where 100=safe)
+  // Convert to riskScore (100 - safetyScore)
+  const riskScore = 100 - safetyScore;
+  
+  if (riskScore >= 90) return 'CRITICAL';
+  if (riskScore >= 70) return 'HIGH';
+  if (riskScore >= 50) return 'MEDIUM';
+  if (riskScore >= 30) return 'LOW-MEDIUM';
+  return 'LOW';
+}
+
 // ========== LOGGING FUNCTIONS ==========
 function logDecision(url, verdict, score, details) {
   chrome.storage.local.get(['guardianlink_logs'], (data) => {
     const logs = data.guardianlink_logs || [];
     
+    // score is the safety percentage from backend (0-100, 100=safe)
+    // riskScore is what we display (100 - safety percentage)
+    const riskScore = 100 - score;
+    const riskLevel = calculateRiskLevel(score);
+    
     const logEntry = {
       url,
       verdict,
       score,
+      riskScore,
       combinedScore: score,
-      riskLevel: verdict === 'BLOCK' ? 'CRITICAL' : (verdict === 'WARN' ? 'MEDIUM' : 'SAFE'),
+      riskLevel: riskLevel,
       reasoning: details?.reasoning || 'Security analysis',
       timestamp: new Date().toISOString(),
       details: {

@@ -5,6 +5,7 @@ yarn-debug.log*
 yarn-error.log*
 
 # Environment variables - NEVER commit!
+.env
 .env.local
 .env.*.local
 
@@ -13,7 +14,7 @@ yarn-error.log*
 *.sqlite
 *.sqlite3
 guardianlink.db
-.env
+
 # OS
 .DS_Store
 Thumbs.db

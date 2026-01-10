@@ -85,6 +85,10 @@
             color: var(--text-primary);
         }
 
+        #riskLevel {
+            font-size: 32px !important;
+        }
+
         .header p {
             font-size: 13px;
             color: var(--text-secondary);
@@ -121,6 +125,11 @@
         .risk-indicator.medium {
             border-color: rgba(234, 179, 8, 0.3);
             background: linear-gradient(135deg, rgba(234, 179, 8, 0.15) 0%, rgba(234, 179, 8, 0.05) 100%);
+        }
+
+        .risk-indicator.low-medium {
+            border-color: rgba(163, 230, 53, 0.3);
+            background: linear-gradient(135deg, rgba(163, 230, 53, 0.15) 0%, rgba(163, 230, 53, 0.05) 100%);
         }
 
         .risk-indicator.low {
@@ -411,7 +420,7 @@
 
             <div class="score-bar-container hidden" id="scoreBarContainer">
                 <div class="score-label">
-                    <span>Threat Level</span>
+                    <span>Risk Level</span>
                     <span id="scoreValue">0%</span>
                 </div>
                 <div class="score-bar">

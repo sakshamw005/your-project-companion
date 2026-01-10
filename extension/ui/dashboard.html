@@ -43,7 +43,6 @@
             gap: 20px;
         }
 
-        /* ===== ANIMATIONS ===== */
         @keyframes slideDown {
             from { opacity: 0; transform: translateY(-10px); }
             to { opacity: 1; transform: translateY(0); }
@@ -64,12 +63,6 @@
             50% { opacity: 0.6; }
         }
 
-        @keyframes shimmer {
-            0% { background-position: -1000px 0; }
-            100% { background-position: 1000px 0; }
-        }
-
-        /* ===== HEADER ===== */
         .header {
             background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0.05) 100%);
             border: 1px solid var(--border);
@@ -99,7 +92,6 @@
             color: var(--text-secondary);
         }
 
-        /* ===== STATS CARDS ===== */
         .stats {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -153,7 +145,6 @@
             letter-spacing: 0.5px;
         }
 
-        /* ===== CONTROLS ===== */
         .controls {
             display: flex;
             gap: 10px;
@@ -232,17 +223,10 @@
             color: white;
         }
 
-        /* Dropdown options styling */
         select option {
             background: white;
             color: black;
             padding: 8px;
-            font-size: 12px;
-        }
-
-        select option:hover {
-            background: var(--accent);
-            color: white;
         }
 
         select option:checked {
@@ -250,7 +234,6 @@
             color: white;
         }
 
-        /* ===== LOG TABLE ===== */
         .log-table {
             background: linear-gradient(135deg, rgba(30, 41, 59, 0.4) 0%, rgba(15, 23, 42, 0.2) 100%);
             border: 1px solid var(--border);
@@ -269,7 +252,7 @@
             font-size: 11px;
             color: var(--text-secondary);
             display: grid;
-            grid-template-columns: 2fr 1fr 1.5fr 1.2fr 0.8fr;
+            grid-template-columns: 2fr 1fr 1fr 1fr 0.5fr;
             gap: 10px;
             align-items: center;
             text-transform: uppercase;
@@ -280,7 +263,7 @@
             padding: 14px 18px;
             border-bottom: 1px solid rgba(52, 65, 85, 0.5);
             display: grid;
-            grid-template-columns: 2fr 1fr 1.5fr 1.2fr 0.8fr;
+            grid-template-columns: 2fr 1fr 1fr 1fr 0.5fr;
             gap: 10px;
             align-items: center;
             font-size: 12px;
@@ -301,12 +284,10 @@
             word-break: break-word;
             color: var(--accent);
             cursor: pointer;
-            transition: color 0.2s ease;
             font-size: 11px;
-        }
-
-        .url-cell:hover {
-            color: #60a5fa;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .verdict-badge {
@@ -315,11 +296,9 @@
             padding: 5px 10px;
             border-radius: 5px;
             font-weight: 600;
-            text-align: center;
             font-size: 10px;
             text-transform: uppercase;
             width: fit-content;
-            transition: all 0.2s ease;
         }
 
         .verdict-block {
@@ -346,11 +325,9 @@
             padding: 5px 10px;
             border-radius: 5px;
             font-weight: 600;
-            text-align: center;
             font-size: 10px;
             text-transform: uppercase;
             width: fit-content;
-            transition: all 0.2s ease;
         }
 
         .risk-critical {
@@ -377,43 +354,19 @@
             border: 1px solid rgba(16, 185, 129, 0.3);
         }
 
-        .risk-safe {
-            background: rgba(59, 130, 246, 0.2);
-            color: #93c5fd;
-            border: 1px solid rgba(59, 130, 246, 0.3);
+        .icon-btn {
+            background: none;
+            border: none;
+            padding: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.2s ease;
         }
 
-        .timestamp {
-            color: var(--text-secondary);
-            white-space: nowrap;
-            font-size: 11px;
+        .icon-btn:hover {
+            transform: scale(1.2);
         }
 
-        /* ===== EMPTY STATE ===== */
-        .empty-state {
-            padding: 40px 20px;
-            text-align: center;
-            color: var(--text-secondary);
-            animation: fadeIn 0.4s ease;
-        }
-
-        .empty-state-icon {
-            font-size: 48px;
-            margin-bottom: 15px;
-            opacity: 0.5;
-        }
-
-        .empty-state p {
-            margin-bottom: 8px;
-            font-size: 13px;
-        }
-
-        .empty-state-hint {
-            font-size: 12px;
-            opacity: 0.7;
-        }
-
-        /* ===== MODAL ===== */
         .modal {
             display: none;
             position: fixed;
@@ -424,7 +377,6 @@
             height: 100%;
             background-color: rgba(0, 0, 0, 0.7);
             backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
         }
 
         .modal.active {
@@ -437,7 +389,6 @@
         .modal-content {
             background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
             border: 1px solid var(--border);
-            padding: 0;
             border-radius: 14px;
             backdrop-filter: blur(10px);
             max-width: 550px;
@@ -446,16 +397,40 @@
             overflow-y: auto;
             animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4), 0 0 40px rgba(59, 130, 246, 0.1);
+            display: flex;
+            flex-direction: column;
         }
 
         .modal-header {
-            font-size: 20px;
+            font-size: 18px;
             font-weight: 700;
-            padding: 28px;
+            padding: 20px 28px;
             background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0.05) 100%);
             border-bottom: 1px solid var(--border);
             color: var(--text-primary);
-            letter-spacing: -0.5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .close-btn:hover {
+            color: var(--text-primary);
+            transform: scale(1.1);
         }
 
         .modal-body {
@@ -466,6 +441,8 @@
             display: flex;
             flex-direction: column;
             gap: 24px;
+            flex: 1;
+            overflow-y: auto;
         }
 
         .modal-section {
@@ -480,7 +457,6 @@
             color: var(--text-secondary);
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            margin-bottom: 4px;
         }
 
         .modal-section-content {
@@ -508,7 +484,6 @@
             font-size: 11px;
             color: var(--text-secondary);
             text-transform: uppercase;
-            letter-spacing: 0.3px;
         }
 
         .modal-value {
@@ -516,7 +491,6 @@
             word-break: break-all;
             font-size: 12px;
             line-height: 1.5;
-            font-family: 'Monaco', 'Courier New', monospace;
         }
 
         .modal-verdict {
@@ -527,7 +501,6 @@
             font-size: 11px;
             text-transform: uppercase;
             width: fit-content;
-            transition: all 0.2s ease;
         }
 
         .modal-verdict.block {
@@ -556,31 +529,26 @@
             font-size: 11px;
             text-transform: uppercase;
             width: fit-content;
-            transition: all 0.2s ease;
         }
 
         .modal-risk.critical {
             background: rgba(239, 68, 68, 0.2);
             color: #fca5a5;
-            border: 1px solid rgba(239, 68, 68, 0.3);
         }
 
         .modal-risk.high {
             background: rgba(245, 158, 11, 0.2);
             color: #fcd34d;
-            border: 1px solid rgba(245, 158, 11, 0.3);
         }
 
         .modal-risk.medium {
             background: rgba(234, 179, 8, 0.2);
             color: #fef08a;
-            border: 1px solid rgba(234, 179, 8, 0.3);
         }
 
         .modal-risk.low {
             background: rgba(16, 185, 129, 0.2);
             color: #6ee7b7;
-            border: 1px solid rgba(16, 185, 129, 0.3);
         }
 
         .modal-score-bar {
@@ -592,7 +560,6 @@
         .modal-score-label {
             display: flex;
             justify-content: space-between;
-            align-items: center;
             font-size: 12px;
             color: var(--text-secondary);
         }
@@ -600,7 +567,6 @@
         .modal-score-value {
             font-weight: 700;
             color: var(--text-primary);
-            font-size: 14px;
         }
 
         .modal-score-bar-container {
@@ -614,78 +580,11 @@
         .modal-score-fill {
             height: 100%;
             border-radius: 4px;
-            transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            width: 0%;
-            background: linear-gradient(90deg, var(--danger) 0%, #dc2626 100%);
+            transition: width 0.4s ease;
         }
 
-        .modal-risk-list {
-            list-style: none;
-            padding: 0;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .modal-risk-list li {
-            padding: 8px 0 8px 20px;
-            font-size: 12px;
-            color: var(--text-secondary);
-            position: relative;
-            line-height: 1.4;
-        }
-
-        .modal-risk-list li:before {
-            content: "•";
-            position: absolute;
-            left: 8px;
-            color: var(--accent);
-            font-weight: bold;
-        }
-
-        .modal-actions {
-            display: flex;
-            gap: 10px;
-            justify-content: flex-end;
-            padding: 20px 28px;
-            background: linear-gradient(90deg, rgba(59, 130, 246, 0.05) 0%, rgba(59, 130, 246, 0.02) 100%);
-            border-top: 1px solid var(--border);
-        }
-
-        .modal-close {
-            background: linear-gradient(135deg, rgba(100, 116, 139, 0.1) 0%, rgba(100, 116, 139, 0.05) 100%);
-            color: var(--text-primary);
-            border-color: var(--border);
-            padding: 10px 20px;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            font-size: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            min-width: 100px;
-        }
-
-        .modal-close:hover {
-            background: linear-gradient(135deg, rgba(100, 116, 139, 0.2) 0%, rgba(100, 116, 139, 0.1) 100%);
-            border-color: rgba(100, 116, 139, 0.4);
-            transform: translateY(-1px);
-        }
-
-        /* ===== LOADING STATE ===== */
-        .loading {
-            display: inline-block;
-            width: 8px;
-            height: 8px;
-            background: var(--accent);
-            border-radius: 50%;
-            animation: pulse 1.5s ease-in-out infinite;
-        }
-
-        /* ===== SCROLLBAR ===== */
         ::-webkit-scrollbar {
             width: 6px;
-            height: 6px;
         }
 
         ::-webkit-scrollbar-track {
@@ -728,9 +627,9 @@
         </div>
 
         <div class="controls">
-            <button id="exportBtn">Export</button>
-            <button id="settingsBtn">Settings</button>
-            <button class="danger" id="clearBtn">Clear Logs</button>
+            <button id="exportBtn">📥 Export</button>
+            <button id="settingsBtn">⚙️ Settings</button>
+            <button class="danger" id="clearBtn">🧹 Clear</button>
             
             <div class="filter-group">
                 <label for="filterVerdict">Filter:</label>
@@ -749,7 +648,7 @@
                 <div>Verdict</div>
                 <div>Risk</div>
                 <div>Time</div>
-                <div>Action</div>
+                <div></div>
             </div>
             <div id="logContainer"></div>
         </div>
@@ -758,10 +657,12 @@
     <!-- Modal for log details -->
     <div id="detailModal" class="modal">
         <div class="modal-content">
-            <div class="modal-header">Security Alert Details</div>
-            <div class="modal-body" id="detailContent"></div>
-            <div class="modal-actions">
-                <button class="modal-close" id="closeDetailBtn" onclick="closeDetailModal()">Close</button>
+            <div class="modal-header">
+                Security Details
+                <button id="closeModalBtn" class="close-btn">✕</button>
+            </div>
+            <div id="detailContent" class="modal-body">
+                <!-- Content populated by JS -->
             </div>
         </div>
     </div>

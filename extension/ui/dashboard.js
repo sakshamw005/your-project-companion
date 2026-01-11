@@ -3,6 +3,18 @@
  * Enterprise-grade real-time security logging dashboard
  */
 
+// Helper function to safely escape HTML
+function escapeHTML(text) {
+  const map = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;'
+  };
+  return String(text).replace(/[&<>"']/g, m => map[m]);
+}
+
 let allLogs = [];
 let currentFilter = 'all';
 
@@ -55,7 +67,7 @@ function setupFilterListener() {
 // Load logs from storage
 async function loadLogs() {
     try {
-        const data = await chrome.storage.local.get('guardianlink_logs');
+        const data = await browser.storage.local.get('guardianlink_logs');
         const logs = data.guardianlink_logs || [];
         
         console.log('[GuardianLink] Loaded logs:', logs.length);
@@ -104,11 +116,25 @@ function displayLogs(logs) {
         : logs.filter(l => l.verdict === currentFilter);
     
     if (filteredLogs.length === 0) {
-        logContainer.innerHTML = '<div style="padding: 40px; text-align: center; color: var(--text-secondary);">No logs found</div>';
+        logContainer.innerHTML = '';
+        const emptyDiv = document.createElement('div');
+        emptyDiv.style.padding = '40px';
+        emptyDiv.style.textAlign = 'center';
+        emptyDiv.style.color = 'var(--text-secondary)';
+        emptyDiv.textContent = 'No logs found';
+        logContainer.appendChild(emptyDiv);
         return;
     }
     
-    logContainer.innerHTML = filteredLogs.map((log, idx) => createLogRow(log, idx)).join('');
+    logContainer.innerHTML = '';
+    filteredLogs.forEach((log, idx) => {
+        const row = createLogRowElement(log);
+        row.addEventListener('click', () => {
+            const viewBtn = row.querySelector('.view-details-btn');
+            if (viewBtn) viewBtn.click();
+        });
+        logContainer.appendChild(row);
+    });
     
     // Attach click listeners to view buttons
     document.querySelectorAll('.view-details-btn').forEach((btn, idx) => {
@@ -141,6 +167,56 @@ function createLogRow(log, index) {
     `;
 }
 
+function createLogRowElement(log) {
+    const verdict = log.verdict || 'UNKNOWN';
+    const score = log.combinedScore !== undefined ? log.combinedScore : (log.score || 0);
+    const riskLevel = getRiskLevel(score);
+    const url = log.url || 'Unknown URL';
+    const domain = extractDomain(url);
+    const time = formatTime(log.timestamp);
+    
+    const verdictClass = `verdict-${verdict.toLowerCase()}`;
+    const riskClass = `risk-${riskLevel.toLowerCase()}`;
+    
+    const row = document.createElement('div');
+    row.className = 'log-row';
+    
+    const urlCell = document.createElement('div');
+    urlCell.className = 'url-cell';
+    urlCell.title = url;
+    urlCell.textContent = domain;
+    
+    const verdictCell = document.createElement('div');
+    const verdictSpan = document.createElement('span');
+    verdictSpan.className = `verdict-badge ${verdictClass}`;
+    verdictSpan.textContent = verdict;
+    verdictCell.appendChild(verdictSpan);
+    
+    const riskCell = document.createElement('div');
+    const riskSpan = document.createElement('span');
+    riskSpan.className = `risk-badge ${riskClass}`;
+    riskSpan.textContent = riskLevel;
+    riskCell.appendChild(riskSpan);
+    
+    const timeCell = document.createElement('div');
+    timeCell.textContent = time;
+    
+    const btnCell = document.createElement('div');
+    const viewBtn = document.createElement('button');
+    viewBtn.className = 'icon-btn view-details-btn';
+    viewBtn.title = 'View details';
+    viewBtn.textContent = '👁️';
+    btnCell.appendChild(viewBtn);
+    
+    row.appendChild(urlCell);
+    row.appendChild(verdictCell);
+    row.appendChild(riskCell);
+    row.appendChild(timeCell);
+    row.appendChild(btnCell);
+    
+    return row;
+}
+
 // Show modal with details
 function showLogDetails(log) {
     const modal = document.getElementById('detailModal');
@@ -154,61 +230,122 @@ function showLogDetails(log) {
     const verdictClass = verdict.toLowerCase();
     const riskClass = riskLevel.toLowerCase();
     
-    content.innerHTML = `
-        <div class="modal-section">
-            <h3>🔗 URL Details</h3>
-            <div class="modal-section-content">
-                <div class="modal-detail-row">
-                    <span class="modal-label">Full URL</span>
-                    <span class="modal-value">${escapeHtml(log.url)}</span>
-                </div>
-                <div class="modal-detail-row">
-                    <span class="modal-label">Domain</span>
-                    <span class="modal-value">${escapeHtml(extractDomain(log.url))}</span>
-                </div>
-            </div>
-        </div>
-        
-        <div class="modal-section">
-            <h3>🛡️ Security Assessment</h3>
-            <div class="modal-section-content">
-                <div class="modal-detail-row">
-                    <span class="modal-label">Verdict</span>
-                    <span class="modal-verdict ${verdictClass}">${verdict}</span>
-                </div>
-                <div class="modal-detail-row">
-                    <span class="modal-label">Risk Level</span>
-                    <span class="modal-risk ${riskClass}">${riskLevel}</span>
-                </div>
-                <div class="modal-detail-row">
-                    <span class="modal-label">Risk Score</span>
-                    <div class="modal-score-bar">
-                        <div class="modal-score-label">
-                            <span>Risk Level</span>
-                            <span class="modal-score-value">${Math.round(100 - score)}%</span>
-                        </div>
-                        <div class="modal-score-bar-container">
-                            <div class="modal-score-fill" style="width: ${Math.min(100 - score, 100)}%; background: ${getScoreColor(score)};"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="modal-section">
-            <h3>📊 Analysis Details</h3>
-            <div class="modal-section-content">
-                <div class="modal-detail-row">
-                    <span class="modal-label">Timestamp</span>
-                    <span class="modal-value">${formatDateTime(log.timestamp)}</span>
-                </div>
-                <div class="modal-detail-row">
-                    <span class="modal-label">Reasoning</span>
-                    <span class="modal-value">${escapeHtml(log.reasoning || 'Security analysis completed')}</span>
-                </div>
-            </div>
-        </div>
-    `;
+    // Clear previous content
+    content.innerHTML = '';
+    
+    // URL Details Section
+    const urlSection = document.createElement('div');
+    urlSection.className = 'modal-section';
+    
+    const urlTitle = document.createElement('h3');
+    urlTitle.textContent = '🔗 URL Details';
+    urlSection.appendChild(urlTitle);
+    
+    const urlContent = document.createElement('div');
+    urlContent.className = 'modal-section-content';
+    
+    const urlRow = document.createElement('div');
+    urlRow.className = 'modal-detail-row';
+    const urlLabel = document.createElement('span');
+    urlLabel.className = 'modal-label';
+    urlLabel.textContent = 'Full URL';
+    const urlValue = document.createElement('span');
+    urlValue.className = 'modal-value';
+    urlValue.textContent = log.url;
+    urlRow.appendChild(urlLabel);
+    urlRow.appendChild(urlValue);
+    
+    const domainRow = document.createElement('div');
+    domainRow.className = 'modal-detail-row';
+    const domainLabel = document.createElement('span');
+    domainLabel.className = 'modal-label';
+    domainLabel.textContent = 'Domain';
+    const domainValue = document.createElement('span');
+    domainValue.className = 'modal-value';
+    domainValue.textContent = extractDomain(log.url);
+    domainRow.appendChild(domainLabel);
+    domainRow.appendChild(domainValue);
+    
+    urlContent.appendChild(urlRow);
+    urlContent.appendChild(domainRow);
+    urlSection.appendChild(urlContent);
+    content.appendChild(urlSection);
+    
+    // Security Assessment Section
+    const secSection = document.createElement('div');
+    secSection.className = 'modal-section';
+    
+    const secTitle = document.createElement('h3');
+    secTitle.textContent = '🛡️ Security Assessment';
+    secSection.appendChild(secTitle);
+    
+    const secContent = document.createElement('div');
+    secContent.className = 'modal-section-content';
+    
+    const verdictRow = document.createElement('div');
+    verdictRow.className = 'modal-detail-row';
+    const verdictLabel = document.createElement('span');
+    verdictLabel.className = 'modal-label';
+    verdictLabel.textContent = 'Verdict';
+    const verdictBadge = document.createElement('span');
+    verdictBadge.className = `modal-verdict ${verdictClass}`;
+    verdictBadge.textContent = verdict;
+    verdictRow.appendChild(verdictLabel);
+    verdictRow.appendChild(verdictBadge);
+    
+    const riskRow = document.createElement('div');
+    riskRow.className = 'modal-detail-row';
+    const riskLabel = document.createElement('span');
+    riskLabel.className = 'modal-label';
+    riskLabel.textContent = 'Risk Level';
+    const riskBadge = document.createElement('span');
+    riskBadge.className = `modal-risk ${riskClass}`;
+    riskBadge.textContent = riskLevel;
+    riskRow.appendChild(riskLabel);
+    riskRow.appendChild(riskBadge);
+    
+    secContent.appendChild(verdictRow);
+    secContent.appendChild(riskRow);
+    secSection.appendChild(secContent);
+    content.appendChild(secSection);
+    
+    // Analysis Details Section
+    const analysisSection = document.createElement('div');
+    analysisSection.className = 'modal-section';
+    
+    const analysisTitle = document.createElement('h3');
+    analysisTitle.textContent = '📊 Analysis Details';
+    analysisSection.appendChild(analysisTitle);
+    
+    const analysisContent = document.createElement('div');
+    analysisContent.className = 'modal-section-content';
+    
+    const timeRow = document.createElement('div');
+    timeRow.className = 'modal-detail-row';
+    const timeLabel = document.createElement('span');
+    timeLabel.className = 'modal-label';
+    timeLabel.textContent = 'Timestamp';
+    const timeValue = document.createElement('span');
+    timeValue.className = 'modal-value';
+    timeValue.textContent = formatDateTime(log.timestamp);
+    timeRow.appendChild(timeLabel);
+    timeRow.appendChild(timeValue);
+    
+    const reasonRow = document.createElement('div');
+    reasonRow.className = 'modal-detail-row';
+    const reasonLabel = document.createElement('span');
+    reasonLabel.className = 'modal-label';
+    reasonLabel.textContent = 'Reasoning';
+    const reasonValue = document.createElement('span');
+    reasonValue.className = 'modal-value';
+    reasonValue.textContent = log.reasoning || 'Security analysis completed';
+    reasonRow.appendChild(reasonLabel);
+    reasonRow.appendChild(reasonValue);
+    
+    analysisContent.appendChild(timeRow);
+    analysisContent.appendChild(reasonRow);
+    analysisSection.appendChild(analysisContent);
+    content.appendChild(analysisSection);
     
     modal.classList.add('active');
 }
@@ -225,7 +362,7 @@ function closeDetailModal() {
 function clearAllLogs() {
     if (!confirm('Clear all logs? This cannot be undone.')) return;
     
-    chrome.storage.local.set({ logs: [] }, () => {
+    browser.storage.local.set({ logs: [] }, () => {
         allLogs = [];
         loadLogs();
     });

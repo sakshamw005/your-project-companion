@@ -12,13 +12,13 @@ const CONFIG = {
   BLOCK_TIMEOUT: 30000,
   POLL_INTERVAL: 1500,
   MAX_POLL_ATTEMPTS: 20,
-  EXTENSION_ID: chrome.runtime.id
+  EXTENSION_ID: browser.runtime.id
 };
 
 // ========== TAB EXISTENCE HELPER ==========
 async function tabExists(tabId) {
   try {
-    await chrome.tabs.get(tabId);
+    await browser.tabs.get(tabId);
     return true;
   } catch (error) {
     return false;
@@ -44,12 +44,12 @@ const state = {
 const processingTabs = new Set();
 
 // ========== INITIALIZATION ==========
-chrome.runtime.onInstalled.addListener(() => {
+browser.runtime.onInstalled.addListener(() => {
   console.log('🛡️ GuardianLink v2.0 Enhanced Edition - INSTALLED');
   initializeExtension();
 });
 
-chrome.runtime.onStartup.addListener(() => {
+browser.runtime.onStartup.addListener(() => {
   console.log('🔄 Extension starting up, clearing stale state');
   clearAllBlockingRules();
   state.blockedTabs.clear();
@@ -60,13 +60,13 @@ async function initializeExtension() {
   await clearAllBlockingRules();
   
   // Setup context menus
-  chrome.contextMenus.removeAll(() => {
-    chrome.contextMenus.create({
+  browser.contextMenus.removeAll(() => {
+    browser.contextMenus.create({
       id: 'scan-link',
       title: 'Scan with Guardian Link',
       contexts: ['link']
     });
-    chrome.contextMenus.create({
+    browser.contextMenus.create({
       id: 'scan-page',
       title: 'Scan this page',
       contexts: ['page']
@@ -79,22 +79,13 @@ async function initializeExtension() {
 
 // ========== CLEAR ALL RULES ==========
 async function clearAllBlockingRules() {
-  try {
-    const rules = await chrome.declarativeNetRequest.getSessionRules();
-    if (rules.length > 0) {
-      const ruleIds = rules.map(r => r.id);
-      await chrome.declarativeNetRequest.updateSessionRules({
-        removeRuleIds: ruleIds
-      });
-      console.log(`🧹 Cleared ${ruleIds.length} stale rules`);
-    }
-  } catch (error) {
-    console.error('❌ Failed to clear rules:', error);
-  }
+  // declarativeNetRequest not supported in Firefox MV2
+  // This function is disabled for Firefox compatibility
+  return;
 }
 
 // ========== MAIN NAVIGATION INTERCEPTION ==========
-chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
+browser.webNavigation.onBeforeNavigate.addListener(async (details) => {
   const { url, tabId, frameId } = details;
   
   // ✅ Only process main frame
@@ -137,7 +128,7 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
     if (state.whitelist.has(hostname)) {
       console.log(`✅ Whitelisted domain: ${hostname}`);
       // Notify content script immediately
-      chrome.tabs.sendMessage(tabId, { action: 'BYPASS' }).catch(() => {
+      browser.tabs.sendMessage(tabId, { action: 'BYPASS' }).catch(() => {
         // Content script might not be ready yet, that's okay
       });
       return;
@@ -183,7 +174,7 @@ async function redirectToScannerPage(tabId, originalUrl) {
     }
     
     // Generate scanner URL
-    const scannerUrl = chrome.runtime.getURL('ui/scanner.html') + 
+    const scannerUrl = browser.runtime.getURL('ui/scanner.html') + 
       '?' + new URLSearchParams({ 
         url: encodeURIComponent(originalUrl), 
         tabId: tabId.toString() 
@@ -201,7 +192,7 @@ async function redirectToScannerPage(tabId, originalUrl) {
     
     // Update tab to scanner page with error handling
     try {
-      await chrome.tabs.update(tabId, { url: scannerUrl });
+      await browser.tabs.update(tabId, { url: scannerUrl });
     } catch (updateError) {
       console.error(`❌ Failed to update tab ${tabId}:`, updateError.message);
       state.blockedTabs.delete(tabId);
@@ -221,7 +212,7 @@ async function redirectToScannerPage(tabId, originalUrl) {
       try {
         // Fallback: allow the URL
         state.allowedUrls.add(originalUrl);
-        await chrome.tabs.update(tabId, { url: originalUrl });
+        await browser.tabs.update(tabId, { url: originalUrl });
       } catch (fallbackError) {
         console.error(`❌ Fallback redirect failed for tab ${tabId}:`, fallbackError.message);
       }
@@ -319,7 +310,7 @@ async function pollForScanResults(scanId, url, tabId, attempt = 1) {
     } else if (result.status === 'processing' || result.status === 'in_progress') {
       // Update scanner page if it's loaded
       try {
-        await chrome.tabs.sendMessage(tabId, {
+        await browser.tabs.sendMessage(tabId, {
           action: 'SCAN_UPDATE',
           status: 'scanning',
           progress: Math.min(30 + (attempt * 5), 90),
@@ -392,11 +383,11 @@ async function completeScan(tabId, url, result) {
     
     // Navigate to original URL
     console.log(`🔄 Allowing URL, navigating to: ${url}`);
-    await chrome.tabs.update(tabId, { url: url });
+    await browser.tabs.update(tabId, { url: url });
     
     // Send message to content script to remove overlay
     try {
-      await chrome.tabs.sendMessage(tabId, {
+      await browser.tabs.sendMessage(tabId, {
         action: 'UNFREEZE',
         verdict: 'ALLOW',
         score: score,
@@ -434,20 +425,20 @@ async function redirectToWarningPage(tabId, url, verdict, score, result) {
       }
     };
     
-    await chrome.storage.session.set({
+    await browser.storage.local.set({
       guardianlink_warning_decision: decisionData,
       guardianlink_original_url: url
     });
     
     // Navigate to warning page WITH tabId
-    const warningUrl = chrome.runtime.getURL('ui/warning.html') + 
+    const warningUrl = browser.runtime.getURL('ui/warning.html') + 
       '?' + new URLSearchParams({ 
         url: encodeURIComponent(url), 
         verdict: verdict,
         tabId: tabId.toString()
       });
     
-    await chrome.tabs.update(tabId, { url: warningUrl });
+    await browser.tabs.update(tabId, { url: warningUrl });
     
     // Log decision
     logDecision(url, verdict, score, result);
@@ -455,12 +446,12 @@ async function redirectToWarningPage(tabId, url, verdict, score, result) {
   } catch (error) {
     console.error('❌ Failed to redirect to warning page:', error);
     // Fallback: navigate to original URL
-    await chrome.tabs.update(tabId, { url: url });
+    await browser.tabs.update(tabId, { url: url });
   }
 }
 
 // ========== MESSAGE HANDLING ==========
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log(`📨 Received message: ${request.action} from tab ${sender.tab?.id}`);
   
   switch (request.action) {
@@ -478,7 +469,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (blockedInfo && blockedInfo.status === 'scanning') {
           // Send scan status update
           setTimeout(() => {
-            chrome.tabs.sendMessage(sender.tab.id, {
+            browser.tabs.sendMessage(sender.tab.id, {
               action: 'SCAN_UPDATE',
               status: 'scanning',
               progress: 40,
@@ -534,7 +525,7 @@ async function handleGoBack(tabId) {
     
     // Check if tab exists
     try {
-      await chrome.tabs.get(tabId);
+      await browser.tabs.get(tabId);
     } catch (error) {
       console.error(`❌ Tab ${tabId} no longer exists`);
       return;
@@ -543,11 +534,19 @@ async function handleGoBack(tabId) {
     // Clear any blocked state for this tab
     state.blockedTabs.delete(tabId);
     
-    // ✅ FIREFOX FIX: Use about:blank instead of chrome://newtab/
-    // Firefox doesn't support chrome:// URLs in extensions
-    await chrome.tabs.update(tabId, { url: 'about:blank' });
+    // ✅ FIREFOX FIX: Navigate using content script injection
+    // about:newtab cannot be accessed via tabs.update(), use location.href instead
+    try {
+      await browser.tabs.executeScript(tabId, {
+        code: `window.location.href = 'about:newtab';`
+      });
+    } catch (e) {
+      // If executeScript fails, try a safe fallback: navigate to empty tab
+      console.log('📄 Using fallback navigation');
+      await browser.tabs.update(tabId, { url: 'about:blank' });
+    }
     
-    console.log(`✅ Successfully navigated to about:blank`);
+    console.log(`✅ Successfully navigated to home`);
     
   } catch (error) {
     console.error('❌ Error in handleGoBack:', error);
@@ -561,8 +560,8 @@ async function handleProceedWithUrl(request, sendResponse) {
     // Mark as bypassed (5 minutes)
     state.bypassedUrls.set(url, Date.now() + (5 * 60 * 1000));
     
-    // Store in session for content script
-    await chrome.storage.session.set({
+    // Store in local storage for content script
+    await browser.storage.local.set({
       guardianlink_bypassed_url: url,
       guardianlink_bypassed_timestamp: Date.now()
     });
@@ -571,7 +570,7 @@ async function handleProceedWithUrl(request, sendResponse) {
     state.blockedTabs.delete(tabId);
     
     // Navigate to the URL
-    await chrome.tabs.update(tabId, { url });
+    await browser.tabs.update(tabId, { url });
     
     sendResponse({ status: 'bypassed' });
   } catch (error) {
@@ -619,8 +618,8 @@ function handleBypassCheck(request, sendResponse) {
     return true;
   }
   
-  // Check session storage for bypass flag
-  chrome.storage.session.get(['guardianlink_bypassed_url'], (result) => {
+  // Check local storage for bypass flag
+  browser.storage.local.get(['guardianlink_bypassed_url'], (result) => {
     const bypassedUrl = result.guardianlink_bypassed_url;
     
     if (bypassedUrl && bypassedUrl === url) {
@@ -657,8 +656,8 @@ async function handleProceedAnyway(request, sender, sendResponse) {
   // Add to bypass cache (5 minutes)
   state.bypassedUrls.set(url, Date.now() + (5 * 60 * 1000));
   
-  // Store in session for content script
-  await chrome.storage.session.set({
+  // Store in local storage for content script
+  await browser.storage.local.set({
     guardianlink_bypassed_url: url,
     guardianlink_bypassed_timestamp: Date.now()
   });
@@ -667,7 +666,7 @@ async function handleProceedAnyway(request, sender, sendResponse) {
   state.blockedTabs.delete(tabId);
   
   // Navigate to original URL
-  await chrome.tabs.update(tabId, { url: url });
+  await browser.tabs.update(tabId, { url: url });
   
   // Log bypass
   logBypass(url);
@@ -690,7 +689,7 @@ function calculateRiskLevel(safetyScore) {
 
 // ========== LOGGING FUNCTIONS ==========
 function logDecision(url, verdict, score, details) {
-  chrome.storage.local.get(['guardianlink_logs'], (data) => {
+  browser.storage.local.get(['guardianlink_logs'], (data) => {
     const logs = data.guardianlink_logs || [];
     
     // score is the safety percentage from backend (0-100, 100=safe)
@@ -721,18 +720,18 @@ function logDecision(url, verdict, score, details) {
       logs.length = 100;
     }
     
-    chrome.storage.local.set({ guardianlink_logs: logs });
+    browser.storage.local.set({ guardianlink_logs: logs });
     console.log(`📊 Logged decision: ${verdict} for ${url}`);
     
     // Trigger dashboard update
     try {
-      chrome.runtime.sendMessage({ action: 'refreshDashboard' });
+      browser.runtime.sendMessage({ action: 'refreshDashboard' });
     } catch (e) {}
   });
 }
 
 function logBypass(url) {
-  chrome.storage.local.get(['guardianlink_bypasses'], (data) => {
+  browser.storage.local.get(['guardianlink_bypasses'], (data) => {
     const bypasses = data.guardianlink_bypasses || [];
     
     bypasses.unshift({
@@ -744,12 +743,12 @@ function logBypass(url) {
       bypasses.length = 50;
     }
     
-    chrome.storage.local.set({ guardianlink_bypasses: bypasses });
+    browser.storage.local.set({ guardianlink_bypasses: bypasses });
   });
 }
 
 // ========== TAB CLEANUP ==========
-chrome.tabs.onRemoved.addListener((tabId) => {
+browser.tabs.onRemoved.addListener((tabId) => {
   // Clean up state
   state.blockedTabs.delete(tabId);
   state.contentScriptReady.delete(tabId);

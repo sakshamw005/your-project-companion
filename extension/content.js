@@ -32,7 +32,7 @@ async function initializeContentScript() {
     
     // Register with background AFTER checking bypass
     try {
-      await chrome.runtime.sendMessage({ action: 'contentScriptReady' });
+      await browser.runtime.sendMessage({ action: 'contentScriptReady' });
       console.log('✅ Registered with background');
     } catch (error) {
       console.log('⚠️ Could not register with background:', error.message);
@@ -52,7 +52,7 @@ async function initializeContentScript() {
     
     // Still register with background but don't show overlay
     try {
-      await chrome.runtime.sendMessage({ action: 'contentScriptReady' });
+      await browser.runtime.sendMessage({ action: 'contentScriptReady' });
       console.log('✅ Registered with background');
     } catch (error) {
       console.log('⚠️ Could not register with background:', error.message);
@@ -69,7 +69,7 @@ async function checkIfBypassed() {
     const currentUrl = window.location.href;
     
     // First, try a direct check with background
-    const response = await chrome.runtime.sendMessage({ 
+    const response = await browser.runtime.sendMessage({ 
       action: 'CHECK_BYPASS', 
       url: currentUrl 
     });
@@ -146,40 +146,104 @@ function showLoadingOverlay() {
   overlay.style.fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
   overlay.style.pointerEvents = 'all';
   
-  // Add content
-  overlay.innerHTML = `
-    <div style="text-align: center; max-width: 500px; padding: 30px;">
-      <div style="width: 80px; height: 80px; margin: 0 auto 30px;">
-        <div id="guardianlink-spinner" style="width: 100%; height: 100%; border: 6px solid rgba(255,255,255,0.2); border-top: 6px solid #4CAF50; border-radius: 50%; animation: guardianlink-spin 1.5s linear infinite;"></div>
-      </div>
-      
-      <h1 style="font-size: 32px; font-weight: 700; margin-bottom: 15px; color: white;">
-        🛡️ GuardianLink Security Check
-      </h1>
-      
-      <div style="font-size: 18px; opacity: 0.9; margin-bottom: 25px;">
-        Analyzing website security before loading...
-      </div>
-      
-      <div style="background: rgba(255,255,255,0.1); border-radius: 10px; padding: 15px; margin-bottom: 25px; text-align: left;">
-        <div style="font-size: 14px; opacity: 0.8; margin-bottom: 5px;">Scanning:</div>
-        <div id="guardianlink-scan-url" style="font-family: monospace; font-size: 12px; word-break: break-all; opacity: 0.9;">
-          ${window.location.href.substring(0, 80)}${window.location.href.length > 80 ? '...' : ''}
-        </div>
-      </div>
-      
-      <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
-        <div style="width: 300px; height: 6px; background: rgba(255,255,255,0.2); border-radius: 3px; overflow: hidden;">
-          <div id="guardianlink-progress-bar" style="width: 30%; height: 100%; background: linear-gradient(90deg, #4CAF50, #8BC34A); transition: width 0.3s;"></div>
-        </div>
-        <div style="font-size: 12px; opacity: 0.7;">Scanning...</div>
-      </div>
-      
-      <div style="margin-top: 30px; font-size: 12px; opacity: 0.6;">
-        🔒 All page content is blocked until security check completes
-      </div>
-    </div>
-  `;
+  // Build content using DOM construction
+  const container = document.createElement('div');
+  container.style.textAlign = 'center';
+  container.style.maxWidth = '500px';
+  container.style.padding = '30px';
+  
+  const spinnerDiv = document.createElement('div');
+  spinnerDiv.style.width = '80px';
+  spinnerDiv.style.height = '80px';
+  spinnerDiv.style.margin = '0 auto 30px';
+  
+  const spinner = document.createElement('div');
+  spinner.id = 'guardianlink-spinner';
+  spinner.style.width = '100%';
+  spinner.style.height = '100%';
+  spinner.style.border = '6px solid rgba(255,255,255,0.2)';
+  spinner.style.borderTop = '6px solid #4CAF50';
+  spinner.style.borderRadius = '50%';
+  spinner.style.animation = 'guardianlink-spin 1.5s linear infinite';
+  spinnerDiv.appendChild(spinner);
+  container.appendChild(spinnerDiv);
+  
+  const title = document.createElement('h1');
+  title.style.fontSize = '32px';
+  title.style.fontWeight = '700';
+  title.style.marginBottom = '15px';
+  title.style.color = 'white';
+  title.textContent = '🛡️ GuardianLink Security Check';
+  container.appendChild(title);
+  
+  const subtitle = document.createElement('div');
+  subtitle.style.fontSize = '18px';
+  subtitle.style.opacity = '0.9';
+  subtitle.style.marginBottom = '25px';
+  subtitle.textContent = 'Analyzing website security before loading...';
+  container.appendChild(subtitle);
+  
+  const urlBox = document.createElement('div');
+  urlBox.style.background = 'rgba(255,255,255,0.1)';
+  urlBox.style.borderRadius = '10px';
+  urlBox.style.padding = '15px';
+  urlBox.style.marginBottom = '25px';
+  urlBox.style.textAlign = 'left';
+  
+  const urlLabel = document.createElement('div');
+  urlLabel.style.fontSize = '14px';
+  urlLabel.style.opacity = '0.8';
+  urlLabel.style.marginBottom = '5px';
+  urlLabel.textContent = 'Scanning:';
+  urlBox.appendChild(urlLabel);
+  
+  const urlText = document.createElement('div');
+  urlText.id = 'guardianlink-scan-url';
+  urlText.style.fontFamily = 'monospace';
+  urlText.style.fontSize = '12px';
+  urlText.style.wordBreak = 'break-all';
+  urlText.style.opacity = '0.9';
+  urlText.textContent = window.location.href.substring(0, 80) + (window.location.href.length > 80 ? '...' : '');
+  urlBox.appendChild(urlText);
+  container.appendChild(urlBox);
+  
+  const progressDiv = document.createElement('div');
+  progressDiv.style.display = 'flex';
+  progressDiv.style.alignItems = 'center';
+  progressDiv.style.justifyContent = 'center';
+  progressDiv.style.gap = '10px';
+  
+  const progressContainer = document.createElement('div');
+  progressContainer.style.width = '300px';
+  progressContainer.style.height = '6px';
+  progressContainer.style.background = 'rgba(255,255,255,0.2)';
+  progressContainer.style.borderRadius = '3px';
+  progressContainer.style.overflow = 'hidden';
+  
+  const progressBar = document.createElement('div');
+  progressBar.id = 'guardianlink-progress-bar';
+  progressBar.style.width = '30%';
+  progressBar.style.height = '100%';
+  progressBar.style.background = 'linear-gradient(90deg, #4CAF50, #8BC34A)';
+  progressBar.style.transition = 'width 0.3s';
+  progressContainer.appendChild(progressBar);
+  progressDiv.appendChild(progressContainer);
+  
+  const progressText = document.createElement('div');
+  progressText.style.fontSize = '12px';
+  progressText.style.opacity = '0.7';
+  progressText.textContent = 'Scanning...';
+  progressDiv.appendChild(progressText);
+  container.appendChild(progressDiv);
+  
+  const footer = document.createElement('div');
+  footer.style.marginTop = '30px';
+  footer.style.fontSize = '12px';
+  footer.style.opacity = '0.6';
+  footer.textContent = '🔒 All page content is blocked until security check completes';
+  container.appendChild(footer);
+  
+  overlay.appendChild(container);
   
   // Add CSS animation
   const style = document.createElement('style');
@@ -254,7 +318,7 @@ function blockAllInteractions(event) {
 
 // ========== MESSAGE LISTENER ==========
 function setupMessageListener() {
-  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
     console.log('📨 Content script received:', request.action);
     
     switch (request.action) {

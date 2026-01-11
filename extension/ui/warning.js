@@ -226,7 +226,7 @@ async function displayWarning() {
         
         // Log the decision
         try {
-            await chrome.runtime.sendMessage({
+            await browser.runtime.sendMessage({
                 action: 'logDecision',
                 decision: decisionData
             });
@@ -246,7 +246,7 @@ function handleGoBack(e) {
     debugLog('🔙 Go Back clicked - sending to background');
     
     // Simply send message to background.js to handle navigation
-    chrome.runtime.sendMessage(
+    browser.runtime.sendMessage(
         { action: 'GO_BACK' },
         (response) => {
             if (response && response.success) {
@@ -267,7 +267,7 @@ function handleProceed(e) {
     debugLog('Proceeding to URL:', decisionData.url);
     
     try {
-        chrome.runtime.sendMessage({
+        browser.runtime.sendMessage({
             action: 'PROCEED_WITH_URL',
             url: decisionData.url
         });

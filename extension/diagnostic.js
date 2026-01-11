@@ -12,7 +12,7 @@ console.log('Expected: Yes (always appears)');
 
 // Test 2: Check if we can send message to background
 console.log('\n%c✓ Test 2: Testing Message Passing to Background', 'color: #4caf50; font-weight: bold;');
-chrome.runtime.sendMessage(
+browser.runtime.sendMessage(
   { action: 'diagnosticTest', timestamp: new Date().toISOString() },
   (response) => {
     if (response && response.status === 'ok') {
@@ -26,16 +26,16 @@ chrome.runtime.sendMessage(
 
 // Test 3: Check extension manifest
 console.log('\n%c✓ Test 3: Extension Information', 'color: #4caf50; font-weight: bold;');
-console.log('Extension ID:', chrome.runtime.id);
-console.log('Manifest URL:', chrome.runtime.getURL('manifest.json'));
-console.log('Warning page:', chrome.runtime.getURL('ui/warning.html'));
-console.log('Dashboard:', chrome.runtime.getURL('ui/dashboard.html'));
+console.log('Extension ID:', browser.runtime.id);
+console.log('Manifest URL:', browser.runtime.getURL('manifest.json'));
+console.log('Warning page:', browser.runtime.getURL('ui/warning.html'));
+console.log('Dashboard:', browser.runtime.getURL('ui/dashboard.html'));
 
 // Test 4: Check if URL analysis function exists
 console.log('\n%c✓ Test 4: Testing URL Analysis', 'color: #4caf50; font-weight: bold;');
 const testURL = 'https://www.google.com';
 console.log('Sending test analysis request for:', testURL);
-chrome.runtime.sendMessage(
+browser.runtime.sendMessage(
   { action: 'analyzeURL', url: testURL, context: 'diagnostic' },
   (decision) => {
     if (decision) {
@@ -52,7 +52,7 @@ chrome.runtime.sendMessage(
 
 // Test 5: Check stored logs
 console.log('\n%c✓ Test 5: Checking Stored Logs', 'color: #4caf50; font-weight: bold;');
-chrome.storage.local.get(['guardianlink_logs'], (data) => {
+browser.storage.local.get(['guardianlink_logs'], (data) => {
   if (data.guardianlink_logs && data.guardianlink_logs.length > 0) {
     console.log(`✅ Found ${data.guardianlink_logs.length} logged decisions`);
     console.log('Recent logs:');
@@ -106,7 +106,7 @@ console.log(`
    - Check console for analysis logs
 
 3. Check dashboard:
-   - Go to: ${chrome.runtime.getURL('ui/dashboard.html')}
+   - Go to: ${browser.runtime.getURL('ui/dashboard.html')}
    - Should show logged decisions
 
 4. Verify all tests passed:

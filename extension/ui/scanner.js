@@ -3,6 +3,18 @@
  * Real-time progress, threat breakdown, and user education
  */
 
+// Helper function to safely escape HTML
+function escapeHTML(text) {
+  const map = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;'
+  };
+  return String(text).replace(/[&<>"']/g, m => map[m]);
+}
+
 // Helper function to calculate risk level from safety score
 function calculateRiskLevel(safetyScore) {
   // safetyScore is percentage (0-100 where 100=safe)
@@ -31,7 +43,12 @@ async function initializeScanner() {
   if (url) {
     try {
       const urlObj = new URL(url);
-      urlElement.innerHTML = `<div style="opacity: 0.7; font-size: 10px; margin-bottom: 4px;">DOMAIN</div><div style="font-weight: 600;">${urlObj.hostname}</div><div style="font-size: 11px; opacity: 0.6; margin-top: 4px;">${urlObj.pathname.substring(0, 50)}${urlObj.pathname.length > 50 ? '...' : ''}</div>`;
+      // Use textContent for dynamic values to prevent XSS
+      urlElement.innerHTML = '<div style="opacity: 0.7; font-size: 10px; margin-bottom: 4px;">DOMAIN</div><div style="font-weight: 600;"></div><div style="font-size: 11px; opacity: 0.6; margin-top: 4px;"></div>';
+      const hostDiv = urlElement.querySelectorAll('div')[1];
+      const pathDiv = urlElement.querySelectorAll('div')[2];
+      hostDiv.textContent = urlObj.hostname;
+      pathDiv.textContent = urlObj.pathname.substring(0, 50) + (urlObj.pathname.length > 50 ? '...' : '');
     } catch {
       urlElement.textContent = url.substring(0, 80) + (url.length > 80 ? '...' : '');
     }
@@ -41,7 +58,7 @@ async function initializeScanner() {
   startProgressAnimation();
   
   try {
-    await chrome.runtime.sendMessage({ 
+    await browser.runtime.sendMessage({ 
       action: 'SCANNER_READY',
       tabId: tabId,
       url: url
@@ -52,7 +69,7 @@ async function initializeScanner() {
   }
   
   setTimeout(() => {
-    chrome.runtime.sendMessage({ action: 'SCANNER_READY' }).catch(() => {});
+    browser.runtime.sendMessage({ action: 'SCANNER_READY' }).catch(() => {});
   }, 100);
   
   setTimeout(() => {
@@ -75,7 +92,7 @@ function initializePhases() {
   ];
   
   const container = document.getElementById('phasesContainer');
-  container.innerHTML = phases.map(phase => `
+  const phasesHTML = phases.map(phase => `
     <div class="phase" id="phase-${phase.id}">
       <span class="phase-name">${phase.name}</span>
       <span class="phase-status status-${phase.status}" id="status-${phase.id}">
@@ -83,6 +100,7 @@ function initializePhases() {
       </span>
     </div>
   `).join('');
+  container.innerHTML = typeof DOMPurify !== 'undefined' ? DOMPurify.sanitize(phasesHTML) : phasesHTML;
 }
 
 // ========== PROGRESS TRACKING ==========
@@ -131,23 +149,24 @@ function displayThreats() {
   const threatsContainer = document.getElementById('threatsContainer');
   if (!threatsContainer || detectedThreats.length === 0) return;
   
-  threatsContainer.innerHTML = `
+  const threatsHTML = `
     <div class="threats-section">
       <h3 class="threats-title">🚨 Detected Threats</h3>
       <div class="threats-list">
         ${detectedThreats.map(threat => `
-          <div class="threat-item threat-${threat.severity}">
-            <div class="threat-badge">${threat.severity.toUpperCase()}</div>
+          <div class="threat-item threat-${escapeHTML(threat.severity)}">
+            <div class="threat-badge">${escapeHTML(threat.severity.toUpperCase())}</div>
             <div class="threat-content">
-              <div class="threat-category">${threat.category}</div>
-              <div class="threat-description">${threat.description}</div>
-              <div class="threat-impact">Impact: ${threat.impact}</div>
+              <div class="threat-category">${escapeHTML(threat.category)}</div>
+              <div class="threat-description">${escapeHTML(threat.description)}</div>
+              <div class="threat-impact">Impact: ${escapeHTML(threat.impact)}</div>
             </div>
           </div>
         `).join('')}
       </div>
     </div>
   `;
+  threatsContainer.innerHTML = typeof DOMPurify !== 'undefined' ? DOMPurify.sanitize(threatsHTML) : threatsHTML;
 }
 
 // ========== EDUCATION SECTION ==========
@@ -202,7 +221,7 @@ function showEducationalWarning(verdict, threats) {
     `;
   }
   
-  educationContainer.innerHTML = educationContent;
+  educationContainer.innerHTML = typeof DOMPurify !== 'undefined' ? DOMPurify.sanitize(educationContent) : educationContent;
 }
 
 // ========== PROCEED BUTTON HANDLER ==========
@@ -242,7 +261,7 @@ function setupProceedButton(url, tabId) {
       proceedBtn.disabled = true;
       proceedBtn.textContent = 'Proceeding...';
       
-      await chrome.runtime.sendMessage({
+      await browser.runtime.sendMessage({
         action: 'PROCEED_WITH_URL',
         url: url,
         tabId: tabId
@@ -329,7 +348,7 @@ function simulateInitialPhases() {
 }
 
 function setupMessageListener(tabId, url) {
-  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
     console.log('📨 Scanner received:', request.action);
     
     switch (request.action) {
@@ -359,11 +378,20 @@ function handleScanUpdate(request) {
     setProgressTo(request.progress);
   }
   
-  // Update status message
+  // Update status message with escaped content
   if (request.message) {
     const statusMessage = document.getElementById('statusMessage');
     if (statusMessage) {
-      statusMessage.innerHTML = `<span style="animation: pulse 1s ease-in-out infinite;">⏳</span> ${request.message}`;
+      statusMessage.innerHTML = '';
+      
+      const spinner = document.createElement('span');
+      spinner.style.animation = 'pulse 1s ease-in-out infinite';
+      spinner.textContent = '⏳';
+      statusMessage.appendChild(spinner);
+      
+      const text = document.createElement('span');
+      text.textContent = ' ' + request.message;
+      statusMessage.appendChild(text);
     }
   }
   

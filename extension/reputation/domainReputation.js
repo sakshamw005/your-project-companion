@@ -236,8 +236,8 @@ class DomainReputation {
     });
 
     // Persist to storage
-    if (typeof chrome !== 'undefined' && chrome.storage) {
-      chrome.storage.local.set({ 
+    if (typeof chrome !== 'undefined' && browser.storage) {
+      browser.storage.local.set({ 
         'guardianlink_blacklist': this.blacklist 
       });
     }

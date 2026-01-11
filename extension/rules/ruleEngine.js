@@ -50,19 +50,20 @@ class RuleEngine {
   }
 
   /**
-   * Get color for risk level
+   * Get color for risk level (consistent with decisionEngine)
    * @param {string} level - Risk level
+   * @param {string} verdict - Verdict (BLOCK/WARN/ALLOW)
    * @returns {string} CSS color
    */
-  static getRiskColor(level) {
-    const colors = {
-      'CRITICAL': '#d32f2f',
-      'HIGH': '#f57c00',
-      'MEDIUM': '#fbc02d',
-      'LOW': '#388e3c',
-      'SAFE': '#1976d2'
-    };
-    return colors[level] || '#757575';
+  static getRiskColor(level, verdict) {
+    if (verdict === 'BLOCK') {
+      return '#d32f2f'; // Red for BLOCK
+    } else if (verdict === 'WARN') {
+      if (level === 'MEDIUM') return '#fbc02d'; // Yellow
+      if (level === 'LOW') return '#388e3c'; // Green
+      return '#f97316'; // Orange for other WARN
+    }
+    return '#1976d2'; // Blue for ALLOW
   }
 
   /**

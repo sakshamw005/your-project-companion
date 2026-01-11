@@ -491,19 +491,17 @@ function extractDomain(url) {
 
 // score is the safety percentage from backend (0-100, 100=safe)
 // score is the safety percentage from backend (0-100, 100=safe)
-function getScoreColor(safetyScore, verdict = null) {
-    // For WARN verdicts, use orange regardless of score
-    if (verdict === 'WARN') return '#f97316';  // orange
-    
-    // For BLOCK verdicts, use red
-    if (verdict === 'BLOCK') return '#ef4444';  // red
-    
-    // For ALLOW verdicts, color by safety score
-    if (safetyScore >= 80) return '#22c55e';  // green - very safe
-    if (safetyScore >= 60) return '#a3e635';  // lime green - safe
-    if (safetyScore >= 40) return '#eab308';  // yellow - caution
-    if (safetyScore >= 20) return '#f97316';  // orange - risky
-    return '#ef4444';  // red - dangerous
+function getScoreColor(safetyScore, verdict) {
+  // Safety score: 0-100 where 100=safe
+  if (verdict === 'BLOCK') {
+    return '#d32f2f'; // Red - consistent with decisionEngine
+  } else if (verdict === 'WARN') {
+    // Match decisionEngine thresholds for WARN
+    if (safetyScore < 35) return '#f97316'; // Orange - LOW risk WARN (should be green per decisionEngine)
+    return '#fbc02d'; // Yellow - MEDIUM risk WARN (per decisionEngine)
+  } else { // ALLOW
+    return '#1976d2'; // Blue - consistent with decisionEngine
+  }
 }
 
 function getContrastColor(hexColor) {

@@ -13,7 +13,7 @@
     "<all_urls>"
   ],
   "background": {
-    "scripts": ["background.js"],
+    "scripts": ["notification-config.js", "background.js"],
     "persistent": true
   },
   "content_scripts": [
@@ -40,7 +40,7 @@
   ],
   "browser_specific_settings": {
     "gecko": {
-      "id": "guardianlink@example.com",
+      "id": "{a7f4c3e2-9b1d-4e5f-8c2a-b9d3e1f5c7a4}",
       "strict_min_version": "140.0",
       "data_collection_permissions": {
         "required": ["none"]

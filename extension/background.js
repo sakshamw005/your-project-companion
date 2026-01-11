@@ -53,11 +53,38 @@ browser.runtime.onStartup.addListener(() => {
   console.log('🔄 Extension starting up, clearing stale state');
   clearAllBlockingRules();
   state.blockedTabs.clear();
+  
+  // Show startup notification
+  browser.notifications.create({
+    type: 'basic',
+    title: '🛡️ GuardianLink Active',
+    message: 'GuardianLink v2.0 is now protecting your browsing.\nAll URLs will be scanned for security threats.',
+    iconUrl: browser.runtime.getURL('assets/icon-128.png'),
+    tag: 'guardianlink-startup'
+  });
 });
+
+// ========== CONSOLE HELPER - Logs available test functions ==========
+setTimeout(() => {
+  console.log('🎮 Console Helper Functions Available:');
+  console.log('   testNotification(verdict) - Test notifications');
+  console.log('   quickNotify(title, message) - Quick notification');
+  console.log('   Examples: testNotification("BLOCK"), testNotification("WARN"), testNotification("ALLOW")');
+}, 100);
 
 async function initializeExtension() {
   // Clear any existing rules
   await clearAllBlockingRules();
+  
+  // Initialize notification manager
+  try {
+    if (typeof notificationManager !== 'undefined' && notificationManager.initialize) {
+      await notificationManager.initialize();
+      console.log('✅ Notification manager initialized');
+    }
+  } catch (e) {
+    console.warn('⚠️ Notification manager initialization skipped:', e.message);
+  }
   
   // Setup context menus
   browser.contextMenus.removeAll(() => {
@@ -75,6 +102,53 @@ async function initializeExtension() {
   });
   
   console.log('✅ Extension initialized');
+}
+
+// ========== CONTEXT MENU HANDLER ==========
+browser.contextMenus.onClicked.addListener((info, tab) => {
+  const url = info.linkUrl || tab.url;
+  
+  if (info.menuItemId === 'scan-link' || info.menuItemId === 'scan-page') {
+    console.log(`🔍 Context menu scan requested for: ${url}`);
+    
+    // Show initial notification
+    browser.notifications.create({
+      type: 'basic',
+      title: '🔍 Scan Starting',
+      message: `Scanning: ${new URL(url).hostname}...\nPlease wait for results.`,
+      iconUrl: browser.runtime.getURL('assets/icon-128.png'),
+      tag: 'guardianlink-scan-start-' + Date.now()
+    });
+    
+    // Perform scan
+    performManualScan(url, tab.id);
+  }
+});
+
+async function performManualScan(url, tabId) {
+  try {
+    // Create a new tab for scanner
+    const scanUrl = browser.runtime.getURL('ui/scanner.html') + 
+      '?' + new URLSearchParams({
+        url: encodeURIComponent(url),
+        tabId: tabId.toString()
+      });
+    
+    await browser.tabs.create({
+      url: scanUrl,
+      active: true
+    });
+    
+    console.log(`📄 Opened scanner for: ${url}`);
+  } catch (error) {
+    console.error('❌ Failed to start scan:', error);
+    browser.notifications.create({
+      type: 'basic',
+      title: '❌ Scan Failed',
+      message: `Could not scan the URL. Please try again.`,
+      iconUrl: browser.runtime.getURL('assets/icon-128.png')
+    });
+  }
 }
 
 // ========== CLEAR ALL RULES ==========
@@ -353,12 +427,97 @@ async function pollForScanResults(scanId, url, tabId, attempt = 1) {
   }
 }
 
+// ========== NOTIFICATION HELPER ==========
+// Firefox WebExtensions notifications.create() only supports: type, title, message, iconUrl
+// Does NOT support: requireInteraction, tag (these are Web Notifications API, not WebExtensions API)
+async function showScanNotification(url, verdict, score, result) {
+  try {
+    const domain = new URL(url).hostname;
+    const timestamp = new Date().toLocaleTimeString();
+    const riskScore = Math.round(100 - score);
+    
+    let notificationTitle = '';
+    let notificationMessage = '';
+    
+    if (verdict === 'BLOCK') {
+      notificationTitle = '🛑 Malicious URL Blocked';
+      notificationMessage = `Domain: ${domain}\nRisk Score: ${riskScore}% (Critical)\nTime: ${timestamp}\nAction: URL has been blocked for your safety.`;
+    } else if (verdict === 'WARN') {
+      notificationTitle = '⚠️ Suspicious Website Detected';
+      notificationMessage = `Domain: ${domain}\nRisk Score: ${riskScore}% (Medium)\nTime: ${timestamp}\nAction: Review warning before proceeding.`;
+    } else if (verdict === 'ALLOW') {
+      notificationTitle = '✅ Website Safe';
+      notificationMessage = `Domain: ${domain}\nSafety Score: ${score}%\nTime: ${timestamp}\nStatus: Safe to visit.`;
+    }
+    
+    // Create notification using Firefox WebExtensions API
+    // Supported properties: type, title, message, iconUrl
+    console.log(`📢 Creating notification for ${verdict}: ${domain}`);
+    
+    const notificationId = await browser.notifications.create({
+      type: "basic",
+      title: notificationTitle,
+      message: notificationMessage,
+      iconUrl: browser.runtime.getURL("assets/icon-128.png")
+    });
+    
+    console.log(`✅ Notification created successfully with ID: ${notificationId}`);
+    console.log(`   Verdict: ${verdict} | Domain: ${domain} | Score: ${score}%`);
+    
+  } catch (error) {
+    console.error('❌ Failed to show notification:', error.message);
+    console.error('   Error details:', error);
+  }
+}
+
+// ========== TEST NOTIFICATION FUNCTION ==========
+// Can be called from console: testNotification('BLOCK') or testNotification('WARN') or testNotification('ALLOW')
+async function testNotification(verdict = 'ALLOW') {
+  console.log(`🧪 Testing notification for verdict: ${verdict}`);
+  
+  const testUrl = 'https://example.com/test';
+  const testScore = verdict === 'BLOCK' ? 10 : (verdict === 'WARN' ? 50 : 90);
+  
+  await showScanNotification(testUrl, verdict, testScore, {});
+}
+
+// Make testNotification globally accessible
+globalThis.testNotification = testNotification;
+
+// Alternative: Direct notification creation for testing
+globalThis.quickNotify = async function(title = '✅ Test Notification', message = 'This is a test notification') {
+  return await browser.notifications.create({
+    type: "basic",
+    iconUrl: browser.runtime.getURL("assets/icon-128.png"),
+    title: title,
+    message: message
+  });
+};
+
 // ========== COMPLETE SCAN ==========
 async function completeScan(tabId, url, result) {
   const verdict = result.verdict || 'ALLOW';
   const score = result.score || 100;
   
   console.log(`📋 Final verdict: ${verdict} (Score: ${score}) for ${url}`);
+  
+  // 🔔 SHOW NOTIFICATION FOR EVERY SCAN RESULT
+  // Show notifications directly for BLOCK and WARN (most important)
+  if (verdict === 'BLOCK' || verdict === 'WARN') {
+    await showScanNotification(url, verdict, score, result);
+  } else if (verdict === 'ALLOW') {
+    // For ALLOW, try to use settings but default to not showing
+    try {
+      if (notificationManager && typeof notificationManager.shouldNotify === 'function') {
+        const shouldShow = await notificationManager.shouldNotify(verdict);
+        if (shouldShow) {
+          await showScanNotification(url, verdict, score, result);
+        }
+      }
+    } catch (e) {
+      // Ignore errors, don't block scan completion
+    }
+  }
   
   // Cleanup pending state
   state.pendingScans.delete(url);
@@ -694,6 +853,7 @@ function logDecision(url, verdict, score, details) {
     
     // score is the safety percentage from backend (0-100, 100=safe)
     // riskScore is what we display (100 - safety percentage)
+    const color = getColorByVerdictAndScore(verdict, score);
     const riskScore = 100 - score;
     const riskLevel = calculateRiskLevel(score);
     
@@ -703,6 +863,7 @@ function logDecision(url, verdict, score, details) {
       score,
       riskScore,
       combinedScore: score,
+      color: color,
       riskLevel: riskLevel,
       reasoning: details?.reasoning || 'Security analysis',
       timestamp: new Date().toISOString(),
@@ -729,7 +890,20 @@ function logDecision(url, verdict, score, details) {
     } catch (e) {}
   });
 }
-
+function getColorByVerdictAndScore(verdict, safetyScore) {
+  // Safety score: 0-100 where 100=safe
+  if (verdict === 'BLOCK') {
+    return '#d32f2f'; // Red - always red for BLOCK
+  } else if (verdict === 'WARN') {
+    // For WARN, use orange for moderate risk, yellow for low risk
+    if (safetyScore < 40) return '#f97316'; // Orange - high risk WARN
+    return '#eab308'; // Yellow - moderate risk WARN
+  } else { // ALLOW
+    if (safetyScore >= 80) return '#22c55e'; // Green - very safe
+    if (safetyScore >= 60) return '#a3e635'; // Lime green - safe
+    return '#1976d2'; // Blue - safe but not perfect
+  }
+}
 function logBypass(url) {
   browser.storage.local.get(['guardianlink_bypasses'], (data) => {
     const bypasses = data.guardianlink_bypasses || [];

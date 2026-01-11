@@ -12,8 +12,9 @@ const heuristicsManager = require('./lib/heuristicsManager');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Trust proxy for Render (to get correct client IP)
-app.set('trust proxy', true);
+// Trust only the first proxy hop (Render's reverse proxy)
+// This safely gets the real client IP while preventing IP spoofing
+app.set('trust proxy', 1);
 
 // ========== SCAN RESULTS CACHE ==========
 const scanResults = new Map(); // Store scan results by scanId

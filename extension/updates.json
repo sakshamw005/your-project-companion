@@ -1,0 +1,12 @@
+{
+  "addons": {
+    "guardianlink@example.com": {
+      "updates": [
+        {
+          "version": "2.0.0",
+          "update_link": "https://github.com/sakshamw005/your-project-companion/releases/download/v2.0.0/GuardianLink-v2.0.0.xpi"
+        }
+      ]
+    }
+  }
+}

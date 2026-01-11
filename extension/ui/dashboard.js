@@ -77,9 +77,9 @@ async function loadLogs() {
 function updateUI(logs) {
     const blockedCount = document.getElementById('blockedCount');
     const warnedCount = document.getElementById('warnedCount');
-    const allowedCount = document.getElementById('allowedCount');
+    const analyzedCount = document.getElementById('analyzedCount');
     
-    if (!blockedCount || !warnedCount || !allowedCount) return;
+    if (!blockedCount || !warnedCount || !analyzedCount) return;
     
     const counts = {
         BLOCK: logs.filter(l => l.verdict === 'BLOCK').length,
@@ -87,9 +87,11 @@ function updateUI(logs) {
         ALLOW: logs.filter(l => l.verdict === 'ALLOW').length
     };
     
+    const totalAnalyzed = counts.BLOCK + counts.WARN + counts.ALLOW;
+    
     blockedCount.textContent = counts.BLOCK;
     warnedCount.textContent = counts.WARN;
-    allowedCount.textContent = counts.ALLOW;
+    analyzedCount.textContent = totalAnalyzed;
 }
 
 // Display logs in table

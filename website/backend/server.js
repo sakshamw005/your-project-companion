@@ -795,7 +795,8 @@ async function checkWithGoogleSafeBrowsing(url) {
         },
         threatInfo: {
           threatTypes: ['MALWARE', 'SOCIAL_ENGINEERING', 'UNWANTED_SOFTWARE', 'POTENTIALLY_HARMFUL_APPLICATION'],
-          platformTypes: ['WINDOWS', 'LINUX', 'MAC', 'ALL_PLATFORMS'],
+          platformTypes: ['ANY_PLATFORM'],
+          threatEntryTypes: ['URL'],
           threatEntries: [
             { url: url }
           ]

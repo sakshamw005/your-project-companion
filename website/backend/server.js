@@ -12,6 +12,9 @@ const heuristicsManager = require('./lib/heuristicsManager');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Trust proxy for Render (to get correct client IP)
+app.set('trust proxy', true);
+
 // ========== SCAN RESULTS CACHE ==========
 const scanResults = new Map(); // Store scan results by scanId
 const scanStartTimes = new Map(); // Track when scans started

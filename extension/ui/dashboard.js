@@ -3,21 +3,6 @@
  * Enterprise-grade real-time security logging dashboard
  */
 
-// Helper function to safely escape HTML
-function escapeHTML(text) {
-  const map = {
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#039;'
-  };
-  return String(text).replace(/[&<>"']/g, m => map[m]);
-}
-
-let allLogs = [];
-let currentFilter = 'all';
-
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
     console.log('[GuardianLink] Dashboard loaded');
@@ -116,91 +101,111 @@ function displayLogs(logs) {
         : logs.filter(l => l.verdict === currentFilter);
     
     if (filteredLogs.length === 0) {
-        logContainer.innerHTML = '';
         const emptyDiv = document.createElement('div');
         emptyDiv.style.padding = '40px';
         emptyDiv.style.textAlign = 'center';
         emptyDiv.style.color = 'var(--text-secondary)';
         emptyDiv.textContent = 'No logs found';
+        logContainer.textContent = '';
         logContainer.appendChild(emptyDiv);
         return;
     }
     
-    logContainer.innerHTML = '';
+    // Clear container safely
+    while (logContainer.firstChild) {
+        logContainer.removeChild(logContainer.firstChild);
+    }
+    
     filteredLogs.forEach((log, idx) => {
         const row = createLogRowElement(log);
-        row.addEventListener('click', () => {
-            const viewBtn = row.querySelector('.view-details-btn');
-            if (viewBtn) viewBtn.click();
-        });
         logContainer.appendChild(row);
+        
+        // Attach click listener directly to view button
+        const viewBtn = row.querySelector('.view-details-btn');
+        if (viewBtn) {
+            viewBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                showLogDetails(log);
+            });
+        }
     });
-    
-    // Attach click listeners to view buttons
-    document.querySelectorAll('.view-details-btn').forEach((btn, idx) => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            showLogDetails(filteredLogs[idx]);
-        });
-    });
-}
-
-function createLogRow(log, index) {
-    const verdict = log.verdict || 'UNKNOWN';
-    const score = log.combinedScore !== undefined ? log.combinedScore : (log.score || 0);
-    const riskLevel = getRiskLevel(score);
-    const url = log.url || 'Unknown URL';
-    const domain = extractDomain(url);
-    const time = formatTime(log.timestamp);
-    
-    const verdictClass = `verdict-${verdict.toLowerCase()}`;
-    const riskClass = `risk-${riskLevel.toLowerCase()}`;
-    
-    return `
-        <div class="log-row">
-            <div class="url-cell" title="${escapeHtml(url)}">${escapeHtml(domain)}</div>
-            <div><span class="verdict-badge ${verdictClass}">${verdict}</span></div>
-            <div><span class="risk-badge ${riskClass}">${riskLevel}</span></div>
-            <div>${time}</div>
-            <div><button class="icon-btn view-details-btn" title="View details">👁️</button></div>
-        </div>
-    `;
 }
 
 function createLogRowElement(log) {
     const verdict = log.verdict || 'UNKNOWN';
     const score = log.combinedScore !== undefined ? log.combinedScore : (log.score || 0);
-    const riskLevel = getRiskLevel(score);
+    const safetyScore = Math.min(100, Math.max(0, score));
     const url = log.url || 'Unknown URL';
     const domain = extractDomain(url);
     const time = formatTime(log.timestamp);
     
     const verdictClass = `verdict-${verdict.toLowerCase()}`;
-    const riskClass = `risk-${riskLevel.toLowerCase()}`;
+    // Pass verdict to get appropriate color
+    const riskColor = getScoreColor(safetyScore, verdict);
     
     const row = document.createElement('div');
     row.className = 'log-row';
     
+    // URL Cell
     const urlCell = document.createElement('div');
     urlCell.className = 'url-cell';
-    urlCell.title = url;
-    urlCell.textContent = domain;
+    urlCell.title = DOMPurify.sanitize(url);
+    urlCell.textContent = DOMPurify.sanitize(domain);
     
+    // Verdict Cell
     const verdictCell = document.createElement('div');
     const verdictSpan = document.createElement('span');
     verdictSpan.className = `verdict-badge ${verdictClass}`;
     verdictSpan.textContent = verdict;
     verdictCell.appendChild(verdictSpan);
     
+    // Risk Score Cell (showing the actual score)
     const riskCell = document.createElement('div');
-    const riskSpan = document.createElement('span');
-    riskSpan.className = `risk-badge ${riskClass}`;
-    riskSpan.textContent = riskLevel;
-    riskCell.appendChild(riskSpan);
+    const scoreContainer = document.createElement('div');
+    scoreContainer.className = 'score-container';
+    scoreContainer.style.cssText = `
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        justify-content: center;
+    `;
     
+    const scoreCircle = document.createElement('div');
+    scoreCircle.className = 'score-circle';
+    scoreCircle.style.cssText = `
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 10px;
+        background: ${riskColor};
+        color: ${getContrastColor(riskColor)};
+        border: 2px solid ${adjustColorBrightness(riskColor, -20)};
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    `;
+    scoreCircle.textContent = safetyScore;
+    
+    const scoreText = document.createElement('span');
+    scoreText.className = 'score-text';
+    scoreText.style.cssText = `
+        font-weight: 600;
+        font-size: 11px;
+        color: var(--text-primary);
+    `;
+    scoreText.textContent = safetyScore >= 60 ? 'Safe' : 'Risk';
+    
+    scoreContainer.appendChild(scoreCircle);
+    scoreContainer.appendChild(scoreText);
+    riskCell.appendChild(scoreContainer);
+    
+    // Time Cell
     const timeCell = document.createElement('div');
     timeCell.textContent = time;
     
+    // Button Cell
     const btnCell = document.createElement('div');
     const viewBtn = document.createElement('button');
     viewBtn.className = 'icon-btn view-details-btn';
@@ -208,6 +213,7 @@ function createLogRowElement(log) {
     viewBtn.textContent = '👁️';
     btnCell.appendChild(viewBtn);
     
+    // Append all cells
     row.appendChild(urlCell);
     row.appendChild(verdictCell);
     row.appendChild(riskCell);
@@ -226,12 +232,14 @@ function showLogDetails(log) {
     
     const verdict = log.verdict || 'UNKNOWN';
     const score = log.combinedScore !== undefined ? log.combinedScore : (log.score || 0);
-    const riskLevel = getRiskLevel(score);
+    const safetyScore = Math.min(100, Math.max(0, score));
+    const url = log.url || 'Unknown URL';
     const verdictClass = verdict.toLowerCase();
-    const riskClass = riskLevel.toLowerCase();
+    const riskColor = getScoreColor(safetyScore, verdict);
+    const contrastColor = getContrastColor(riskColor);
     
-    // Clear previous content
-    content.innerHTML = '';
+    // Clear previous content safely
+    content.textContent = '';
     
     // URL Details Section
     const urlSection = document.createElement('div');
@@ -244,27 +252,8 @@ function showLogDetails(log) {
     const urlContent = document.createElement('div');
     urlContent.className = 'modal-section-content';
     
-    const urlRow = document.createElement('div');
-    urlRow.className = 'modal-detail-row';
-    const urlLabel = document.createElement('span');
-    urlLabel.className = 'modal-label';
-    urlLabel.textContent = 'Full URL';
-    const urlValue = document.createElement('span');
-    urlValue.className = 'modal-value';
-    urlValue.textContent = log.url;
-    urlRow.appendChild(urlLabel);
-    urlRow.appendChild(urlValue);
-    
-    const domainRow = document.createElement('div');
-    domainRow.className = 'modal-detail-row';
-    const domainLabel = document.createElement('span');
-    domainLabel.className = 'modal-label';
-    domainLabel.textContent = 'Domain';
-    const domainValue = document.createElement('span');
-    domainValue.className = 'modal-value';
-    domainValue.textContent = extractDomain(log.url);
-    domainRow.appendChild(domainLabel);
-    domainRow.appendChild(domainValue);
+    const urlRow = createDetailRow('Full URL', DOMPurify.sanitize(url));
+    const domainRow = createDetailRow('Domain', DOMPurify.sanitize(extractDomain(url)));
     
     urlContent.appendChild(urlRow);
     urlContent.appendChild(domainRow);
@@ -282,27 +271,130 @@ function showLogDetails(log) {
     const secContent = document.createElement('div');
     secContent.className = 'modal-section-content';
     
-    const verdictRow = document.createElement('div');
-    verdictRow.className = 'modal-detail-row';
-    const verdictLabel = document.createElement('span');
-    verdictLabel.className = 'modal-label';
-    verdictLabel.textContent = 'Verdict';
+    // Verdict row
+    const verdictRow = createDetailRow('Verdict', '');
     const verdictBadge = document.createElement('span');
     verdictBadge.className = `modal-verdict ${verdictClass}`;
     verdictBadge.textContent = verdict;
-    verdictRow.appendChild(verdictLabel);
-    verdictRow.appendChild(verdictBadge);
+    verdictRow.lastChild.appendChild(verdictBadge);
     
-    const riskRow = document.createElement('div');
-    riskRow.className = 'modal-detail-row';
-    const riskLabel = document.createElement('span');
-    riskLabel.className = 'modal-label';
-    riskLabel.textContent = 'Risk Level';
-    const riskBadge = document.createElement('span');
-    riskBadge.className = `modal-risk ${riskClass}`;
-    riskBadge.textContent = riskLevel;
-    riskRow.appendChild(riskLabel);
-    riskRow.appendChild(riskBadge);
+    // Risk Score row with visual indicator
+    const riskRow = createDetailRow('Risk Score', '');
+    
+    const scoreContainer = document.createElement('div');
+    scoreContainer.style.cssText = `
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+    `;
+    
+    // Score circle
+    const scoreCircle = document.createElement('div');
+    scoreCircle.style.cssText = `
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        font-size: 18px;
+        background: ${riskColor};
+        color: ${contrastColor};
+        border: 3px solid ${adjustColorBrightness(riskColor, -30)};
+        box-shadow: 0 4px 12px ${adjustColorBrightness(riskColor, -40)}40;
+    `;
+    scoreCircle.textContent = safetyScore;
+    
+    // Score gauge
+    const scoreGauge = document.createElement('div');
+    scoreGauge.style.cssText = `
+        flex: 1;
+        min-width: 200px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    `;
+    
+    const gaugeContainer = document.createElement('div');
+    gaugeContainer.style.cssText = `
+        height: 12px;
+        background: var(--border);
+        border-radius: 6px;
+        overflow: hidden;
+        position: relative;
+    `;
+    
+    const gaugeFill = document.createElement('div');
+    gaugeFill.style.cssText = `
+        height: 100%;
+        width: ${safetyScore}%;
+        background: ${riskColor};
+        border-radius: 6px;
+        transition: width 0.5s ease;
+    `;
+    
+    const gaugeMarks = document.createElement('div');
+    gaugeMarks.style.cssText = `
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        justify-content: space-between;
+        padding: 0 4px;
+    `;
+    
+    ['0', '25', '50', '75', '100'].forEach(mark => {
+        const markDiv = document.createElement('div');
+        markDiv.style.cssText = `
+            width: 2px;
+            height: 100%;
+            background: rgba(255,255,255,0.3);
+            position: relative;
+        `;
+        
+        const label = document.createElement('div');
+        label.style.cssText = `
+            position: absolute;
+            top: 16px;
+            left: -8px;
+            font-size: 9px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        `;
+        label.textContent = mark;
+        markDiv.appendChild(label);
+        gaugeMarks.appendChild(markDiv);
+    });
+    
+    gaugeContainer.appendChild(gaugeFill);
+    gaugeContainer.appendChild(gaugeMarks);
+    
+    const scoreLabels = document.createElement('div');
+    scoreLabels.style.cssText = `
+        display: flex;
+        justify-content: space-between;
+        font-size: 10px;
+        color: var(--text-secondary);
+        margin-top: 4px;
+    `;
+    
+    const lowLabel = document.createElement('span');
+    lowLabel.textContent = 'High Risk';
+    const highLabel = document.createElement('span');
+    highLabel.textContent = 'Safe';
+    scoreLabels.appendChild(lowLabel);
+    scoreLabels.appendChild(highLabel);
+    
+    scoreGauge.appendChild(gaugeContainer);
+    scoreGauge.appendChild(scoreLabels);
+    
+    scoreContainer.appendChild(scoreCircle);
+    scoreContainer.appendChild(scoreGauge);
+    riskRow.lastChild.appendChild(scoreContainer);
     
     secContent.appendChild(verdictRow);
     secContent.appendChild(riskRow);
@@ -320,27 +412,8 @@ function showLogDetails(log) {
     const analysisContent = document.createElement('div');
     analysisContent.className = 'modal-section-content';
     
-    const timeRow = document.createElement('div');
-    timeRow.className = 'modal-detail-row';
-    const timeLabel = document.createElement('span');
-    timeLabel.className = 'modal-label';
-    timeLabel.textContent = 'Timestamp';
-    const timeValue = document.createElement('span');
-    timeValue.className = 'modal-value';
-    timeValue.textContent = formatDateTime(log.timestamp);
-    timeRow.appendChild(timeLabel);
-    timeRow.appendChild(timeValue);
-    
-    const reasonRow = document.createElement('div');
-    reasonRow.className = 'modal-detail-row';
-    const reasonLabel = document.createElement('span');
-    reasonLabel.className = 'modal-label';
-    reasonLabel.textContent = 'Reasoning';
-    const reasonValue = document.createElement('span');
-    reasonValue.className = 'modal-value';
-    reasonValue.textContent = log.reasoning || 'Security analysis completed';
-    reasonRow.appendChild(reasonLabel);
-    reasonRow.appendChild(reasonValue);
+    const timeRow = createDetailRow('Timestamp', formatDateTime(log.timestamp));
+    const reasonRow = createDetailRow('Reasoning', log.reasoning || 'Security analysis completed');
     
     analysisContent.appendChild(timeRow);
     analysisContent.appendChild(reasonRow);
@@ -348,6 +421,29 @@ function showLogDetails(log) {
     content.appendChild(analysisSection);
     
     modal.classList.add('active');
+}
+
+// Helper function to create detail rows
+function createDetailRow(label, value) {
+    const row = document.createElement('div');
+    row.className = 'modal-detail-row';
+    
+    const labelSpan = document.createElement('span');
+    labelSpan.className = 'modal-label';
+    labelSpan.textContent = label;
+    
+    const valueSpan = document.createElement('span');
+    valueSpan.className = 'modal-value';
+    
+    if (typeof value === 'string') {
+        valueSpan.textContent = value;
+    } else if (value instanceof HTMLElement) {
+        valueSpan.appendChild(value);
+    }
+    
+    row.appendChild(labelSpan);
+    row.appendChild(valueSpan);
+    return row;
 }
 
 // Close modal
@@ -362,7 +458,7 @@ function closeDetailModal() {
 function clearAllLogs() {
     if (!confirm('Clear all logs? This cannot be undone.')) return;
     
-    browser.storage.local.set({ logs: [] }, () => {
+    browser.storage.local.set({ guardianlink_logs: [] }, () => {
         allLogs = [];
         loadLogs();
     });
@@ -385,12 +481,6 @@ function exportLogs() {
 }
 
 // Utility functions
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
 function extractDomain(url) {
     try {
         return new URL(url).hostname;
@@ -400,24 +490,48 @@ function extractDomain(url) {
 }
 
 // score is the safety percentage from backend (0-100, 100=safe)
-// riskScore is display value (100 - score)
-function getRiskLevel(safetyScore) {
-    const riskScore = 100 - safetyScore;
-    if (riskScore >= 90) return 'CRITICAL';
-    if (riskScore >= 70) return 'HIGH';
-    if (riskScore >= 50) return 'MEDIUM';
-    if (riskScore >= 30) return 'LOW-MEDIUM';
-    return 'LOW';
+// score is the safety percentage from backend (0-100, 100=safe)
+function getScoreColor(safetyScore, verdict = null) {
+    // For WARN verdicts, use orange regardless of score
+    if (verdict === 'WARN') return '#f97316';  // orange
+    
+    // For BLOCK verdicts, use red
+    if (verdict === 'BLOCK') return '#ef4444';  // red
+    
+    // For ALLOW verdicts, color by safety score
+    if (safetyScore >= 80) return '#22c55e';  // green - very safe
+    if (safetyScore >= 60) return '#a3e635';  // lime green - safe
+    if (safetyScore >= 40) return '#eab308';  // yellow - caution
+    if (safetyScore >= 20) return '#f97316';  // orange - risky
+    return '#ef4444';  // red - dangerous
 }
 
-function getScoreColor(safetyScore) {
-    const riskScore = 100 - safetyScore;
-    if (riskScore >= 90) return '#ef4444';  // CRITICAL - red
-    if (riskScore >= 70) return '#f97316';  // HIGH - orange
-    if (riskScore >= 50) return '#eab308';  // MEDIUM - yellow
-    if (riskScore >= 30) return '#a3e635';  // LOW-MEDIUM - lime
-    return '#22c55e';  // LOW - green
-    return '#10b981';
+function getContrastColor(hexColor) {
+    // Convert hex to RGB
+    const r = parseInt(hexColor.substr(1, 2), 16);
+    const g = parseInt(hexColor.substr(3, 2), 16);
+    const b = parseInt(hexColor.substr(5, 2), 16);
+    
+    // Calculate luminance
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    
+    // Return black or white based on luminance
+    return luminance > 0.5 ? '#000000' : '#ffffff';
+}
+
+function adjustColorBrightness(hex, percent) {
+    const num = parseInt(hex.replace("#", ""), 16);
+    const amt = Math.round(2.55 * percent);
+    const R = (num >> 16) + amt;
+    const G = (num >> 8 & 0x00FF) + amt;
+    const B = (num & 0x0000FF) + amt;
+    
+    return "#" + (
+        0x1000000 +
+        (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 +
+        (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
+        (B < 255 ? B < 1 ? 0 : B : 255)
+    ).toString(16).slice(1);
 }
 
 function formatTime(timestamp) {
@@ -443,3 +557,7 @@ function formatDateTime(timestamp) {
         return 'Unknown';
     }
 }
+
+// Global variables
+let allLogs = [];
+let currentFilter = 'all';

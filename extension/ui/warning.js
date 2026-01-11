@@ -25,6 +25,26 @@ function calculateRiskLevel(safetyScore) {
     return 'LOW';
 }
 
+// Get color based on VERDICT (not score)
+function getColorFromVerdict(verdict) {
+    switch(verdict) {
+        case 'BLOCK': return '#ef4444';  // red
+        case 'WARN': return '#f97316';   // orange
+        case 'ALLOW': return '#22c55e';  // green
+        default: return '#6b7280';       // gray for unknown
+    }
+}
+
+// Get CSS class for risk indicator based on VERDICT
+function getRiskIndicatorClass(verdict) {
+    switch(verdict) {
+        case 'BLOCK': return 'critical';
+        case 'WARN': return 'high';
+        case 'ALLOW': return 'low';
+        default: return 'medium';
+    }
+}
+
 // Initialize on DOM ready
 document.addEventListener('DOMContentLoaded', function() {
     debugLog('DOM Content Loaded');
@@ -175,10 +195,13 @@ async function displayWarning() {
             debugLog('Set domain detail:', domainDetail.textContent);
         }
         
-        // Set risk level
+        // Set risk level (text only)
         const riskLevel = document.getElementById('riskLevel');
         if (riskLevel) {
-            riskLevel.textContent = decisionData.riskLevel || 'MEDIUM';
+            // Show the actual score from backend + risk level text
+            const scoreText = `${decisionData.score}/100`;
+            const riskText = decisionData.riskLevel || 'MEDIUM';
+            riskLevel.textContent = `${scoreText} (${riskText})`;
         }
         
         // Set risk description based on verdict
@@ -193,10 +216,23 @@ async function displayWarning() {
             }
         }
         
-        // Set risk indicator color
+        // Set risk indicator color based on VERDICT
         const riskIndicator = document.getElementById('riskIndicator');
         if (riskIndicator) {
-            riskIndicator.className = `risk-indicator ${(decisionData.riskLevel || 'medium').toLowerCase()}`;
+            const indicatorClass = getRiskIndicatorClass(decisionData.verdict);
+            riskIndicator.className = `risk-indicator ${indicatorClass}`;
+            
+            // Also update the icon based on verdict
+            const riskIcon = riskIndicator.querySelector('.risk-icon');
+            if (riskIcon) {
+                if (decisionData.verdict === 'BLOCK') {
+                    riskIcon.textContent = '🚫';
+                } else if (decisionData.verdict === 'WARN') {
+                    riskIcon.textContent = '⚠️';
+                } else {
+                    riskIcon.textContent = '🔒';
+                }
+            }
         }
         
         // Display risk score bar
@@ -205,11 +241,16 @@ async function displayWarning() {
         const scoreFill = document.getElementById('scoreFill');
         if (scoreBarContainer && scoreValue && scoreFill) {
             scoreBarContainer.classList.remove('hidden');
-            // Add risk level class using classList (doesn't remove other classes)
-            scoreBarContainer.classList.add(`risk-level-${(decisionData.riskLevel || 'medium').toLowerCase()}`);
-            // Display the actual risk score percentage (100 - backend score)
-            scoreValue.textContent = `${Math.round(decisionData.riskScore)}%`;
-            scoreFill.style.width = `${Math.min(decisionData.riskScore, 100)}%`;
+            
+            // Display the risk score (100 - safety score)
+            const riskScore = decisionData.riskScore || (100 - decisionData.score);
+            scoreValue.textContent = `${Math.round(riskScore)}%`;
+            scoreFill.style.width = `${Math.min(riskScore, 100)}%`;
+            
+            // Set color based on VERDICT
+            const color = getColorFromVerdict(decisionData.verdict);
+            scoreFill.style.background = `linear-gradient(90deg, ${color} 0%, ${adjustColorBrightness(color, -20)} 100%)`;
+            scoreFill.style.boxShadow = `0 0 10px ${color}40`;
         }
         
         // Show/hide proceed button based on verdict
@@ -219,6 +260,28 @@ async function displayWarning() {
                 proceedBtn.classList.add('hidden');
             } else {
                 proceedBtn.classList.remove('hidden');
+            }
+        }
+        
+        // Show warning message for WARN verdict
+        const warningMessage = document.getElementById('warningMessage');
+        if (warningMessage) {
+            if (decisionData.verdict === 'WARN') {
+                warningMessage.classList.remove('hidden');
+                warningMessage.textContent = `Warning: This site scored ${decisionData.score}/100 on our security check. Proceed with caution.`;
+            } else if (decisionData.verdict === 'BLOCK') {
+                warningMessage.classList.remove('hidden');
+                warningMessage.textContent = `Blocked: This site scored ${decisionData.score}/100 and has been blocked for your safety.`;
+            }
+        }
+        
+        // Show critical message for BLOCK verdict
+        const criticalMessage = document.getElementById('criticalMessage');
+        if (criticalMessage) {
+            if (decisionData.verdict === 'BLOCK') {
+                criticalMessage.classList.remove('hidden');
+            } else {
+                criticalMessage.classList.add('hidden');
             }
         }
         
@@ -238,6 +301,22 @@ async function displayWarning() {
     } catch (error) {
         console.error('[GuardianLink Warning] Display error:', error);
     }
+}
+
+// Helper function to adjust color brightness
+function adjustColorBrightness(hex, percent) {
+    const num = parseInt(hex.replace("#", ""), 16);
+    const amt = Math.round(2.55 * percent);
+    const R = (num >> 16) + amt;
+    const G = (num >> 8 & 0x00FF) + amt;
+    const B = (num & 0x0000FF) + amt;
+    
+    return "#" + (
+        0x1000000 +
+        (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 +
+        (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
+        (B < 255 ? B < 1 ? 0 : B : 255)
+    ).toString(16).slice(1);
 }
 
 // ========== FIREFOX FIX: PROPER GO BACK HANDLER ==========

@@ -17,6 +17,7 @@ function setupEventListeners() {
     const modal = document.getElementById('detailModal');
     const clearBtn = document.getElementById('clearBtn');
     const exportBtn = document.getElementById('exportBtn');
+    const reportBtn = document.getElementById('reportBtn');
     
     if (closeBtn) {
         closeBtn.addEventListener('click', closeDetailModal);
@@ -36,6 +37,10 @@ function setupEventListeners() {
     
     if (exportBtn) {
         exportBtn.addEventListener('click', exportLogs);
+    }
+    
+    if (reportBtn) {
+        reportBtn.addEventListener('click', generateSecurityReport);
     }
 }
 
@@ -478,6 +483,41 @@ function exportLogs() {
     document.body.removeChild(link);
     
     setTimeout(() => URL.revokeObjectURL(url), 100);
+}
+
+// Generate security report
+async function generateSecurityReport() {
+    try {
+        console.log('[GuardianLink] Generating security report...');
+        
+        if (allLogs.length === 0) {
+            alert('No logs available to generate report.');
+            return;
+        }
+        
+        // Store logs temporarily for report page
+        const reportKey = `guardianlink_report_${Date.now()}`;
+        await browser.storage.local.set({
+            [reportKey]: allLogs
+        });
+        
+        // Open report page (like scanner.html does)
+        const reportUrl = browser.runtime.getURL('ui/report.html') + 
+            '?' + new URLSearchParams({
+                reportKey: reportKey
+            });
+        
+        await browser.tabs.create({
+            url: reportUrl,
+            active: true
+        });
+        
+        console.log(`[GuardianLink] Report opened with ${allLogs.length} logs`);
+        
+    } catch (error) {
+        console.error('Error generating report:', error);
+        alert('Failed to generate report. Check console for details.');
+    }
 }
 
 // Utility functions

@@ -380,6 +380,217 @@
         ::-webkit-scrollbar-thumb:hover {
             background: var(--accent);
         }
+
+        /* Security Checks Styles */
+        .security-checks {
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.4) 100%);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 18px;
+            margin-bottom: 8px;
+            animation: fadeIn 0.5s ease 0.25s both;
+        }
+
+        .security-checks h3 {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            margin-bottom: 16px;
+            letter-spacing: 0.5px;
+        }
+
+        .checks-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .check-card {
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.6) 100%);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .check-card:hover {
+            border-color: rgba(59, 130, 246, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .check-card.safe {
+            border-left: 3px solid var(--success);
+        }
+
+        .check-card.warning {
+            border-left: 3px solid var(--warning);
+        }
+
+        .check-card.danger {
+            border-left: 3px solid var(--danger);
+        }
+
+        .check-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .check-icon {
+            font-size: 18px;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .check-icon.safe {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success);
+        }
+
+        .check-icon.warning {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--warning);
+        }
+
+        .check-icon.danger {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--danger);
+        }
+
+        .check-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-primary);
+            flex: 1;
+        }
+
+        .check-score {
+            font-size: 11px;
+            font-weight: 700;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+
+        .check-score.safe {
+            color: var(--success);
+        }
+
+        .check-score.warning {
+            color: var(--warning);
+        }
+
+        .check-score.danger {
+            color: var(--danger);
+        }
+
+        .check-details {
+            font-size: 10px;
+            color: var(--text-secondary);
+            line-height: 1.4;
+            margin-top: 6px;
+        }
+
+        .check-findings {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(52, 65, 85, 0.3);
+        }
+
+        .finding-item {
+            font-size: 9px;
+            color: var(--text-secondary);
+            padding: 3px 0;
+            display: flex;
+            align-items: flex-start;
+            gap: 6px;
+        }
+
+        .finding-item:before {
+            content: "•";
+            color: inherit;
+        }
+
+        /* Threat Breakdown Styles */
+        .threat-breakdown {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(239, 68, 68, 0.05) 100%);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 8px;
+            animation: fadeIn 0.5s ease 0.3s both;
+        }
+
+        .threat-breakdown h3 {
+            font-size: 11px;
+            font-weight: 700;
+            color: #fca5a5;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .breakdown-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .breakdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(252, 165, 165, 0.2);
+        }
+
+        .breakdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .breakdown-severity {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .breakdown-severity.high {
+            background: var(--danger);
+            box-shadow: 0 0 6px rgba(239, 68, 68, 0.5);
+        }
+
+        .breakdown-severity.medium {
+            background: var(--warning);
+            box-shadow: 0 0 6px rgba(245, 158, 11, 0.5);
+        }
+
+        .breakdown-severity.low {
+            background: var(--success);
+            box-shadow: 0 0 6px rgba(16, 185, 129, 0.5);
+        }
+
+        .breakdown-text {
+            font-size: 11px;
+            color: var(--text-secondary);
+            flex: 1;
+            line-height: 1.4;
+        }
+
+        .breakdown-source {
+            font-size: 9px;
+            color: rgba(252, 165, 165, 0.7);
+            background: rgba(239, 68, 68, 0.1);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
     </style>
 </head>
 <body>
@@ -426,6 +637,18 @@
                 <div class="score-bar">
                     <div class="score-fill" id="scoreFill"></div>
                 </div>
+            </div>
+
+            <div class="security-checks hidden" id="securityChecksContainer">
+                <h3>🛡️ Security Checks</h3>
+                <div class="checks-grid" id="checksGrid">
+                    <!-- Security checks will be dynamically added here -->
+                </div>
+            </div>
+
+            <div class="threat-breakdown hidden" id="threatBreakdownContainer">
+                <h3>📊 Threat Breakdown</h3>
+                <div class="breakdown-list" id="breakdownList"></div>
             </div>
 
             <div class="actions">

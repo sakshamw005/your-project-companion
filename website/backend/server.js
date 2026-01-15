@@ -591,78 +591,285 @@ async function checkDomainAge(url) {
         score: 0,
         maxScore: 10,
         status: 'danger',
-        warnings: ['Hostname is an IP address literal - suspicious']
+        warnings: ['Hostname is an IP address literal - suspicious'],
+        isHeuristic: true
       };
     }
-
-    // We'll use a simple heuristic based on domain characteristics
-    // In production, you'd want to use a WHOIS API
-    const suspiciousPatterns = [
-      /\d{4,}/, // Long numbers
-      /-{2,}/, // Multiple hyphens
-      /[a-z]{20,}/, // Very long words
-      /\.(tk|ml|ga|cf|gq)$/i, // Free TLD domains often used for phishing
-    ];
 
     let score = 10;
     let status = 'safe';
     const warnings = [];
 
-    for (const pattern of suspiciousPatterns) {
+    // Check for homograph attacks (visual similarity confusion)
+    const homographPatterns = [
+      /[0o][0o]{2,}/i,  // Confusion between 0 and o
+      /[il1][il1]{2,}/,  // Confusion between i, l, and 1
+      /[5s][5s]{2,}/i,   // Confusion between 5 and s
+    ];
+
+    for (const pattern of homographPatterns) {
       if (pattern.test(domain)) {
         score -= 3;
-        warnings.push(`Suspicious pattern detected: ${pattern.source}`);
+        warnings.push(`Possible homograph attack pattern detected`);
       }
     }
 
-    // If WHOIS data available via fetchWhois elsewhere, prefer that
-    // The caller may pass a whois object into heuristicsManager for domain-age checks.
+    // Check for other suspicious patterns
+    const suspiciousPatterns = [
+      { pattern: /\d{4,}/, message: 'Long numeric sequence in domain', penalty: -2 },
+      { pattern: /-{2,}/, message: 'Multiple consecutive hyphens', penalty: -2 },
+      { pattern: /[a-z]{20,}/, message: 'Unusually long word component', penalty: -1 },
+    ];
 
-    if (score < 7) status = 'warning';
+    for (const { pattern, message, penalty } of suspiciousPatterns) {
+      if (pattern.test(domain)) {
+        score += penalty;
+        warnings.push(message);
+      }
+    }
+
+    // Check for suspicious free TLDs
+    const tld = domain.split('.').pop();
+    const suspiciousTlds = ['tk', 'ml', 'ga', 'cf', 'gq'];
+    if (suspiciousTlds.includes(tld.toLowerCase())) {
+      score -= 2;
+      warnings.push(`Suspicious TLD: .${tld}`);
+    }
+
+    // Determine status based on final score
     if (score < 4) status = 'danger';
+    else if (score < 7) status = 'warning';
+    else status = 'safe';
 
     return {
       domain,
       score: Math.max(0, score),
       maxScore: 10,
       status,
-      warnings
+      warnings,
+      isHeuristic: true  // Mark as heuristic-based, not actual WHOIS
     };
   } catch (error) {
-    return { error: error.message, score: 5, maxScore: 10, status: 'warning' };
+    console.error('Domain age check error:', error.message);
+    return { 
+      error: error.message, 
+      score: 5, 
+      maxScore: 10, 
+      status: 'warning',
+      isHeuristic: true
+    };
   }
 }
 
 // WHOIS lookup (optional -- requires WHOIS_API_KEY in .env)
 async function fetchWhois(url) {
   const apiKey = process.env.WHOIS_API_KEY;
+  
+  if (!apiKey) {
+    console.warn('⚠️ WHOIS API key not configured');
+    return { 
+      error: 'WHOIS API key not configured', 
+      score: 10, 
+      maxScore: 10,
+      status: 'warning',
+      available: false 
+    };
+  }
+  
   try {
     const urlObj = new URL(url.startsWith('http') ? url : `https://${url}`);
     const domain = urlObj.hostname;
-    if (!apiKey) return { error: 'WHOIS API key not configured' };
-
-    const whoisUrl = `https://www.whoisxmlapi.com/whoisserver/WhoisService?domainName=${encodeURIComponent(domain)}&apiKey=${apiKey}&outputFormat=JSON`;
-    const res = await fetch(whoisUrl, { timeout: 10000 });
-    const data = await res.json();
-
-    const parsed = data.WhoisRecord || {};
-    const parsedDates = parsed.registryDataParsed || parsed.registryData || {};
-    const created = parsedDates.createdDateNormalized || parsed.createdDate || null;
-    let createdTs = null;
-    if (created) {
-      const d = new Date(created);
-      if (!isNaN(d)) createdTs = d.getTime();
+    
+    // Check if hostname is an IP address (not a domain)
+    const isIP = /^(?:\d{1,3}\.){3}\d{1,3}$/.test(domain) || /^\[[0-9a-f:]+\]$/.test(domain);
+    if (isIP) {
+      console.warn(`⚠️ WHOIS skipped - hostname is IP address: ${domain}`);
+      return { 
+        error: 'Cannot perform WHOIS lookup on IP address', 
+        score: 5, 
+        maxScore: 10,
+        status: 'warning',
+        available: false,
+        reason: 'IP address detected - use AbuseIPDB instead'
+      };
     }
-
+    
+    console.log(`📋 Fetching WHOIS data for domain: ${domain}`);
+    
+    // Use JSON output format explicitly
+    const whoisUrl = `https://www.whoisxmlapi.com/whoisserver/WhoisService?apiKey=${apiKey}&domainName=${encodeURIComponent(domain)}&outputFormat=JSON`;
+    
+    const response = await fetch(whoisUrl, { 
+      timeout: 30000,
+      headers: {
+        'Accept': 'application/json'
+      }
+    });
+    
+    // Check for API key errors
+    if (response.status === 401 || response.status === 403) {
+      console.error('❌ WHOIS API key error: Invalid or unauthorized');
+      return { 
+        error: 'Invalid or expired WHOIS API key', 
+        score: 10, 
+        maxScore: 10,
+        status: 'warning',
+        available: false 
+      };
+    }
+    
+    if (!response.ok) {
+      throw new Error(`WHOIS API returned ${response.status}: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    
+    // Handle API errors in response
+    if (data.ErrorMessage || data.errors) {
+      const errorMsg = data.ErrorMessage?.msg || data.errors?.[0]?.message || JSON.stringify(data.errors);
+      console.error('WHOIS API error:', errorMsg);
+      return { 
+        error: errorMsg, 
+        score: 10, 
+        maxScore: 10,
+        status: 'warning' 
+      };
+    }
+    
+    // Extract WHOIS data from the response
+    const whoisRecord = data.WhoisRecord || {};
+    const registryData = whoisRecord.registryData || {};
+    
+    // Parse dates with proper error handling
+    let createdDate = null;
+    let createdTimestamp = null;
+    let expiresDate = null;
+    let ageInDays = null;
+    
+    try {
+      // Try multiple possible date fields
+      createdDate = registryData.createdDate || 
+                   whoisRecord.createdDate || 
+                   registryData.createdDateNormalized ||
+                   whoisRecord.createdDateNormalized;
+      
+      expiresDate = registryData.expiresDate || 
+                   whoisRecord.expiresDate || 
+                   registryData.expiresDateNormalized ||
+                   whoisRecord.expiresDateNormalized;
+      
+      if (createdDate) {
+        const created = new Date(createdDate);
+        if (!isNaN(created.getTime())) {
+          createdTimestamp = created.getTime();
+          ageInDays = Math.floor((Date.now() - created.getTime()) / (1000 * 60 * 60 * 24));
+          console.log(`📊 Domain age: ${ageInDays} days (created: ${createdDate})`);
+        }
+      }
+    } catch (dateError) {
+      console.warn('Date parsing error:', dateError.message);
+    }
+    
+    // Extract registrar information
+    const registrar = registryData.registrarName || whoisRecord.registrarName;
+    const nameServers = registryData.nameServers?.hostNames || 
+                       whoisRecord.nameServers?.hostNames || 
+                       [];
+    
+    // Calculate score based on domain age
+    let score = 10;
+    let status = 'safe';
+    let warnings = [];
+    
+    if (ageInDays !== null) {
+      if (ageInDays < 30) {
+        score = 3;
+        status = 'danger';
+        warnings.push(`New domain (< 30 days): ${ageInDays} days old`);
+      } else if (ageInDays < 90) {
+        score = 7;
+        status = 'warning';
+        warnings.push(`Relatively new domain (< 90 days): ${ageInDays} days old`);
+      } else if (ageInDays > 3650) { // 10 years
+        score = 10;
+        status = 'safe';
+        warnings.push(`Old domain (> 10 years): ${ageInDays} days old`);
+      }
+    } else {
+      // If we can't get age, penalize slightly
+      score = 5;
+      status = 'warning';
+      warnings.push('Unable to determine domain age');
+    }
+    
+    // Check for suspicious TLDs
+    const tld = domain.split('.').pop();
+    const suspiciousTlds = ['tk', 'ml', 'ga', 'cf', 'gq', 'xyz', 'top', 'loan'];
+    if (suspiciousTlds.includes(tld.toLowerCase())) {
+      score = Math.max(0, score - 3);
+      warnings.push(`Suspicious TLD: .${tld}`);
+    }
+    
+    // Check if domain uses privacy protection
+    const hasPrivacy = whoisRecord.dataError === 'MASKED_WHOIS_DATA' ||
+                      registrar?.includes('Privacy') ||
+                      registrar?.includes('Proxy') ||
+                      /redacted/i.test(JSON.stringify(whoisRecord));
+    
+    if (hasPrivacy) {
+      score = Math.max(0, score - 2);
+      warnings.push('WHOIS data is privacy-protected');
+      status = score < 7 ? 'warning' : status;
+    }
+    
+    console.log(`✅ WHOIS lookup successful - score: ${score}, status: ${status}`);
+    
     return {
       domain,
-      raw: data,
-      createdDate: created,
-      createdDateTimestamp: createdTs
+      available: true,
+      registrar,
+      createdDate,
+      expiresDate,
+      ageInDays,
+      createdDateTimestamp: createdTimestamp,
+      nameServers: nameServers.slice(0, 5), // Limit to first 5
+      hasPrivacy,
+      score,
+      maxScore: 10,
+      status,
+      warnings,
+      safeData: {
+        domain,
+        ageInDays,
+        registrar,
+        createdDate,
+        expiresDate,
+        hasPrivacy,
+        tld
+      }
     };
+    
   } catch (error) {
-    console.error('WHOIS error:', error.message);
-    return { error: error.message };
+    console.error('WHOIS fetch error:', error.message);
+    
+    // Handle network timeout specifically
+    if (error.message.includes('timeout') || error.code === 'ETIMEDOUT' || error.code === 'ECONNABORTED') {
+      console.warn('⚠️ WHOIS API timeout - using fallback heuristics');
+      return { 
+        error: 'WHOIS API timeout - using heuristics', 
+        score: 5, 
+        maxScore: 10,
+        status: 'warning',
+        note: 'Domain analysis incomplete due to API timeout'
+      };
+    }
+    
+    return { 
+      error: error.message, 
+      score: 5, 
+      maxScore: 10,
+      status: 'warning' 
+    };
   }
 }
 
@@ -1221,7 +1428,6 @@ async function processScanInBackground(url, scanId, source) {
       virusTotal,
       abuseIPDB,
       ssl,
-      domainAge,
       content,
       redirects,
       securityHeaders,
@@ -1231,7 +1437,6 @@ async function processScanInBackground(url, scanId, source) {
       scanWithVirusTotal(url),
       checkWithAbuseIPDB(url),
       checkSSL(url),
-      checkDomainAge(url),
       analyzeContent(url),
       analyzeRedirects(url),
       checkSecurityHeaders(url),
@@ -1243,13 +1448,21 @@ async function processScanInBackground(url, scanId, source) {
       virusTotal: { name: 'VirusTotal Analysis', ...virusTotal },
       abuseIPDB: { name: 'AbuseIPDB Check', ...abuseIPDB },
       ssl: { name: 'SSL Certificate', ...ssl },
-      domainAge: { name: 'Domain Analysis', ...domainAge },
       content: { name: 'Content Analysis', ...content },
       redirects: { name: 'Redirect Analysis', ...redirects },
       securityHeaders: { name: 'Security Headers', ...securityHeaders },
-      whois: { name: 'WHOIS Lookup', ...whois },
       googleSafeBrowsing: { name: 'Google Safe Browsing', ...googleSafeBrowsing }
     };
+
+    // Use WHOIS if available, otherwise fall back to heuristic domain age check
+    if (whois && whois.available === true && whois.score !== undefined) {
+      // WHOIS data available - use it
+      phases.whois = { name: 'WHOIS Lookup', ...whois };
+    } else {
+      // WHOIS not available - use heuristic-based domain age check
+      const domainAge = await checkDomainAge(url);
+      phases.domainAge = { name: 'Domain Analysis (Heuristic)', ...domainAge };
+    }
 
     // Evaluate heuristics
     const heuristicsResult = heuristicsManager.evaluate(url, {
@@ -1258,7 +1471,7 @@ async function processScanInBackground(url, scanId, source) {
       abuseIPDB,
       redirects,
       securityHeaders,
-      whois,
+      whois: whois && whois.available === true && whois.score !== undefined ? whois : null,
       domain: (() => { try { return new URL(url).hostname; } catch { return url; } })()
     });
 
@@ -1306,6 +1519,11 @@ async function processScanInBackground(url, scanId, source) {
       overallStatus,
       source: source || 'website'
     };
+
+    // Remove raw WHOIS data in production for privacy
+    if (process.env.NODE_ENV === 'production' && result.phases.whois?.raw) {
+      delete result.phases.whois.raw;
+    }
     
     // Store completed result
     scanResults.set(scanId, {

@@ -302,6 +302,11 @@ async function startURLScan(url, tabId) {
   console.log(`🚀 Starting scan for: ${url}`);
   
   try {
+    // Determine if URL is an IP address or domain
+    const urlObj = new URL(url);
+    const isIP = /^(?:\d{1,3}\.){3}\d{1,3}$/.test(urlObj.hostname);
+    console.log(`📍 Hostname: ${urlObj.hostname} (${isIP ? 'IP Address' : 'Domain'})`);
+    
     // Call backend API
     const response = await fetch(`${CONFIG.WEBSITE_API}/api/scan`, {
       method: 'POST',
@@ -374,6 +379,18 @@ async function pollForScanResults(scanId, url, tabId, attempt = 1) {
     
     if (result.status === 'completed') {
       console.log(`✅ Scan completed: ${result.verdict} for ${url}`);
+      
+      // Log if any phases were skipped
+      if (result.phases) {
+        const skippedPhases = Object.entries(result.phases)
+          .filter(([_, phase]) => phase.available === false || phase.error)
+          .map(([key, phase]) => `${key} (${phase.reason || phase.error || 'N/A'})`)
+          .join(', ');
+        
+        if (skippedPhases) {
+          console.warn(`⚠️ Skipped phases: ${skippedPhases}`);
+        }
+      }
       
       // Store result
       state.scanResults.set(scanId, result);
@@ -494,6 +511,48 @@ globalThis.quickNotify = async function(title = '✅ Test Notification', message
   });
 };
 
+// ========== GET COMPLETE SCAN DETAILS ==========
+async function getCompleteScanDetails(scanId) {
+  try {
+    console.log(`🔄 Fetching complete scan details for scanId: ${scanId}`);
+    
+    const response = await fetch(`${CONFIG.WEBSITE_API}/api/scan/result/${scanId}`);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    
+    const result = await response.json();
+    
+    console.log(`📊 Scan details received - status: ${result.status}`);
+    
+    if (result.status === 'completed' && result.phases) {
+      console.log(`✅ Complete scan data available with ${Object.keys(result.phases).length} phases`);
+      
+      // Log phase results for debugging
+      Object.entries(result.phases).forEach(([key, phase]) => {
+        if (phase.error) {
+          console.warn(`  ⚠️ ${phase.name}: ${phase.error}`);
+        } else if (phase.available === false) {
+          console.warn(`  ⏭️ ${phase.name}: Skipped (${phase.reason || 'N/A'})`);
+        } else if (phase.score !== undefined && phase.maxScore !== undefined) {
+          console.log(`  ✅ ${phase.name}: Score ${phase.score}/${phase.maxScore}`);
+        } else {
+          console.warn(`  ⚠️ ${phase.name}: Incomplete data (score: ${phase.score}, maxScore: ${phase.maxScore})`);
+        }
+      });
+      
+      return result;
+    }
+    
+    console.warn(`⚠️ Scan result not ready - status: ${result.status}`);
+    return null;
+  } catch (error) {
+    console.error('Error fetching scan details:', error);
+    return null;
+  }
+}
+
 // ========== COMPLETE SCAN ==========
 async function completeScan(tabId, url, result) {
   const verdict = result.verdict || 'ALLOW';
@@ -528,6 +587,7 @@ async function completeScan(tabId, url, result) {
     blockedInfo.status = 'completed';
     blockedInfo.verdict = verdict;
     blockedInfo.score = score;
+    blockedInfo.scanId = result.scanId; // Store scanId for fetching details
   }
   
   // Check if tab still exists
@@ -560,16 +620,18 @@ async function completeScan(tabId, url, result) {
     logDecision(url, verdict, score, result);
     
   } else if (verdict === 'WARN' || verdict === 'BLOCK') {
-    // Redirect to warning page
+    // Get complete scan details from backend
+    const completeDetails = await getCompleteScanDetails(result.scanId);
+    
     console.log(`⚠️ ${verdict} verdict, redirecting to warning page`);
-    await redirectToWarningPage(tabId, url, verdict, score, result);
+    await redirectToWarningPage(tabId, url, verdict, score, completeDetails || result);
   }
 }
 
 // ========== REDIRECT TO WARNING PAGE ==========
 async function redirectToWarningPage(tabId, url, verdict, score, result) {
   try {
-    // Store decision data for warning page
+    // Store COMPLETE decision data for warning page
     const decisionData = {
       url: url,
       verdict: verdict,
@@ -577,12 +639,25 @@ async function redirectToWarningPage(tabId, url, verdict, score, result) {
       riskLevel: verdict === 'BLOCK' ? 'CRITICAL' : 'MEDIUM',
       reasoning: result.reasoning || 'Website security analysis',
       timestamp: new Date().toISOString(),
+      // Pass all the detailed phases data
+      phases: result.phases || null,
+      // Pass all other details from backend
+      totalScore: result.totalScore || 0,
+      maxTotalScore: result.maxTotalScore || 100,
+      percentage: result.percentage || score,
+      overallStatus: result.overallStatus || (verdict === 'BLOCK' ? 'danger' : 'warning'),
       details: {
         domain: new URL(url).hostname,
         risks: result.risks || [],
-        phaseBreakdown: result.phaseBreakdown
+        // Include all findings
+        findings: result.findings || [],
+        warnings: result.warnings || [],
+        threats: result.threats || []
       }
     };
+    
+    // Store in both sessionStorage AND local storage for reliability
+    sessionStorage.setItem('guardianlink_decision', JSON.stringify(decisionData));
     
     await browser.storage.local.set({
       guardianlink_warning_decision: decisionData,
@@ -594,7 +669,10 @@ async function redirectToWarningPage(tabId, url, verdict, score, result) {
       '?' + new URLSearchParams({ 
         url: encodeURIComponent(url), 
         verdict: verdict,
-        tabId: tabId.toString()
+        score: score,
+        tabId: tabId.toString(),
+        // Pass scanId to fetch details if needed
+        scanId: result.scanId || ''
       });
     
     await browser.tabs.update(tabId, { url: warningUrl });
@@ -662,9 +740,16 @@ browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
     case 'GO_BACK':
       console.log(`📨 GO_BACK requested from tab ${sender.tab?.id}`);
       if (sender.tab?.id) {
-        handleGoBack(sender.tab.id);
+        handleGoBack(sender.tab.id).then(success => {
+          sendResponse({ success: true });
+        }).catch(error => {
+          console.error('GO_BACK error:', error);
+          sendResponse({ success: false, error: error.message });
+        });
+        return true; // Will respond asynchronously
+      } else {
+        sendResponse({ success: false });
       }
-      sendResponse({ success: true });
       break;
     
     default:
@@ -676,7 +761,7 @@ browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
 async function handleGoBack(tabId) {
   if (!tabId) {
     console.error('❌ No tabId provided for GO_BACK');
-    return;
+    throw new Error('No tabId provided');
   }
   
   try {
@@ -687,28 +772,29 @@ async function handleGoBack(tabId) {
       await browser.tabs.get(tabId);
     } catch (error) {
       console.error(`❌ Tab ${tabId} no longer exists`);
-      return;
+      throw error;
     }
     
     // Clear any blocked state for this tab
     state.blockedTabs.delete(tabId);
     
-    // ✅ FIREFOX FIX: Navigate using content script injection
-    // about:newtab cannot be accessed via tabs.update(), use location.href instead
-    try {
-      await browser.tabs.executeScript(tabId, {
-        code: `window.location.href = 'about:newtab';`
-      });
-    } catch (e) {
-      // If executeScript fails, try a safe fallback: navigate to empty tab
-      console.log('📄 Using fallback navigation');
-      await browser.tabs.update(tabId, { url: 'about:blank' });
-    }
+    // ✅ FIREFOX FIX: Use browser.tabs.create({}) to open about:newtab safely
+    // This is the most reliable and fully supported method in Firefox
+    console.log('📄 Creating new tab with browser.tabs.create({})...');
+    await browser.tabs.create({});
+    console.log('✅ New tab created successfully');
+    
+    // Close the current warning tab
+    console.log(`🗑️ Closing warning tab ${tabId}...`);
+    await browser.tabs.remove(tabId);
+    console.log(`✅ Warning tab ${tabId} closed successfully`);
     
     console.log(`✅ Successfully navigated to home`);
+    return true;
     
   } catch (error) {
-    console.error('❌ Error in handleGoBack:', error);
+    console.error('❌ Error in handleGoBack:', error.message);
+    throw error;
   }
 }
 

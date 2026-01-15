@@ -34,10 +34,18 @@
   "web_accessible_resources": [
     "ui/warning.html",
     "ui/scanner.html",
+    "ui/report.html",
     "ui/scanner.js",
+    "ui/report.js",
+    "ui/report.css",
     "purify.min.js",
+    "utils/sanitize.js",
+    "lib/chart.min.js",
+    "lib/html2canvas.min.js",
+    "lib/jspdf.umd.min.js",
     "assets/*"
   ],
+  "content_security_policy": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'",
   "browser_specific_settings": {
     "gecko": {
       "id": "{a7f4c3e2-9b1d-4e5f-8c2a-b9d3e1f5c7a4}",

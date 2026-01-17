@@ -45,7 +45,7 @@
     "lib/jspdf.umd.min.js",
     "assets/*"
   ],
-  "content_security_policy": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'",
+  "content_security_policy": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; style-src 'self' 'unsafe-inline'",
   "browser_specific_settings": {
     "gecko": {
       "id": "{a7f4c3e2-9b1d-4e5f-8c2a-b9d3e1f5c7a4}",

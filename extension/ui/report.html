@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GuardianLink Security Analysis Report</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-
         * {
             margin: 0;
             padding: 0;
@@ -773,7 +771,7 @@
                 <div class="chart-container">
                     <h3 class="chart-title">7-Day Security Activity Timeline</h3>
                     <p class="chart-subtitle">Daily breakdown of blocked, warned, and allowed URLs</p>
-                    <div class="chart-wrapper">
+                    <div class="chart-box large">
                         <canvas id="timelineChart"></canvas>
                     </div>
                 </div>
@@ -781,7 +779,7 @@
                 <div class="chart-container">
                     <h3 class="chart-title">Verdict Distribution Analysis</h3>
                     <p class="chart-subtitle">Categorical breakdown of security decisions</p>
-                    <div class="chart-wrapper small">
+                    <div class="chart-box">
                         <canvas id="verdictChart"></canvas>
                     </div>
                 </div>
@@ -801,7 +799,7 @@
                 <div class="chart-container">
                     <h3 class="chart-title">Risk Level Distribution</h3>
                     <p class="chart-subtitle">Classification of threats by severity (0-100 risk score scale)</p>
-                    <div class="chart-wrapper small">
+                    <div class="chart-box">
                         <canvas id="riskChart"></canvas>
                     </div>
                 </div>

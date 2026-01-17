@@ -6,6 +6,9 @@
 // Global variables
 let reportData = [];
 let chartInstances = {};
+let timelineChart = null;
+let verdictChart = null;
+let riskChart = null;
 let chartAnimationDelay = 100; // Delay between chart animations
 
 // Initialize when DOM is ready
@@ -142,49 +145,18 @@ async function loadReportData() {
 // Render the complete report
 async function renderReport() {
     try {
-        console.log('[GuardianLink] Rendering report with', reportData.length, 'entries');
-        
-        // Set report date
-        const now = new Date();
-        const dateEl = document.getElementById('reportDate');
-        const periodEl = document.getElementById('reportPeriod');
-        
-        if (dateEl) {
-            dateEl.textContent = now.toLocaleDateString('en-US', { 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-        }
-        
-        if (periodEl) {
-            periodEl.textContent = reportData.length > 0 
-                ? `${getReportPeriod()} Days` 
-                : 'Last 30 Days';
-        }
-        
         if (reportData.length === 0) {
-            console.log('[GuardianLink] No data, showing empty state');
             showEmptyState();
             return;
         }
         
-        // Update all sections
-        updateExecutiveSummary();
         updateStatistics();
-        
-        // Render charts with animation delays
-        setTimeout(() => renderTimelineChart(), chartAnimationDelay * 0);
-        setTimeout(() => renderVerdictChart(), chartAnimationDelay * 1);
-        setTimeout(() => renderRiskChart(), chartAnimationDelay * 2);
-        
-        // Update other sections
-        updateAnalysisCards();
+        updateExecutiveSummary();
+        renderCharts();
         renderThreats();
+        updateAnalysisCards();
         
-        console.log('[GuardianLink] Report rendered successfully');
+        console.log('[GuardianLink] Report rendering complete');
     } catch (error) {
         console.error('[GuardianLink] Error rendering report:', error);
     }
@@ -229,12 +201,9 @@ function updateExecutiveSummary() {
     
     // Update summary paragraph
     if (summaryText) {
-        summaryText.innerHTML = `
-            This comprehensive security analysis report provides detailed insights into URL scanning activities, 
-            threat detection patterns, and risk assessment metrics. The analysis covers a period of 
-            <strong>${getReportPeriod()} days</strong>, identifying <strong>${stats.blocked + stats.warned} potential threats</strong> 
-            and maintaining a <strong>${protectionRateValue}%</strong> protection rate across all monitored endpoints.
-        `;
+        summaryText.innerHTML = `This comprehensive security report spans <strong>${getReportPeriod()} day(s)</strong>, analyzing <strong>${stats.total}</strong> URLs. 
+        Our advanced detection systems identified <strong>${stats.blocked}</strong> blocking-grade threats and issued <strong>${stats.warned}</strong> preventive warnings. 
+        The system achieved a <strong>${protectionRateValue}%</strong> threat interception rate.`;
     }
 }
 
@@ -278,459 +247,176 @@ function updateStatistics() {
     const warnRate = document.getElementById('warnRate');
     const safeRate = document.getElementById('safeRate');
     
-    if (blockRate) {
-        const rate = stats.total > 0 ? Math.round((stats.blocked / stats.total) * 100) : 0;
-        blockRate.textContent = `${rate}% of total`;
-    }
-    if (warnRate) {
-        const rate = stats.total > 0 ? Math.round((stats.warned / stats.total) * 100) : 0;
-        warnRate.textContent = `${rate}% of total`;
-    }
-    if (safeRate) {
-        const rate = stats.total > 0 ? Math.round((stats.allowed / stats.total) * 100) : 0;
-        safeRate.textContent = `${rate}% of total`;
-    }
+    if (blockRate) blockRate.textContent = stats.total > 0 ? Math.round((stats.blocked / stats.total) * 100) + '%' : '0%';
+    if (warnRate) warnRate.textContent = stats.total > 0 ? Math.round((stats.warned / stats.total) * 100) + '%' : '0%';
+    if (safeRate) safeRate.textContent = stats.total > 0 ? Math.round((stats.allowed / stats.total) * 100) + '%' : '0%';
     
     // Update average risk score
     const avgScore = reportData.length > 0
         ? Math.round(reportData.reduce((sum, log) => sum + getScore(log), 0) / reportData.length)
         : 0;
     const avgScoreEl = document.getElementById('avgRiskScore');
-    if (avgScoreEl) {
-        animateCounterValue(avgScoreEl, avgScore, 1500, '/100');
-    }
+    if (avgScoreEl) avgScoreEl.textContent = avgScore;
     
     // Update efficiency
     const efficiencyEl = document.getElementById('efficiency');
     if (efficiencyEl) {
-        const blockedCount = reportData.filter(l => l.verdict === 'BLOCK').length;
-        const totalRisky = blockedCount + reportData.filter(l => l.verdict === 'WARN').length;
-        const efficiency = totalRisky > 0 ? Math.round((blockedCount / totalRisky) * 100) : 100;
-        animateCounterValue(efficiencyEl, efficiency, 1500, '%');
+        const efficiency = Math.round(((stats.blocked + stats.warned) / stats.total) * 100) || 0;
+        efficiencyEl.textContent = efficiency + '%';
     }
 }
 
-// Animate counter without text
-function animateCounterValue(element, target, duration, suffix = '') {
-    if (!element) return;
-    
-    const start = 0;
-    const increment = target / (duration / 16);
-    let current = start;
-    
-    const timer = setInterval(() => {
-        current += increment;
-        if (current >= target) {
-            current = target;
-            clearInterval(timer);
-        }
-        element.textContent = suffix === '/100' ? 
-            `${Math.floor(current)}${suffix}` : 
-            `${Math.floor(current)}${suffix}`;
-    }, 16);
-}
+// =================== BEAUTIFUL HIGHCHARTS CHARTS ===================
 
-// =================== BEAUTIFUL ANIMATED CHARTS ===================
-
-// Render timeline chart - BEAUTIFUL ANIMATED
-function renderTimelineChart() {
-    const ctx = document.getElementById('timelineChart');
-    if (!ctx) {
-        console.warn('[GuardianLink] Timeline chart canvas not found');
-        return;
-    }
-    
-    // Get timeline data
-    const timelineData = getTimelineData();
-    
-    // Destroy previous chart
-    if (chartInstances.timeline) {
-        chartInstances.timeline.destroy();
-    }
+// Render all charts with Highcharts
+function renderCharts() {
+    if (!reportData || reportData.length === 0) return;
     
     try {
-        chartInstances.timeline = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: timelineData.labels,
-                datasets: [
-                    {
-                        label: 'Blocked',
-                        data: timelineData.blocked,
-                        borderColor: '#dc2626',
-                        backgroundColor: 'rgba(220, 38, 38, 0.15)',
-                        borderWidth: 3,
-                        tension: 0.4,
-                        fill: true,
-                        pointBackgroundColor: '#dc2626',
-                        pointBorderColor: '#ffffff',
-                        pointBorderWidth: 2,
-                        pointRadius: 6,
-                        pointHoverRadius: 10,
-                        pointHoverBackgroundColor: '#dc2626',
-                        pointHoverBorderColor: '#ffffff',
-                        pointHoverBorderWidth: 3
-                    },
-                    {
-                        label: 'Warned',
-                        data: timelineData.warned,
-                        borderColor: '#f59e0b',
-                        backgroundColor: 'rgba(245, 158, 11, 0.15)',
-                        borderWidth: 3,
-                        tension: 0.4,
-                        fill: true,
-                        pointBackgroundColor: '#f59e0b',
-                        pointBorderColor: '#ffffff',
-                        pointBorderWidth: 2,
-                        pointRadius: 6,
-                        pointHoverRadius: 10,
-                        pointHoverBackgroundColor: '#f59e0b',
-                        pointHoverBorderColor: '#ffffff',
-                        pointHoverBorderWidth: 3
-                    },
-                    {
-                        label: 'Allowed',
-                        data: timelineData.allowed,
-                        borderColor: '#059669',
-                        backgroundColor: 'rgba(5, 150, 105, 0.15)',
-                        borderWidth: 3,
-                        tension: 0.4,
-                        fill: true,
-                        pointBackgroundColor: '#059669',
-                        pointBorderColor: '#ffffff',
-                        pointBorderWidth: 2,
-                        pointRadius: 6,
-                        pointHoverRadius: 10,
-                        pointHoverBackgroundColor: '#059669',
-                        pointHoverBorderColor: '#ffffff',
-                        pointHoverBorderWidth: 3
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                animation: {
-                    duration: 2000,
-                    easing: 'easeOutQuart'
-                },
-                plugins: {
-                    legend: {
-                        position: 'top',
-                        labels: {
-                            color: '#475569',
-                            font: { 
-                                size: 12,
-                                family: "'Inter', sans-serif",
-                                weight: '600'
-                            },
-                            padding: 20,
-                            usePointStyle: true,
-                            pointStyle: 'circle',
-                            boxWidth: 8
-                        }
-                    },
-                    tooltip: {
-                        backgroundColor: 'rgba(15, 23, 42, 0.95)',
-                        titleColor: '#f1f5f9',
-                        bodyColor: '#f1f5f9',
-                        borderColor: '#334155',
-                        borderWidth: 1,
-                        cornerRadius: 8,
-                        padding: 12,
-                        mode: 'index',
-                        intersect: false,
-                        callbacks: {
-                            label: function(context) {
-                                return `${context.dataset.label}: ${context.raw} URLs`;
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    x: {
-                        grid: {
-                            color: 'rgba(226, 232, 240, 0.5)',
-                            drawBorder: false
-                        },
-                        ticks: {
-                            color: '#64748b',
-                            font: {
-                                size: 11,
-                                family: "'Inter', sans-serif"
-                            }
-                        }
-                    },
-                    y: {
-                        beginAtZero: true,
-                        grid: {
-                            color: 'rgba(226, 232, 240, 0.3)',
-                            drawBorder: false
-                        },
-                        ticks: {
-                            color: '#64748b',
-                            font: {
-                                size: 11,
-                                family: "'Inter', sans-serif"
-                            },
-                            precision: 0,
-                            callback: function(value) {
-                                if (value % 1 === 0) {
-                                    return value;
-                                }
-                            }
-                        }
-                    }
-                },
-                interaction: {
-                    intersect: false,
-                    mode: 'nearest'
-                },
-                elements: {
-                    line: {
-                        tension: 0.4
-                    }
-                }
-            }
-        });
-        
-        console.log('[GuardianLink] Timeline chart rendered');
+        // Use setTimeout to ensure canvas elements are ready
+        setTimeout(() => {
+            renderTimelineChart();
+            renderVerdictChart();
+            renderRiskChart();
+        }, chartAnimationDelay);
     } catch (error) {
-        console.error('[GuardianLink] Error creating timeline chart:', error);
+        console.error('[GuardianLink] Error rendering charts:', error);
     }
 }
 
-// Render verdict chart - BEAUTIFUL ANIMATED
+// Render 7-day timeline chart - BIG, SMOOTH, PREMIUM
+function renderTimelineChart() {
+    if (typeof Chart === 'undefined') return showLibraryError();
+
+    const ctx = document.getElementById('timelineChart');
+    if (!ctx) return;
+
+    const data = getTimelineData();
+    if (timelineChart) timelineChart.destroy();
+
+    const g1 = ctx.getContext('2d').createLinearGradient(0, 0, 0, 400);
+    g1.addColorStop(0, 'rgba(220,38,38,0.35)');
+    g1.addColorStop(1, 'rgba(220,38,38,0)');
+
+    const g2 = ctx.getContext('2d').createLinearGradient(0, 0, 0, 400);
+    g2.addColorStop(0, 'rgba(245,158,11,0.35)');
+    g2.addColorStop(1, 'rgba(245,158,11,0)');
+
+    const g3 = ctx.getContext('2d').createLinearGradient(0, 0, 0, 400);
+    g3.addColorStop(0, 'rgba(16,185,129,0.35)');
+    g3.addColorStop(1, 'rgba(16,185,129,0)');
+
+    timelineChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: data.labels,
+            datasets: [
+                { label: '🚫 Blocked', data: data.blocked, borderColor: '#dc2626', backgroundColor: g1 },
+                { label: '⚠️ Warned',  data: data.warned,  borderColor: '#f59e0b', backgroundColor: g2 },
+                { label: '✅ Allowed', data: data.allowed, borderColor: '#10b981', backgroundColor: g3 }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: { usePointStyle: true, padding: 20, font: { size: 13, weight: '600' } }
+                }
+            },
+            elements: {
+                line: { borderWidth: 4, tension: 0.45, fill: true },
+                point: { radius: 5, hoverRadius: 9, borderWidth: 2 }
+            },
+            scales: {
+                y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.06)' } },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+}
+
+// Render verdict distribution chart - BIG + CENTERED DOUGHNUT
 function renderVerdictChart() {
+    if (typeof Chart === 'undefined') return showLibraryError();
+
     const ctx = document.getElementById('verdictChart');
-    if (!ctx) {
-        console.warn('[GuardianLink] Verdict chart canvas not found');
-        return;
-    }
-    
+    if (!ctx) return;
+
+    if (verdictChart) verdictChart.destroy();
+
     const stats = {
         blocked: reportData.filter(l => l.verdict === 'BLOCK').length,
         warned: reportData.filter(l => l.verdict === 'WARN').length,
         allowed: reportData.filter(l => l.verdict === 'ALLOW').length
     };
-    
-    // Destroy previous chart
-    if (chartInstances.verdict) {
-        chartInstances.verdict.destroy();
-    }
-    
-    try {
-        // Calculate percentages for center text
-        const total = stats.blocked + stats.warned + stats.allowed;
-        const safePercentage = total > 0 ? Math.round((stats.allowed / total) * 100) : 0;
-        
-        chartInstances.verdict = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: ['Blocked', 'Warned', 'Allowed'],
-                datasets: [{
-                    data: [stats.blocked, stats.warned, stats.allowed],
-                    backgroundColor: [
-                        '#dc2626',   // Red for blocked
-                        '#f59e0b',   // Amber for warned
-                        '#059669'    // Green for allowed
-                    ],
-                    borderColor: [
-                        '#b91c1c',
-                        '#d97706',
-                        '#047857'
-                    ],
-                    borderWidth: 2,
-                    borderRadius: 8,
-                    borderAlign: 'inner',
-                    hoverOffset: 20,
-                    spacing: 4
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                cutout: '70%',
-                radius: '95%',
-                animation: {
-                    animateScale: true,
-                    animateRotate: true,
-                    duration: 1800,
-                    easing: 'easeOutQuart'
-                },
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: {
-                            color: '#475569',
-                            font: { 
-                                size: 12,
-                                family: "'Inter', sans-serif",
-                                weight: '600'
-                            },
-                            padding: 20,
-                            usePointStyle: true,
-                            pointStyle: 'circle',
-                            boxWidth: 8
-                        }
-                    },
-                    tooltip: {
-                        backgroundColor: 'rgba(15, 23, 42, 0.95)',
-                        titleColor: '#f1f5f9',
-                        bodyColor: '#f1f5f9',
-                        borderColor: '#334155',
-                        borderWidth: 1,
-                        cornerRadius: 8,
-                        padding: 12,
-                        displayColors: true,
-                        callbacks: {
-                            label: function(context) {
-                                const label = context.label || '';
-                                const value = context.raw || 0;
-                                const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
-                                return `${label}: ${value} (${percentage}%)`;
-                            }
-                        }
-                    }
-                }
-            },
-            plugins: [{
-                id: 'centerText',
-                afterDraw: (chart) => {
-                    const { ctx, chartArea: { width, height } } = chart;
-                    
-                    ctx.save();
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    
-                    // Center position
-                    const x = width / 2;
-                    const y = height / 2;
-                    
-                    // Main percentage
-                    ctx.font = 'bold 24px Inter';
-                    ctx.fillStyle = '#059669';
-                    ctx.fillText(`${safePercentage}%`, x, y - 15);
-                    
-                    // Label
-                    ctx.font = '12px Inter';
-                    ctx.fillStyle = '#64748b';
-                    ctx.fillText('Safe', x, y + 15);
-                    
-                    ctx.restore();
-                }
-            }]
-        });
-        
-        console.log('[GuardianLink] Verdict chart rendered');
-    } catch (error) {
-        console.error('[GuardianLink] Error creating verdict chart:', error);
-    }
-}
 
-// Render risk chart - BEAUTIFUL ANIMATED
-function renderRiskChart() {
-    const ctx = document.getElementById('riskChart');
-    if (!ctx) {
-        console.warn('[GuardianLink] Risk chart canvas not found');
-        return;
-    }
-    
-    // Categorize by risk level
-    const risks = {
-        'Critical': reportData.filter(l => getScore(l) < 20).length,
-        'High': reportData.filter(l => getScore(l) >= 20 && getScore(l) < 40).length,
-        'Medium': reportData.filter(l => getScore(l) >= 40 && getScore(l) < 70).length,
-        'Low': reportData.filter(l => getScore(l) >= 70 && getScore(l) < 90).length,
-        'Safe': reportData.filter(l => getScore(l) >= 90).length
-    };
-    
-    // Destroy previous chart
-    if (chartInstances.risk) {
-        chartInstances.risk.destroy();
-    }
-    
-    try {
-        chartInstances.risk = new Chart(ctx, {
-            type: 'pie',
-            data: {
-                labels: ['Critical', 'High', 'Medium', 'Low', 'Safe'],
-                datasets: [{
-                    data: [risks.Critical, risks.High, risks.Medium, risks.Low, risks.Safe],
-                    backgroundColor: [
-                        '#dc2626',   // Red - Critical
-                        '#f97316',   // Orange - High
-                        '#f59e0b',   // Yellow - Medium
-                        '#22c55e',   // Green - Low
-                        '#10b981'    // Emerald - Safe
-                    ],
-                    borderColor: [
-                        '#b91c1c',
-                        '#ea580c',
-                        '#d97706',
-                        '#16a34a',
-                        '#059669'
-                    ],
-                    borderWidth: 2,
-                    borderRadius: 6,
-                    borderAlign: 'inner',
-                    hoverOffset: 15,
-                    spacing: 2
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                radius: '90%',
-                animation: {
-                    animateScale: true,
-                    animateRotate: true,
-                    duration: 2200,
-                    easing: 'easeOutQuart'
-                },
-                plugins: {
-                    legend: {
-                        position: 'right',
-                        labels: {
-                            color: '#475569',
-                            font: { 
-                                size: 11,
-                                family: "'Inter', sans-serif",
-                                weight: '500'
-                            },
-                            padding: 15,
-                            usePointStyle: true,
-                            pointStyle: 'circle',
-                            boxWidth: 6
-                        }
-                    },
-                    tooltip: {
-                        backgroundColor: 'rgba(15, 23, 42, 0.95)',
-                        titleColor: '#f1f5f9',
-                        bodyColor: '#f1f5f9',
-                        borderColor: '#334155',
-                        borderWidth: 1,
-                        cornerRadius: 8,
-                        padding: 12,
-                        displayColors: true,
-                        callbacks: {
-                            label: function(context) {
-                                const label = context.label || '';
-                                const value = context.raw || 0;
-                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
-                                return `${label}: ${value} (${percentage}%)`;
-                            }
-                        }
-                    }
+    verdictChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['🚫 Blocked', '⚠️ Warned', '✅ Allowed'],
+            datasets: [{
+                data: [stats.blocked, stats.warned, stats.allowed],
+                backgroundColor: ['#dc2626', '#f59e0b', '#10b981'],
+                borderWidth: 4,
+                hoverOffset: 20
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '72%',
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { padding: 20, usePointStyle: true, font: { size: 13, weight: '600' } }
                 }
             }
-        });
-        
-        console.log('[GuardianLink] Risk chart rendered');
-    } catch (error) {
-        console.error('[GuardianLink] Error creating risk chart:', error);
-    }
+        }
+    });
+}
+
+// Render risk level distribution chart - CLEAN & READABLE PIE
+function renderRiskChart() {
+    if (typeof Chart === 'undefined') return showLibraryError();
+
+    const ctx = document.getElementById('riskChart');
+    if (!ctx) return;
+
+    if (riskChart) riskChart.destroy();
+
+    const risks = {
+        '🔴 Critical': reportData.filter(l => getScore(l) < 20).length,
+        '🟠 High': reportData.filter(l => getScore(l) < 40 && getScore(l) >= 20).length,
+        '🟡 Medium': reportData.filter(l => getScore(l) < 70 && getScore(l) >= 40).length,
+        '🟢 Low': reportData.filter(l => getScore(l) < 90 && getScore(l) >= 70).length,
+        '✅ Safe': reportData.filter(l => getScore(l) >= 90).length
+    };
+
+    riskChart = new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: Object.keys(risks),
+            datasets: [{
+                data: Object.values(risks),
+                backgroundColor: ['#dc2626', '#f97316', '#eab308', '#84cc16', '#22c55e'],
+                borderWidth: 3,
+                hoverOffset: 18
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: { padding: 16, usePointStyle: true, font: { size: 12, weight: '600' } }
+                }
+            }
+        }
+    });
 }
 
 // Get timeline data for last 7 days

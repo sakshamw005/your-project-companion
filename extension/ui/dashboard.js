@@ -3,9 +3,36 @@
  * Enterprise-grade real-time security logging dashboard
  */
 
+// Inject modal icon styles
+function injectModalIconStyles() {
+    const style = document.createElement('style');
+    style.textContent = `
+        .modal-icon {
+            display: inline-block;
+            width: 46px;
+            height: 46px;
+            vertical-align: middle;
+            margin-right: 8px;
+            transform-style: preserve-3d;
+            animation: modalIconSpin 6s linear infinite;
+        }
+        
+        @keyframes modalIconSpin {
+            0% {
+                transform: rotateY(0deg);
+            }
+            100% {
+                transform: rotateY(360deg);
+            }
+        }
+    `;
+    document.head.appendChild(style);
+}
+
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
     console.log('[GuardianLink] Dashboard loaded');
+    injectModalIconStyles();
     setupEventListeners();
     setupFilterListener();
     loadLogs();
@@ -270,7 +297,19 @@ function showLogDetails(log) {
     secSection.className = 'modal-section';
     
     const secTitle = document.createElement('h3');
-    secTitle.textContent = '🛡️ Security Assessment';
+    
+    // Create icon image
+    const iconImg = document.createElement('img');
+    iconImg.src = '../assets/icon-128-new.png';
+    iconImg.alt = 'Security Assessment Icon';
+    iconImg.className = 'modal-icon';
+    secTitle.appendChild(iconImg);
+    
+    // Create text span
+    const titleText = document.createElement('span');
+    titleText.textContent = 'Security Assessment';
+    secTitle.appendChild(titleText);
+    
     secSection.appendChild(secTitle);
     
     const secContent = document.createElement('div');

@@ -12,6 +12,35 @@ function debugLog(...args) {
 
 let decisionData = null;
 
+// ========== API CONFIGURATION ==========
+const API_CONFIG = {
+  LOCAL_API: 'http://localhost:3001',
+  REMOTE_API: 'https://guardianlink-backend.onrender.com',
+  WEBSITE_API: 'https://guardianlink-backend.onrender.com' // Will be updated
+};
+
+// Detect and set the correct API endpoint
+async function detectAPI() {
+  try {
+    const response = await Promise.race([
+      fetch(`${API_CONFIG.LOCAL_API}/api/health`, { timeout: 2000 }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 2000))
+    ]);
+    
+    if (response.ok) {
+      API_CONFIG.WEBSITE_API = API_CONFIG.LOCAL_API;
+      console.log('[GuardianLink Warning] Using LOCAL backend: ' + API_CONFIG.LOCAL_API);
+      return API_CONFIG.LOCAL_API;
+    }
+  } catch (error) {
+    console.log('[GuardianLink Warning] Local backend not available, using Render backend');
+  }
+  
+  API_CONFIG.WEBSITE_API = API_CONFIG.REMOTE_API;
+  console.log('[GuardianLink Warning] Using REMOTE backend: ' + API_CONFIG.REMOTE_API);
+  return API_CONFIG.REMOTE_API;
+}
+
 // Helper function to calculate risk level from safety score
 function calculateRiskLevel(safetyScore) {
   // safetyScore is percentage (0-100 where 100=safe)
@@ -234,6 +263,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
 async function initWarning() {
   debugLog("Initializing warning page...");
+  
+  // Detect API endpoint first
+  await detectAPI();
+  debugLog("API endpoint detected");
 
   // Setup event listeners FIRST
   setupEventListeners();
@@ -389,7 +422,8 @@ async function fetchCompleteScanDetails() {
   try {
     debugLog(`Fetching complete scan details for scanId: ${decisionData.scanId}`);
     
-    const response = await fetch(`https://guardianlink-backend.onrender.com/api/scan/result/${decisionData.scanId}`);
+    const apiUrl = await detectAPI();
+    const response = await fetch(`${apiUrl}/api/scan/result/${decisionData.scanId}`);
     
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);

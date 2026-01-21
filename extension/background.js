@@ -8,12 +8,38 @@ console.log('🛡️ GuardianLink v2.0 Background Worker Ready');
 
 // ========== GLOBAL STATE ==========
 const CONFIG = {
-  WEBSITE_API: 'https://guardianlink-backend.onrender.com',
+  WEBSITE_API: 'https://guardianlink-backend.onrender.com', // Will be updated after local check
+  LOCAL_API: 'http://localhost:3001',
+  REMOTE_API: 'https://guardianlink-backend.onrender.com',
   BLOCK_TIMEOUT: 30000,
   POLL_INTERVAL: 1500,
   MAX_POLL_ATTEMPTS: 20,
   EXTENSION_ID: browser.runtime.id
 };
+
+// ========== DETECT LOCAL BACKEND ==========
+async function detectAndSetAPI() {
+  try {
+    const healthResponse = await Promise.race([
+      fetch(`${CONFIG.LOCAL_API}/api/health`, { timeout: 2000 }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 2000))
+    ]);
+    
+    if (healthResponse.ok) {
+      CONFIG.WEBSITE_API = CONFIG.LOCAL_API;
+      console.log('✅ Using LOCAL backend: ' + CONFIG.LOCAL_API);
+      return;
+    }
+  } catch (error) {
+    console.log('⚠️ Local backend not available, using Render backend');
+  }
+  
+  CONFIG.WEBSITE_API = CONFIG.REMOTE_API;
+  console.log('🌐 Using REMOTE backend: ' + CONFIG.REMOTE_API);
+}
+
+// Initialize API endpoint detection immediately
+detectAndSetAPI();
 
 // ========== TAB EXISTENCE HELPER ==========
 async function tabExists(tabId) {
@@ -34,6 +60,7 @@ const state = {
   pendingScans: new Map(),
   contentScriptReady: new Map(),
   currentRuleId: 1000,
+  localScanCache: new Map(),  // NEW: Local cache of scan results
   whitelist: new Set([
     'google.com', 'bing.com', 'youtube.com', 'wikipedia.org',
     'github.com', 'stackoverflow.com', 'microsoft.com', 'apple.com'
@@ -45,8 +72,16 @@ const processingTabs = new Set();
 
 // ========== INITIALIZATION ==========
 browser.runtime.onInstalled.addListener(() => {
-  console.log('🛡️ GuardianLink v2.0 Enhanced Edition - INSTALLED');
+  console.log('GuardianLink v2.0 Enhanced Edition - INSTALLED');
   initializeExtension();
+  
+  // Show installation notification
+  browser.notifications.create({
+    type: 'basic',
+    title: 'GuardianLink Installed',
+    message: 'GuardianLink v2.0 is now active!\nAll URLs will be scanned for security threats.',
+    iconUrl: browser.runtime.getURL('assets/icon-128.png')
+  });
 });
 
 browser.runtime.onStartup.addListener(() => {
@@ -57,7 +92,7 @@ browser.runtime.onStartup.addListener(() => {
   // Show startup notification
   browser.notifications.create({
     type: 'basic',
-    title: '🛡️ GuardianLink Active',
+    title: 'GuardianLink Active',
     message: 'GuardianLink v2.0 is now protecting your browsing.\nAll URLs will be scanned for security threats.',
     iconUrl: browser.runtime.getURL('assets/icon-128.png'),
     tag: 'guardianlink-startup'
@@ -299,51 +334,91 @@ async function redirectToScannerPage(tabId, originalUrl) {
 
 // ========== START URL SCAN ==========
 async function startURLScan(url, tabId) {
+  const scanStartTime = Date.now();
   console.log(`🚀 Starting scan for: ${url}`);
   
   try {
+    // NEW: Check local cache first (instant lookup)
+    const localCached = state.localScanCache.get(url);
+    if (localCached && Date.now() - localCached.timestamp < 24 * 60 * 60 * 1000) {
+      // Cache hit in extension memory
+      const cacheAge = Date.now() - localCached.timestamp;
+      console.log(`⚡ Local cache HIT for ${url} (${cacheAge}ms old)`);
+      await completeScan(tabId, url, localCached.result);
+      return;
+    }
+    
     // Determine if URL is an IP address or domain
     const urlObj = new URL(url);
     const isIP = /^(?:\d{1,3}\.){3}\d{1,3}$/.test(urlObj.hostname);
     console.log(`📍 Hostname: ${urlObj.hostname} (${isIP ? 'IP Address' : 'Domain'})`);
     
-    // Call backend API
-    const response = await fetch(`${CONFIG.WEBSITE_API}/api/scan`, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify({ 
-        url: url,
-        source: 'extension',
-        timestamp: new Date().toISOString()
-      })
-    });
+    // Call backend API with timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
     
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+    try {
+      const response = await fetch(`${CONFIG.WEBSITE_API}/api/scan`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ 
+          url: url,
+          source: 'extension',
+          timestamp: new Date().toISOString()
+        }),
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const scanData = await response.json();
+      const scanId = scanData.scanId;
+      const requestTime = Date.now() - scanStartTime;
+      
+      console.log(`📋 Backend scan initiated: ${scanId} (request time: ${requestTime}ms)`);
+      
+      // Check if scan was completed from cache
+      if (scanData.status === 'completed' && scanData.cached) {
+        console.log(`⚡ Scan completed immediately from cache (${requestTime}ms)`);
+        // Store in local cache for instant future lookups
+        state.localScanCache.set(url, {
+          result: scanData,
+          timestamp: Date.now()
+        });
+        // Skip polling and go directly to completion
+        await completeScan(tabId, url, scanData);
+        return;
+      }
+      
+      // Update state
+      state.pendingScans.set(url, { tabId, scanId, startTime: Date.now() });
+      
+      const blockedInfo = state.blockedTabs.get(tabId);
+      if (blockedInfo) {
+        blockedInfo.scanId = scanId;
+        blockedInfo.status = 'scanning';
+      }
+      
+      // Start polling
+      pollForScanResults(scanId, url, tabId);
+      
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      if (fetchError.name === 'AbortError') {
+        throw new Error('Scan request timeout (15 seconds)');
+      }
+      throw fetchError;
     }
-    
-    const scanData = await response.json();
-    const scanId = scanData.scanId;
-    
-    console.log(`📋 Backend scan started: ${scanId}`);
-    
-    // Update state
-    state.pendingScans.set(url, { tabId, scanId, startTime: Date.now() });
-    
-    const blockedInfo = state.blockedTabs.get(tabId);
-    if (blockedInfo) {
-      blockedInfo.scanId = scanId;
-      blockedInfo.status = 'scanning';
-    }
-    
-    // Start polling
-    pollForScanResults(scanId, url, tabId);
     
   } catch (error) {
-    console.error('❌ Scan initiation failed:', error);
+    console.error('❌ Scan initiation failed:', error.message);
     // On error, allow the URL
     await completeScan(tabId, url, {
       verdict: 'ALLOW',
@@ -355,6 +430,8 @@ async function startURLScan(url, tabId) {
 
 // ========== POLL FOR SCAN RESULTS ==========
 async function pollForScanResults(scanId, url, tabId, attempt = 1) {
+  const pollStartTime = Date.now();
+  
   if (attempt > CONFIG.MAX_POLL_ATTEMPTS) {
     console.error(`❌ Max poll attempts reached for ${scanId}`);
     await completeScan(tabId, url, {
@@ -369,16 +446,23 @@ async function pollForScanResults(scanId, url, tabId, attempt = 1) {
     console.log(`📊 Polling scan ${scanId} (attempt ${attempt}/${CONFIG.MAX_POLL_ATTEMPTS})`);
     
     const response = await fetch(`${CONFIG.WEBSITE_API}/api/scan/result/${scanId}`);
+    const pollTime = Date.now() - pollStartTime;
     
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
     
     const result = await response.json();
-    console.log(`📋 Poll result status: ${result.status}`);
+    console.log(`📋 Poll result status: ${result.status} (response time: ${result.responseTimeMs || pollTime}ms)`);
     
     if (result.status === 'completed') {
       console.log(`✅ Scan completed: ${result.verdict} for ${url}`);
+      
+      // NEW: Store in local cache for instant future lookups
+      state.localScanCache.set(url, {
+        result: result,
+        timestamp: Date.now()
+      });
       
       // Log if any phases were skipped
       if (result.phases) {
@@ -411,10 +495,13 @@ async function pollForScanResults(scanId, url, tabId, attempt = 1) {
         // Scanner page not ready yet, that's OK
       }
       
+      // Adaptive polling: shorter interval for first attempts, longer for later
+      const pollDelay = attempt < 5 ? CONFIG.POLL_INTERVAL : CONFIG.POLL_INTERVAL * 2;
+      
       // Poll again
       setTimeout(() => {
         pollForScanResults(scanId, url, tabId, attempt + 1);
-      }, CONFIG.POLL_INTERVAL);
+      }, pollDelay);
       
     } else if (result.status === 'error') {
       console.error(`❌ Scan error: ${result.error}`);

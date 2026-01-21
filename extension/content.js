@@ -28,9 +28,9 @@ async function initializeContentScript() {
   const wasBypassed = await checkIfBypassed();
   
   if (!wasBypassed) {
-    console.log('📍 Page NOT bypassed, showing loading overlay');
+    console.log('📍 Page NOT bypassed, registering with background');
     
-    // Register with background AFTER checking bypass
+    // Register with background so it knows the page loaded
     try {
       await browser.runtime.sendMessage({ action: 'contentScriptReady' });
       console.log('✅ Registered with background');
@@ -38,19 +38,13 @@ async function initializeContentScript() {
       console.log('⚠️ Could not register with background:', error.message);
     }
     
-    // Add event listeners to block interactions
-    document.addEventListener('keydown', blockAllInteractions, true);
-    document.addEventListener('click', blockAllInteractions, true);
-    document.addEventListener('contextmenu', blockAllInteractions, true);
-    document.addEventListener('mousedown', blockAllInteractions, true);
-    
-    // Show loading overlay immediately
-    showLoadingOverlay();
+    // NOTE: Do NOT show overlay - background.js redirects to scanner before content script runs
+    // If you see this, it means the redirect didn't work
     
   } else {
-    console.log('✅ Page was bypassed, no overlay needed');
+    console.log('✅ Page was bypassed, no scanning needed');
     
-    // Still register with background but don't show overlay
+    // Still register with background
     try {
       await browser.runtime.sendMessage({ action: 'contentScriptReady' });
       console.log('✅ Registered with background');
@@ -107,7 +101,10 @@ async function checkIfBypassed() {
   }
 }
 
-// ========== LOADING OVERLAY ==========
+// ========== LOADING OVERLAY (DISABLED - redirect handles page blocking) ==========
+// The background.js script redirects to scanner.html before this content script runs
+// So no overlay is needed. If you see a loading screen, the redirect failed.
+
 function showLoadingOverlay() {
   // Prevent multiple overlays
   if (overlayShown) {

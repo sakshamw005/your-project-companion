@@ -1,1349 +1,12 @@
 {
-  "http://143.20.185.79/Orbt/Orbt.arm": {
-    "verdict": "MALICIOUS",
-    "confidence": 0.33,
-    "metadata": {
-      "riskLevel": "CRITICAL",
-      "overallStatus": "danger",
-      "sources": [
-        "abuseIPDB",
-        "ssl",
-        "content",
-        "redirects",
-        "securityHeaders",
-        "googleSafeBrowsing",
-        "domainAge",
-        "heuristics"
-      ],
-      "phases": {
-        "virusTotal": {
-          "name": "VirusTotal Analysis",
-          "error": "Timeout or failed",
-          "status": "warning"
-        },
-        "abuseIPDB": {
-          "name": "AbuseIPDB Check",
-          "ip": "143.20.185.79",
-          "abuseConfidenceScore": 100,
-          "totalReports": 4385,
-          "countryCode": "GB",
-          "isp": "Internet Magnate (Pty) Ltd",
-          "score": 0,
-          "maxScore": 15,
-          "status": "danger"
-        },
-        "ssl": {
-          "name": "SSL Certificate",
-          "valid": false,
-          "error": "Not using HTTPS",
-          "score": 0,
-          "maxScore": 15,
-          "status": "danger"
-        },
-        "content": {
-          "name": "Content Analysis",
-          "score": 13,
-          "maxScore": 15,
-          "status": "safe",
-          "findings": [
-            "Potential obfuscated content detected"
-          ]
-        },
-        "redirects": {
-          "name": "Redirect Analysis",
-          "redirectCount": 0,
-          "redirects": [],
-          "score": 10,
-          "maxScore": 10,
-          "status": "safe"
-        },
-        "securityHeaders": {
-          "name": "Security Headers",
-          "score": 0,
-          "maxScore": 10,
-          "status": "danger",
-          "findings": [
-            "✗ Missing strict-transport-security",
-            "✗ Missing x-content-type-options",
-            "✗ Missing x-frame-options",
-            "✗ Missing x-xss-protection",
-            "✗ Missing content-security-policy",
-            "✗ Missing referrer-policy",
-            "✗ Missing permissions-policy"
-          ]
-        },
-        "googleSafeBrowsing": {
-          "name": "Google Safe Browsing",
-          "safe": true,
-          "threats": "none",
-          "matchCount": 0,
-          "score": 15,
-          "maxScore": 15,
-          "status": "safe"
-        },
-        "domainAge": {
-          "name": "Domain Analysis (Heuristic)",
-          "domain": "143.20.185.79",
-          "score": 0,
-          "maxScore": 10,
-          "status": "danger",
-          "warnings": [
-            "Hostname is an IP address literal - suspicious"
-          ],
-          "isHeuristic": true
-        },
-        "heuristics": {
-          "name": "Heuristic Rules",
-          "matched": [
-            {
-              "id": "url:ip_literal",
-              "score": 15,
-              "description": "URL uses raw IP instead of domain"
-            },
-            {
-              "id": "ssl:no_https",
-              "score": 30,
-              "description": "URL does not use HTTPS"
-            },
-            {
-              "id": "asn:high_abuse",
-              "score": 20,
-              "description": "ASN has high abuse reputation"
-            }
-          ],
-          "totalSuspicion": 65,
-          "score": 0,
-          "maxScore": 25,
-          "status": "danger"
-        }
-      },
-      "verdict": "BLOCK",
-      "score": 33,
-      "totalScore": 38,
-      "maxTotalScore": 115
-    },
-    "timestamp": 1768834886688,
-    "originalUrl": "http://143.20.185.79/Orbt/Orbt.arm",
-    "canonicalUrl": "http://143.20.185.79/Orbt/Orbt.arm",
-    "riskLevel": "CRITICAL",
-    "overallStatus": "danger",
-    "sources": [
-      "abuseIPDB",
-      "ssl",
-      "content",
-      "redirects",
-      "securityHeaders",
-      "googleSafeBrowsing",
-      "domainAge",
-      "heuristics"
-    ]
-  },
-  "https://threatcenter.crdf.fr/": {
-    "verdict": "SAFE",
-    "confidence": 0.95,
-    "metadata": {
-      "riskLevel": "SAFE",
-      "overallStatus": "safe",
-      "sources": [
-        "abuseIPDB",
-        "securityHeaders",
-        "googleSafeBrowsing",
-        "domainAge",
-        "heuristics"
-      ],
-      "phases": {
-        "virusTotal": {
-          "name": "VirusTotal Analysis",
-          "error": "Timeout or failed",
-          "status": "warning"
-        },
-        "abuseIPDB": {
-          "name": "AbuseIPDB Check",
-          "ip": "2606:4700:3035::ac43:cf61",
-          "abuseConfidenceScore": 0,
-          "totalReports": 0,
-          "countryCode": "US",
-          "isp": "Cloudflare, Inc.",
-          "score": 15,
-          "maxScore": 15,
-          "status": "safe"
-        },
-        "ssl": {
-          "name": "SSL Certificate",
-          "error": "Timeout or failed",
-          "status": "warning"
-        },
-        "content": {
-          "name": "Content Analysis",
-          "error": "Timeout or failed",
-          "status": "warning"
-        },
-        "redirects": {
-          "name": "Redirect Analysis",
-          "error": "Timeout or failed",
-          "status": "warning"
-        },
-        "securityHeaders": {
-          "name": "Security Headers",
-          "score": 6,
-          "maxScore": 10,
-          "status": "warning",
-          "findings": [
-            "✓ strict-transport-security",
-            "✓ x-content-type-options",
-            "✓ x-frame-options",
-            "✓ x-xss-protection",
-            "✗ Missing content-security-policy",
-            "✓ referrer-policy",
-            "✗ Missing permissions-policy"
-          ]
-        },
-        "googleSafeBrowsing": {
-          "name": "Google Safe Browsing",
-          "safe": true,
-          "threats": "none",
-          "matchCount": 0,
-          "score": 15,
-          "maxScore": 15,
-          "status": "safe"
-        },
-        "domainAge": {
-          "name": "Domain Analysis (Heuristic)",
-          "domain": "threatcenter.crdf.fr",
-          "score": 10,
-          "maxScore": 10,
-          "status": "safe",
-          "warnings": [],
-          "isHeuristic": true
-        },
-        "heuristics": {
-          "name": "Heuristic Rules",
-          "matched": [],
-          "totalSuspicion": 0,
-          "score": 25,
-          "maxScore": 25,
-          "status": "safe"
-        }
-      },
-      "verdict": "ALLOW",
-      "score": 95,
-      "totalScore": 71,
-      "maxTotalScore": 75
-    },
-    "timestamp": 1768835046426,
-    "originalUrl": "https://threatcenter.crdf.fr/?Domains",
-    "canonicalUrl": "https://threatcenter.crdf.fr/",
-    "riskLevel": "SAFE",
-    "overallStatus": "safe",
-    "sources": [
-      "abuseIPDB",
-      "securityHeaders",
-      "googleSafeBrowsing",
-      "domainAge",
-      "heuristics"
-    ]
-  },
-  "http://jonesberg.com/": {
-    "verdict": "MALICIOUS",
-    "confidence": 0.31,
-    "metadata": {
-      "riskLevel": "CRITICAL",
-      "overallStatus": "danger",
-      "sources": [
-        "abuseIPDB",
-        "ssl",
-        "googleSafeBrowsing",
-        "domainAge",
-        "heuristics"
-      ],
-      "phases": {
-        "virusTotal": {
-          "name": "VirusTotal Analysis",
-          "error": "Timeout or failed",
-          "status": "warning"
-        },
-        "abuseIPDB": {
-          "name": "AbuseIPDB Check",
-          "ip": "169.47.130.72",
-          "abuseConfidenceScore": 0,
-          "totalReports": 0,
-          "countryCode": "US",
-          "isp": "International Business Machines Corporation",
-          "score": 15,
-          "maxScore": 15,
-          "status": "safe"
-        },
-        "ssl": {
-          "name": "SSL Certificate",
-          "valid": false,
-          "error": "Not using HTTPS",
-          "score": 0,
-          "maxScore": 15,
-          "status": "danger"
-        },
-        "content": {
-          "name": "Content Analysis",
-          "error": "Timeout or failed",
-          "status": "warning"
-        },
-        "redirects": {
-          "name": "Redirect Analysis",
-          "error": "Timeout or failed",
-          "status": "warning"
-        },
-        "securityHeaders": {
-          "name": "Security Headers",
-          "error": "Timeout or failed",
-          "status": "warning"
-        },
-        "googleSafeBrowsing": {
-          "name": "Google Safe Browsing",
-          "safe": false,
-          "threats": "SOCIAL_ENGINEERING",
-          "matchCount": 1,
-          "score": 0,
-          "maxScore": 15,
-          "status": "danger",
-          "details": [
-            {
-              "threatType": "SOCIAL_ENGINEERING",
-              "platformType": "ANY_PLATFORM",
-              "threat": {
-                "url": "http://jonesberg.com/"
-              },
-              "cacheDuration": "300s",
-              "threatEntryType": "URL"
-            }
-          ]
-        },
-        "domainAge": {
-          "name": "Domain Analysis (Heuristic)",
-          "domain": "jonesberg.com",
-          "score": 10,
-          "maxScore": 10,
-          "status": "safe",
-          "warnings": [],
-          "isHeuristic": true
-        },
-        "heuristics": {
-          "name": "Heuristic Rules",
-          "matched": [
-            {
-              "id": "ssl:no_https",
-              "score": 30,
-              "description": "URL does not use HTTPS"
-            }
-          ],
-          "totalSuspicion": 30,
-          "score": 0,
-          "maxScore": 25,
-          "status": "danger"
-        }
-      },
-      "verdict": "BLOCK",
-      "score": 31,
-      "totalScore": 25,
-      "maxTotalScore": 80
-    },
-    "timestamp": 1768835104710,
-    "originalUrl": "http://jonesberg.com/",
-    "canonicalUrl": "http://jonesberg.com/",
-    "riskLevel": "CRITICAL",
-    "overallStatus": "danger",
-    "sources": [
-      "abuseIPDB",
-      "ssl",
-      "googleSafeBrowsing",
-      "domainAge",
-      "heuristics"
-    ]
-  },
-  "https://monarcdesign.com/": {
-    "verdict": "SAFE",
-    "confidence": 1,
-    "metadata": {
-      "riskLevel": "SAFE",
-      "overallStatus": "safe",
-      "sources": [
-        "abuseIPDB",
-        "domainAge",
-        "heuristics"
-      ],
-      "phases": {
-        "virusTotal": {
-          "name": "VirusTotal Analysis",
-          "error": "Timeout or failed",
-          "status": "warning"
-        },
-        "abuseIPDB": {
-          "name": "AbuseIPDB Check",
-          "error": "Could not resolve domain",
-          "score": 15,
-          "maxScore": 15,
-          "status": "warning"
-        },
-        "ssl": {
-          "name": "SSL Certificate",
-          "error": "Timeout or failed",
-          "status": "warning"
-        },
-        "content": {
-          "name": "Content Analysis",
-          "error": "Timeout or failed",
-          "status": "warning"
-        },
-        "redirects": {
-          "name": "Redirect Analysis",
-          "error": "Timeout or failed",
-          "status": "warning"
-        },
-        "securityHeaders": {
-          "name": "Security Headers",
-          "error": "Timeout or failed",
-          "status": "warning"
-        },
-        "googleSafeBrowsing": {
-          "name": "Google Safe Browsing",
-          "error": "Timeout or failed",
-          "status": "warning"
-        },
-        "domainAge": {
-          "name": "Domain Analysis (Heuristic)",
-          "domain": "monarcdesign.com",
-          "score": 10,
-          "maxScore": 10,
-          "status": "safe",
-          "warnings": [],
-          "isHeuristic": true
-        },
-        "heuristics": {
-          "name": "Heuristic Rules",
-          "matched": [],
-          "totalSuspicion": 0,
-          "score": 25,
-          "maxScore": 25,
-          "status": "safe"
-        }
-      },
-      "verdict": "ALLOW",
-      "score": 100,
-      "totalScore": 50,
-      "maxTotalScore": 50
-    },
-    "timestamp": 1768835483587,
-    "originalUrl": "https://monarcdesign.com/",
-    "canonicalUrl": "https://monarcdesign.com/",
-    "riskLevel": "SAFE",
-    "overallStatus": "safe",
-    "sources": [
-      "abuseIPDB",
-      "domainAge",
-      "heuristics"
-    ]
-  },
-  "https://60.208.22.102/": {
-    "verdict": "MALICIOUS",
-    "confidence": 0.44,
-    "metadata": {
-      "riskLevel": "CRITICAL",
-      "overallStatus": "danger",
-      "sources": [
-        "virusTotal",
-        "abuseIPDB",
-        "googleSafeBrowsing",
-        "domainAge",
-        "heuristics"
-      ],
-      "phases": {
-        "virusTotal": {
-          "name": "VirusTotal Analysis",
-          "error": "VirusTotal analysis timeout",
-          "score": 0,
-          "maxScore": 25,
-          "status": "danger"
-        },
-        "abuseIPDB": {
-          "name": "AbuseIPDB Check",
-          "ip": "60.208.22.102",
-          "abuseConfidenceScore": 0,
-          "totalReports": 0,
-          "countryCode": "CN",
-          "isp": "JINAN ZHANGLUJUN NET BAR",
-          "score": 15,
-          "maxScore": 15,
-          "status": "safe"
-        },
-        "ssl": {
-          "name": "SSL Certificate",
-          "error": "Timeout or failed",
-          "status": "warning"
-        },
-        "content": {
-          "name": "Content Analysis",
-          "error": "Timeout or failed",
-          "status": "warning"
-        },
-        "redirects": {
-          "name": "Redirect Analysis",
-          "error": "Timeout or failed",
-          "status": "warning"
-        },
-        "securityHeaders": {
-          "name": "Security Headers",
-          "error": "Timeout or failed",
-          "status": "warning"
-        },
-        "googleSafeBrowsing": {
-          "name": "Google Safe Browsing",
-          "safe": true,
-          "threats": "none",
-          "matchCount": 0,
-          "score": 15,
-          "maxScore": 15,
-          "status": "safe"
-        },
-        "domainAge": {
-          "name": "Domain Analysis (Heuristic)",
-          "domain": "60.208.22.102",
-          "score": 0,
-          "maxScore": 10,
-          "status": "danger",
-          "warnings": [
-            "Hostname is an IP address literal - suspicious"
-          ],
-          "isHeuristic": true
-        },
-        "heuristics": {
-          "name": "Heuristic Rules",
-          "matched": [
-            {
-              "id": "url:ip_literal",
-              "score": 15,
-              "description": "URL uses raw IP instead of domain"
-            }
-          ],
-          "totalSuspicion": 15,
-          "score": 10,
-          "maxScore": 25,
-          "status": "warning"
-        }
-      },
-      "verdict": "BLOCK",
-      "score": 44,
-      "totalScore": 40,
-      "maxTotalScore": 90
-    },
-    "timestamp": 1768835582209,
-    "originalUrl": "https://60.208.22.102/",
-    "canonicalUrl": "https://60.208.22.102/",
-    "riskLevel": "CRITICAL",
-    "overallStatus": "danger",
-    "sources": [
-      "virusTotal",
-      "abuseIPDB",
-      "googleSafeBrowsing",
-      "domainAge",
-      "heuristics"
-    ]
-  },
-  "http://60.208.22.102/": {
-    "verdict": "MALICIOUS",
-    "confidence": 0.38,
-    "metadata": {
-      "riskLevel": "CRITICAL",
-      "overallStatus": "danger",
-      "sources": [
-        "abuseIPDB",
-        "ssl",
-        "googleSafeBrowsing",
-        "domainAge",
-        "heuristics"
-      ],
-      "phases": {
-        "virusTotal": {
-          "name": "VirusTotal Analysis",
-          "error": "Timeout or failed",
-          "status": "warning"
-        },
-        "abuseIPDB": {
-          "name": "AbuseIPDB Check",
-          "ip": "60.208.22.102",
-          "abuseConfidenceScore": 0,
-          "totalReports": 0,
-          "countryCode": "CN",
-          "isp": "JINAN ZHANGLUJUN NET BAR",
-          "score": 15,
-          "maxScore": 15,
-          "status": "safe"
-        },
-        "ssl": {
-          "name": "SSL Certificate",
-          "valid": false,
-          "error": "Not using HTTPS",
-          "score": 0,
-          "maxScore": 15,
-          "status": "danger"
-        },
-        "content": {
-          "name": "Content Analysis",
-          "error": "Timeout or failed",
-          "status": "warning"
-        },
-        "redirects": {
-          "name": "Redirect Analysis",
-          "error": "Timeout or failed",
-          "status": "warning"
-        },
-        "securityHeaders": {
-          "name": "Security Headers",
-          "error": "Timeout or failed",
-          "status": "warning"
-        },
-        "googleSafeBrowsing": {
-          "name": "Google Safe Browsing",
-          "safe": true,
-          "threats": "none",
-          "matchCount": 0,
-          "score": 15,
-          "maxScore": 15,
-          "status": "safe"
-        },
-        "domainAge": {
-          "name": "Domain Analysis (Heuristic)",
-          "domain": "60.208.22.102",
-          "score": 0,
-          "maxScore": 10,
-          "status": "danger",
-          "warnings": [
-            "Hostname is an IP address literal - suspicious"
-          ],
-          "isHeuristic": true
-        },
-        "heuristics": {
-          "name": "Heuristic Rules",
-          "matched": [
-            {
-              "id": "url:ip_literal",
-              "score": 15,
-              "description": "URL uses raw IP instead of domain"
-            },
-            {
-              "id": "ssl:no_https",
-              "score": 30,
-              "description": "URL does not use HTTPS"
-            }
-          ],
-          "totalSuspicion": 45,
-          "score": 0,
-          "maxScore": 25,
-          "status": "danger"
-        }
-      },
-      "verdict": "BLOCK",
-      "score": 38,
-      "totalScore": 30,
-      "maxTotalScore": 80
-    },
-    "timestamp": 1768835679384,
-    "originalUrl": "http://60.208.22.102/",
-    "canonicalUrl": "http://60.208.22.102/",
-    "riskLevel": "CRITICAL",
-    "overallStatus": "danger",
-    "sources": [
-      "abuseIPDB",
-      "ssl",
-      "googleSafeBrowsing",
-      "domainAge",
-      "heuristics"
-    ]
-  },
-  "http://promo.sslsalesk.click/": {
-    "verdict": "MALICIOUS",
-    "confidence": 0.57,
-    "metadata": {
-      "riskLevel": "MEDIUM",
-      "overallStatus": "warning",
-      "sources": [
-        "abuseIPDB",
-        "ssl",
-        "content",
-        "redirects",
-        "securityHeaders",
-        "googleSafeBrowsing",
-        "domainAge",
-        "heuristics"
-      ],
-      "phases": {
-        "virusTotal": {
-          "name": "VirusTotal Analysis",
-          "error": "Timeout or failed",
-          "status": "warning"
-        },
-        "abuseIPDB": {
-          "name": "AbuseIPDB Check",
-          "ip": "2606:4700:3033::ac43:c7d1",
-          "abuseConfidenceScore": 0,
-          "totalReports": 0,
-          "countryCode": "US",
-          "isp": "Cloudflare, Inc.",
-          "score": 15,
-          "maxScore": 15,
-          "status": "safe"
-        },
-        "ssl": {
-          "name": "SSL Certificate",
-          "valid": false,
-          "error": "Not using HTTPS",
-          "score": 0,
-          "maxScore": 15,
-          "status": "danger"
-        },
-        "content": {
-          "name": "Content Analysis",
-          "score": 15,
-          "maxScore": 15,
-          "status": "safe",
-          "findings": []
-        },
-        "redirects": {
-          "name": "Redirect Analysis",
-          "redirectCount": 1,
-          "redirects": [
-            {
-              "from": "http://promo.sslsalesk.click/",
-              "to": "https://promo.sslsalesk.click/",
-              "status": 301
-            }
-          ],
-          "score": 10,
-          "maxScore": 10,
-          "status": "safe"
-        },
-        "securityHeaders": {
-          "name": "Security Headers",
-          "score": 0,
-          "maxScore": 10,
-          "status": "danger",
-          "findings": [
-            "✗ Missing strict-transport-security",
-            "✗ Missing x-content-type-options",
-            "✗ Missing x-frame-options",
-            "✗ Missing x-xss-protection",
-            "✗ Missing content-security-policy",
-            "✗ Missing referrer-policy",
-            "✗ Missing permissions-policy"
-          ]
-        },
-        "googleSafeBrowsing": {
-          "name": "Google Safe Browsing",
-          "safe": true,
-          "threats": "none",
-          "matchCount": 0,
-          "score": 15,
-          "maxScore": 15,
-          "status": "safe"
-        },
-        "domainAge": {
-          "name": "Domain Analysis (Heuristic)",
-          "domain": "promo.sslsalesk.click",
-          "score": 10,
-          "maxScore": 10,
-          "status": "safe",
-          "warnings": [],
-          "isHeuristic": true
-        },
-        "heuristics": {
-          "name": "Heuristic Rules",
-          "matched": [
-            {
-              "id": "ssl:no_https",
-              "score": 30,
-              "description": "URL does not use HTTPS"
-            }
-          ],
-          "totalSuspicion": 30,
-          "score": 0,
-          "maxScore": 25,
-          "status": "danger"
-        }
-      },
-      "verdict": "WARN",
-      "score": 57,
-      "totalScore": 65,
-      "maxTotalScore": 115
-    },
-    "timestamp": 1768835747454,
-    "originalUrl": "http://promo.sslsalesk.click/",
-    "canonicalUrl": "http://promo.sslsalesk.click/",
-    "riskLevel": "MEDIUM",
-    "overallStatus": "warning",
-    "sources": [
-      "abuseIPDB",
-      "ssl",
-      "content",
-      "redirects",
-      "securityHeaders",
-      "googleSafeBrowsing",
-      "domainAge",
-      "heuristics"
-    ]
-  },
-  "http://175.169.97.157:48034/bin.sh": {
-    "verdict": "MALICIOUS",
-    "confidence": 0.41,
-    "metadata": {
-      "riskLevel": "CRITICAL",
-      "overallStatus": "danger",
-      "sources": [
-        "abuseIPDB",
-        "ssl",
-        "content",
-        "securityHeaders",
-        "googleSafeBrowsing",
-        "domainAge",
-        "heuristics"
-      ],
-      "phases": {
-        "virusTotal": {
-          "name": "VirusTotal Analysis",
-          "error": "Timeout or failed",
-          "status": "warning"
-        },
-        "abuseIPDB": {
-          "name": "AbuseIPDB Check",
-          "ip": "175.169.97.157",
-          "abuseConfidenceScore": 2,
-          "totalReports": 1,
-          "countryCode": "CN",
-          "isp": "CHINA UNICOM Liaoning province network",
-          "score": 15,
-          "maxScore": 15,
-          "status": "safe"
-        },
-        "ssl": {
-          "name": "SSL Certificate",
-          "valid": false,
-          "error": "Not using HTTPS",
-          "score": 0,
-          "maxScore": 15,
-          "status": "danger"
-        },
-        "content": {
-          "name": "Content Analysis",
-          "score": 13,
-          "maxScore": 15,
-          "status": "safe",
-          "findings": [
-            "Potential obfuscated content detected"
-          ]
-        },
-        "redirects": {
-          "name": "Redirect Analysis",
-          "error": "Timeout or failed",
-          "status": "warning"
-        },
-        "securityHeaders": {
-          "name": "Security Headers",
-          "score": 0,
-          "maxScore": 10,
-          "status": "danger",
-          "findings": [
-            "✗ Missing strict-transport-security",
-            "✗ Missing x-content-type-options",
-            "✗ Missing x-frame-options",
-            "✗ Missing x-xss-protection",
-            "✗ Missing content-security-policy",
-            "✗ Missing referrer-policy",
-            "✗ Missing permissions-policy"
-          ]
-        },
-        "googleSafeBrowsing": {
-          "name": "Google Safe Browsing",
-          "safe": true,
-          "threats": "none",
-          "matchCount": 0,
-          "score": 15,
-          "maxScore": 15,
-          "status": "safe"
-        },
-        "domainAge": {
-          "name": "Domain Analysis (Heuristic)",
-          "domain": "175.169.97.157",
-          "score": 0,
-          "maxScore": 10,
-          "status": "danger",
-          "warnings": [
-            "Hostname is an IP address literal - suspicious"
-          ],
-          "isHeuristic": true
-        },
-        "heuristics": {
-          "name": "Heuristic Rules",
-          "matched": [
-            {
-              "id": "url:ip_literal",
-              "score": 15,
-              "description": "URL uses raw IP instead of domain"
-            },
-            {
-              "id": "ssl:no_https",
-              "score": 30,
-              "description": "URL does not use HTTPS"
-            }
-          ],
-          "totalSuspicion": 45,
-          "score": 0,
-          "maxScore": 25,
-          "status": "danger"
-        }
-      },
-      "verdict": "BLOCK",
-      "score": 41,
-      "totalScore": 43,
-      "maxTotalScore": 105
-    },
-    "timestamp": 1768843985685,
-    "originalUrl": "http://175.169.97.157:48034/bin.sh",
-    "canonicalUrl": "http://175.169.97.157:48034/bin.sh",
-    "riskLevel": "CRITICAL",
-    "overallStatus": "danger",
-    "sources": [
-      "abuseIPDB",
-      "ssl",
-      "content",
-      "securityHeaders",
-      "googleSafeBrowsing",
-      "domainAge",
-      "heuristics"
-    ]
-  },
-  "https://passage-programme.com/": {
-    "verdict": "MALICIOUS",
-    "confidence": 0.59,
-    "metadata": {
-      "riskLevel": "MEDIUM",
-      "overallStatus": "warning",
-      "sources": [
-        "abuseIPDB",
-        "ssl",
-        "content",
-        "redirects",
-        "securityHeaders",
-        "googleSafeBrowsing",
-        "whois",
-        "heuristics"
-      ],
-      "phases": {
-        "virusTotal": {
-          "name": "VirusTotal Analysis",
-          "error": "Timeout or failed",
-          "status": "warning"
-        },
-        "abuseIPDB": {
-          "name": "AbuseIPDB Check",
-          "ip": "69.5.189.119",
-          "abuseConfidenceScore": 0,
-          "totalReports": 0,
-          "countryCode": "CH",
-          "isp": "Global-Data System IT Corporation",
-          "score": 15,
-          "maxScore": 15,
-          "status": "safe"
-        },
-        "ssl": {
-          "name": "SSL Certificate",
-          "valid": true,
-          "issuer": "Let's Encrypt",
-          "validFrom": "2026-01-19T04:18:49.000Z",
-          "validTo": "2026-04-19T04:18:48.000Z",
-          "daysUntilExpiry": 89,
-          "score": 15,
-          "maxScore": 15,
-          "status": "safe"
-        },
-        "content": {
-          "name": "Content Analysis",
-          "score": 15,
-          "maxScore": 15,
-          "status": "safe",
-          "findings": []
-        },
-        "redirects": {
-          "name": "Redirect Analysis",
-          "redirectCount": 0,
-          "redirects": [],
-          "score": 7,
-          "maxScore": 10,
-          "status": "safe"
-        },
-        "securityHeaders": {
-          "name": "Security Headers",
-          "score": 0,
-          "maxScore": 10,
-          "status": "danger",
-          "findings": [
-            "✗ Missing strict-transport-security",
-            "✗ Missing x-content-type-options",
-            "✗ Missing x-frame-options",
-            "✗ Missing x-xss-protection",
-            "✗ Missing content-security-policy",
-            "✗ Missing referrer-policy",
-            "✗ Missing permissions-policy"
-          ]
-        },
-        "googleSafeBrowsing": {
-          "name": "Google Safe Browsing",
-          "safe": true,
-          "threats": "none",
-          "matchCount": 0,
-          "score": 15,
-          "maxScore": 15,
-          "status": "safe"
-        },
-        "whois": {
-          "name": "WHOIS Lookup",
-          "domain": "passage-programme.com",
-          "available": true,
-          "registrar": "Hosting Concepts B.V. d/b/a Registrar.eu",
-          "createdDate": "2026-01-19T05:13:14Z",
-          "expiresDate": "2027-01-19T05:13:14Z",
-          "ageInDays": 0,
-          "createdDateTimestamp": 1768799594000,
-          "nameServers": [
-            "NS1.OPENPROVIDER.NL",
-            "NS2.OPENPROVIDER.BE",
-            "NS3.OPENPROVIDER.EU"
-          ],
-          "hasPrivacy": true,
-          "score": 1,
-          "maxScore": 10,
-          "status": "warning",
-          "warnings": [
-            "New domain (< 30 days): 0 days old",
-            "WHOIS data is privacy-protected"
-          ],
-          "safeData": {
-            "domain": "passage-programme.com",
-            "ageInDays": 0,
-            "registrar": "Hosting Concepts B.V. d/b/a Registrar.eu",
-            "createdDate": "2026-01-19T05:13:14Z",
-            "expiresDate": "2027-01-19T05:13:14Z",
-            "hasPrivacy": true,
-            "tld": "com"
-          }
-        },
-        "heuristics": {
-          "name": "Heuristic Rules",
-          "matched": [
-            {
-              "id": "domain:age_lt_7d",
-              "score": 30,
-              "description": "Domain registered less than 7 days ago"
-            },
-            {
-              "id": "domain:age_7_30d",
-              "score": 20,
-              "description": "Domain registered within last 30 days"
-            },
-            {
-              "id": "domain:age_30_180d",
-              "score": 10,
-              "description": "Domain younger than 6 months"
-            },
-            {
-              "id": "ssl:domain_mismatch",
-              "score": 30,
-              "description": "Certificate domain does not match URL"
-            }
-          ],
-          "totalSuspicion": 90,
-          "score": 0,
-          "maxScore": 25,
-          "status": "danger"
-        }
-      },
-      "verdict": "WARN",
-      "score": 59,
-      "totalScore": 68,
-      "maxTotalScore": 115
-    },
-    "timestamp": 1768844235678,
-    "originalUrl": "https://passage-programme.com/",
-    "canonicalUrl": "https://passage-programme.com/",
-    "riskLevel": "MEDIUM",
-    "overallStatus": "warning",
-    "sources": [
-      "abuseIPDB",
-      "ssl",
-      "content",
-      "redirects",
-      "securityHeaders",
-      "googleSafeBrowsing",
-      "whois",
-      "heuristics"
-    ]
-  },
-  "https://waterionizerdubai.com/": {
-    "verdict": "MALICIOUS",
-    "confidence": 0.75,
-    "metadata": {
-      "riskLevel": "MEDIUM",
-      "overallStatus": "warning",
-      "sources": [
-        "virusTotal",
-        "abuseIPDB",
-        "ssl",
-        "content",
-        "redirects",
-        "securityHeaders",
-        "googleSafeBrowsing",
-        "domainAge",
-        "heuristics"
-      ],
-      "phases": {
-        "virusTotal": {
-          "name": "VirusTotal Analysis",
-          "malicious": 0,
-          "suspicious": 0,
-          "harmless": 0,
-          "undetected": 0,
-          "total": 0,
-          "score": 25,
-          "maxScore": 25,
-          "status": "safe"
-        },
-        "abuseIPDB": {
-          "name": "AbuseIPDB Check",
-          "error": "Could not resolve domain",
-          "score": 15,
-          "maxScore": 15,
-          "status": "warning"
-        },
-        "ssl": {
-          "name": "SSL Certificate",
-          "valid": false,
-          "error": "getaddrinfo ENOTFOUND waterionizerdubai.com",
-          "score": 0,
-          "maxScore": 15,
-          "status": "danger"
-        },
-        "content": {
-          "name": "Content Analysis",
-          "error": "request to https://waterionizerdubai.com/ failed, reason: getaddrinfo ENOTFOUND waterionizerdubai.com",
-          "score": 10,
-          "maxScore": 15,
-          "status": "warning"
-        },
-        "redirects": {
-          "name": "Redirect Analysis",
-          "error": "request to https://waterionizerdubai.com/ failed, reason: getaddrinfo ENOTFOUND waterionizerdubai.com",
-          "score": 5,
-          "maxScore": 10,
-          "status": "warning"
-        },
-        "securityHeaders": {
-          "name": "Security Headers",
-          "error": "request to https://waterionizerdubai.com/ failed, reason: getaddrinfo ENOTFOUND waterionizerdubai.com",
-          "score": 0,
-          "maxScore": 10,
-          "status": "warning"
-        },
-        "googleSafeBrowsing": {
-          "name": "Google Safe Browsing",
-          "safe": true,
-          "threats": "none",
-          "matchCount": 0,
-          "score": 15,
-          "maxScore": 15,
-          "status": "safe"
-        },
-        "domainAge": {
-          "name": "Domain Analysis (Heuristic)",
-          "domain": "waterionizerdubai.com",
-          "score": 10,
-          "maxScore": 10,
-          "status": "safe",
-          "warnings": [],
-          "isHeuristic": true
-        },
-        "heuristics": {
-          "name": "Heuristic Rules",
-          "matched": [],
-          "totalSuspicion": 0,
-          "score": 25,
-          "maxScore": 25,
-          "status": "safe"
-        }
-      },
-      "verdict": "WARN",
-      "score": 75,
-      "totalScore": 105,
-      "maxTotalScore": 140
-    },
-    "timestamp": 1768844318893,
-    "originalUrl": "https://waterionizerdubai.com/",
-    "canonicalUrl": "https://waterionizerdubai.com/",
-    "riskLevel": "MEDIUM",
-    "overallStatus": "warning",
-    "sources": [
-      "virusTotal",
-      "abuseIPDB",
-      "ssl",
-      "content",
-      "redirects",
-      "securityHeaders",
-      "googleSafeBrowsing",
-      "domainAge",
-      "heuristics"
-    ]
-  },
-  "http://14912.cn/": {
-    "verdict": "MALICIOUS",
-    "confidence": 0.33,
-    "metadata": {
-      "riskLevel": "CRITICAL",
-      "overallStatus": "danger",
-      "sources": [
-        "abuseIPDB",
-        "ssl",
-        "redirects",
-        "securityHeaders",
-        "googleSafeBrowsing",
-        "domainAge",
-        "heuristics"
-      ],
-      "phases": {
-        "virusTotal": {
-          "name": "VirusTotal Analysis",
-          "error": "Timeout or failed",
-          "status": "warning"
-        },
-        "abuseIPDB": {
-          "name": "AbuseIPDB Check",
-          "ip": "154.193.209.117",
-          "abuseConfidenceScore": 0,
-          "totalReports": 0,
-          "countryCode": "HK",
-          "isp": "Fastmos Co Limited",
-          "score": 15,
-          "maxScore": 15,
-          "status": "safe"
-        },
-        "ssl": {
-          "name": "SSL Certificate",
-          "valid": false,
-          "error": "Not using HTTPS",
-          "score": 0,
-          "maxScore": 15,
-          "status": "danger"
-        },
-        "content": {
-          "name": "Content Analysis",
-          "error": "Timeout or failed",
-          "status": "warning"
-        },
-        "redirects": {
-          "name": "Redirect Analysis",
-          "redirectCount": 1,
-          "redirects": [
-            {
-              "from": "http://14912.cn/",
-              "to": "https://14912.cn/",
-              "status": 301
-            }
-          ],
-          "score": 10,
-          "maxScore": 10,
-          "status": "safe"
-        },
-        "securityHeaders": {
-          "name": "Security Headers",
-          "score": 0,
-          "maxScore": 10,
-          "status": "danger",
-          "findings": [
-            "✗ Missing strict-transport-security",
-            "✗ Missing x-content-type-options",
-            "✗ Missing x-frame-options",
-            "✗ Missing x-xss-protection",
-            "✗ Missing content-security-policy",
-            "✗ Missing referrer-policy",
-            "✗ Missing permissions-policy"
-          ]
-        },
-        "googleSafeBrowsing": {
-          "name": "Google Safe Browsing",
-          "safe": false,
-          "threats": "SOCIAL_ENGINEERING",
-          "matchCount": 1,
-          "score": 0,
-          "maxScore": 15,
-          "status": "danger",
-          "details": [
-            {
-              "threatType": "SOCIAL_ENGINEERING",
-              "platformType": "ANY_PLATFORM",
-              "threat": {
-                "url": "http://14912.cn/"
-              },
-              "cacheDuration": "300s",
-              "threatEntryType": "URL"
-            }
-          ]
-        },
-        "domainAge": {
-          "name": "Domain Analysis (Heuristic)",
-          "domain": "14912.cn",
-          "score": 8,
-          "maxScore": 10,
-          "status": "safe",
-          "warnings": [
-            "Long numeric sequence in domain"
-          ],
-          "isHeuristic": true
-        },
-        "heuristics": {
-          "name": "Heuristic Rules",
-          "matched": [
-            {
-              "id": "ssl:no_https",
-              "score": 30,
-              "description": "URL does not use HTTPS"
-            }
-          ],
-          "totalSuspicion": 30,
-          "score": 0,
-          "maxScore": 25,
-          "status": "danger"
-        }
-      },
-      "verdict": "BLOCK",
-      "score": 33,
-      "totalScore": 33,
-      "maxTotalScore": 100
-    },
-    "timestamp": 1768850565693,
-    "originalUrl": "http://14912.cn/",
-    "canonicalUrl": "http://14912.cn/",
-    "riskLevel": "CRITICAL",
-    "overallStatus": "danger",
-    "sources": [
-      "abuseIPDB",
-      "ssl",
-      "redirects",
-      "securityHeaders",
-      "googleSafeBrowsing",
-      "domainAge",
-      "heuristics"
-    ]
-  },
   "https://urlhaus.abuse.ch/verify-ua": {
     "verdict": "MALICIOUS",
-    "confidence": 0.71,
+    "confidence": 0.66,
     "metadata": {
       "riskLevel": "MEDIUM",
       "overallStatus": "warning",
       "sources": [
+        "virusTotal",
         "abuseIPDB",
         "ssl",
         "content",
@@ -1356,14 +19,17 @@
       "phases": {
         "virusTotal": {
           "name": "VirusTotal Analysis",
-          "error": "Timeout or failed",
-          "status": "warning"
+          "score": 10,
+          "maxScore": 25,
+          "status": "warning",
+          "partial": true,
+          "reason": "VirusTotal check unavailable"
         },
         "abuseIPDB": {
           "name": "AbuseIPDB Check",
-          "ip": "151.101.194.49",
+          "ip": "151.101.2.49",
           "abuseConfidenceScore": 0,
-          "totalReports": 3,
+          "totalReports": 4,
           "countryCode": "US",
           "isp": "Fastly, Inc.",
           "score": 15,
@@ -1376,7 +42,7 @@
           "issuer": "GlobalSign nv-sa",
           "validFrom": "2025-12-09T19:10:16.000Z",
           "validTo": "2027-01-10T19:10:15.000Z",
-          "daysUntilExpiry": 355,
+          "daysUntilExpiry": 354,
           "score": 15,
           "maxScore": 15,
           "status": "safe"
@@ -1429,10 +95,10 @@
           "ageInDays": null,
           "createdDateTimestamp": null,
           "nameServers": [
-            "ns-cloud-d2.googledomains.com",
-            "ns-cloud-d1.googledomains.com",
+            "ns-cloud-d3.googledomains.com",
             "ns-cloud-d4.googledomains.com",
-            "ns-cloud-d3.googledomains.com"
+            "ns-cloud-d1.googledomains.com",
+            "ns-cloud-d2.googledomains.com"
           ],
           "hasPrivacy": false,
           "score": 5,
@@ -1474,168 +140,17 @@
         }
       },
       "verdict": "WARN",
-      "score": 71,
-      "totalScore": 82,
-      "maxTotalScore": 115
+      "score": 66,
+      "totalScore": 92,
+      "maxTotalScore": 140
     },
-    "timestamp": 1768914821833,
+    "timestamp": 1769021909363,
     "originalUrl": "https://urlhaus.abuse.ch/verify-ua/",
     "canonicalUrl": "https://urlhaus.abuse.ch/verify-ua",
     "riskLevel": "MEDIUM",
     "overallStatus": "warning",
     "sources": [
-      "abuseIPDB",
-      "ssl",
-      "content",
-      "redirects",
-      "securityHeaders",
-      "googleSafeBrowsing",
-      "whois",
-      "heuristics"
-    ]
-  },
-  "https://urlhaus.abuse.ch/": {
-    "verdict": "MALICIOUS",
-    "confidence": 0.71,
-    "metadata": {
-      "riskLevel": "MEDIUM",
-      "overallStatus": "warning",
-      "sources": [
-        "abuseIPDB",
-        "ssl",
-        "content",
-        "redirects",
-        "securityHeaders",
-        "googleSafeBrowsing",
-        "whois",
-        "heuristics"
-      ],
-      "phases": {
-        "virusTotal": {
-          "name": "VirusTotal Analysis",
-          "error": "Timeout or failed",
-          "status": "warning"
-        },
-        "abuseIPDB": {
-          "name": "AbuseIPDB Check",
-          "ip": "151.101.2.49",
-          "abuseConfidenceScore": 0,
-          "totalReports": 4,
-          "countryCode": "US",
-          "isp": "Fastly, Inc.",
-          "score": 15,
-          "maxScore": 15,
-          "status": "safe"
-        },
-        "ssl": {
-          "name": "SSL Certificate",
-          "valid": true,
-          "issuer": "GlobalSign nv-sa",
-          "validFrom": "2025-12-09T19:10:16.000Z",
-          "validTo": "2027-01-10T19:10:15.000Z",
-          "daysUntilExpiry": 355,
-          "score": 15,
-          "maxScore": 15,
-          "status": "safe"
-        },
-        "content": {
-          "name": "Content Analysis",
-          "score": 12,
-          "maxScore": 15,
-          "status": "safe",
-          "findings": [
-            "Suspicious phrase: \"login\""
-          ]
-        },
-        "redirects": {
-          "name": "Redirect Analysis",
-          "redirectCount": 0,
-          "redirects": [],
-          "score": 10,
-          "maxScore": 10,
-          "status": "safe"
-        },
-        "securityHeaders": {
-          "name": "Security Headers",
-          "score": 10,
-          "maxScore": 10,
-          "status": "safe",
-          "findings": [
-            "✓ strict-transport-security",
-            "✓ x-content-type-options",
-            "✓ x-frame-options",
-            "✓ x-xss-protection",
-            "✓ content-security-policy",
-            "✓ referrer-policy",
-            "✓ permissions-policy"
-          ]
-        },
-        "googleSafeBrowsing": {
-          "name": "Google Safe Browsing",
-          "safe": true,
-          "threats": "none",
-          "matchCount": 0,
-          "score": 15,
-          "maxScore": 15,
-          "status": "safe"
-        },
-        "whois": {
-          "name": "WHOIS Lookup",
-          "domain": "urlhaus.abuse.ch",
-          "available": true,
-          "ageInDays": null,
-          "createdDateTimestamp": null,
-          "nameServers": [
-            "ns-cloud-d2.googledomains.com",
-            "ns-cloud-d1.googledomains.com",
-            "ns-cloud-d4.googledomains.com",
-            "ns-cloud-d3.googledomains.com"
-          ],
-          "hasPrivacy": false,
-          "score": 5,
-          "maxScore": 10,
-          "status": "warning",
-          "warnings": [
-            "Unable to determine domain age"
-          ],
-          "safeData": {
-            "domain": "urlhaus.abuse.ch",
-            "ageInDays": null,
-            "hasPrivacy": false,
-            "tld": "ch"
-          }
-        },
-        "heuristics": {
-          "name": "Heuristic Rules",
-          "matched": [
-            {
-              "id": "ssl:domain_mismatch",
-              "score": 30,
-              "description": "Certificate domain does not match URL"
-            },
-            {
-              "id": "page:login_form",
-              "score": 20,
-              "description": "Page contains login form"
-            }
-          ],
-          "totalSuspicion": 50,
-          "score": 0,
-          "maxScore": 25,
-          "status": "danger"
-        }
-      },
-      "verdict": "WARN",
-      "score": 71,
-      "totalScore": 82,
-      "maxTotalScore": 115
-    },
-    "timestamp": 1768915258855,
-    "originalUrl": "https://urlhaus.abuse.ch/",
-    "canonicalUrl": "https://urlhaus.abuse.ch/",
-    "riskLevel": "MEDIUM",
-    "overallStatus": "warning",
-    "sources": [
+      "virusTotal",
       "abuseIPDB",
       "ssl",
       "content",
@@ -1648,11 +163,12 @@
   },
   "https://urlhaus.abuse.ch/browse": {
     "verdict": "MALICIOUS",
-    "confidence": 0.63,
+    "confidence": 0.59,
     "metadata": {
       "riskLevel": "MEDIUM",
       "overallStatus": "warning",
       "sources": [
+        "virusTotal",
         "abuseIPDB",
         "ssl",
         "content",
@@ -1665,8 +181,11 @@
       "phases": {
         "virusTotal": {
           "name": "VirusTotal Analysis",
-          "error": "Timeout or failed",
-          "status": "warning"
+          "score": 10,
+          "maxScore": 25,
+          "status": "warning",
+          "partial": true,
+          "reason": "VirusTotal check unavailable"
         },
         "abuseIPDB": {
           "name": "AbuseIPDB Check",
@@ -1741,10 +260,10 @@
           "ageInDays": null,
           "createdDateTimestamp": null,
           "nameServers": [
-            "ns-cloud-d2.googledomains.com",
-            "ns-cloud-d1.googledomains.com",
+            "ns-cloud-d3.googledomains.com",
             "ns-cloud-d4.googledomains.com",
-            "ns-cloud-d3.googledomains.com"
+            "ns-cloud-d1.googledomains.com",
+            "ns-cloud-d2.googledomains.com"
           ],
           "hasPrivacy": false,
           "score": 5,
@@ -1776,16 +295,17 @@
         }
       },
       "verdict": "WARN",
-      "score": 63,
-      "totalScore": 72,
-      "maxTotalScore": 115
+      "score": 59,
+      "totalScore": 82,
+      "maxTotalScore": 140
     },
-    "timestamp": 1768915285702,
+    "timestamp": 1769021969501,
     "originalUrl": "https://urlhaus.abuse.ch/browse/",
     "canonicalUrl": "https://urlhaus.abuse.ch/browse",
     "riskLevel": "MEDIUM",
     "overallStatus": "warning",
     "sources": [
+      "virusTotal",
       "abuseIPDB",
       "ssl",
       "content",
@@ -1796,16 +316,18 @@
       "heuristics"
     ]
   },
-  "http://174.105.154.212:46266/i": {
+  "http://42.87.141.9:45077/bin.sh": {
     "verdict": "MALICIOUS",
-    "confidence": 0.37,
+    "confidence": 0.33,
     "metadata": {
       "riskLevel": "CRITICAL",
       "overallStatus": "danger",
       "sources": [
+        "virusTotal",
         "abuseIPDB",
         "ssl",
         "content",
+        "redirects",
         "securityHeaders",
         "googleSafeBrowsing",
         "domainAge",
@@ -1814,17 +336,24 @@
       "phases": {
         "virusTotal": {
           "name": "VirusTotal Analysis",
-          "error": "Timeout or failed",
-          "status": "warning"
+          "malicious": 1,
+          "suspicious": 0,
+          "harmless": 64,
+          "undetected": 31,
+          "total": 96,
+          "score": 0,
+          "maxScore": 25,
+          "status": "danger",
+          "mandate": "malicious"
         },
         "abuseIPDB": {
           "name": "AbuseIPDB Check",
-          "ip": "174.105.154.212",
-          "abuseConfidenceScore": 27,
-          "totalReports": 11,
-          "countryCode": "US",
-          "isp": "Charter Communications Inc",
-          "score": 11,
+          "ip": "42.87.141.9",
+          "abuseConfidenceScore": 39,
+          "totalReports": 5,
+          "countryCode": "CN",
+          "isp": "UNICOM Liaoning Province Network",
+          "score": 9,
           "maxScore": 15,
           "status": "warning"
         },
@@ -1838,17 +367,19 @@
         },
         "content": {
           "name": "Content Analysis",
-          "score": 13,
+          "score": 12,
           "maxScore": 15,
           "status": "safe",
-          "findings": [
-            "Potential obfuscated content detected"
-          ]
+          "partial": true,
+          "reason": "Content analysis unavailable"
         },
         "redirects": {
           "name": "Redirect Analysis",
-          "error": "Timeout or failed",
-          "status": "warning"
+          "redirectCount": 0,
+          "redirects": [],
+          "score": 10,
+          "maxScore": 10,
+          "status": "safe"
         },
         "securityHeaders": {
           "name": "Security Headers",
@@ -1876,7 +407,7 @@
         },
         "domainAge": {
           "name": "Domain Analysis (Heuristic)",
-          "domain": "174.105.154.212",
+          "domain": "42.87.141.9",
           "score": 0,
           "maxScore": 10,
           "status": "danger",
@@ -1906,32 +437,35 @@
         }
       },
       "verdict": "BLOCK",
-      "score": 37,
-      "totalScore": 39,
-      "maxTotalScore": 105
+      "score": 33,
+      "totalScore": 46,
+      "maxTotalScore": 140
     },
-    "timestamp": 1768915656451,
-    "originalUrl": "http://174.105.154.212:46266/i",
-    "canonicalUrl": "http://174.105.154.212:46266/i",
+    "timestamp": 1769021991009,
+    "originalUrl": "http://42.87.141.9:45077/bin.sh",
+    "canonicalUrl": "http://42.87.141.9:45077/bin.sh",
     "riskLevel": "CRITICAL",
     "overallStatus": "danger",
     "sources": [
+      "virusTotal",
       "abuseIPDB",
       "ssl",
       "content",
+      "redirects",
       "securityHeaders",
       "googleSafeBrowsing",
       "domainAge",
       "heuristics"
     ]
   },
-  "http://219.155.203.153:44171/i": {
+  "http://115.55.51.75:44601/i": {
     "verdict": "MALICIOUS",
-    "confidence": 0.45,
+    "confidence": 0.37,
     "metadata": {
       "riskLevel": "CRITICAL",
       "overallStatus": "danger",
       "sources": [
+        "virusTotal",
         "abuseIPDB",
         "ssl",
         "content",
@@ -1944,16 +478,23 @@
       "phases": {
         "virusTotal": {
           "name": "VirusTotal Analysis",
-          "error": "Timeout or failed",
-          "status": "warning"
+          "malicious": 2,
+          "suspicious": 1,
+          "harmless": 63,
+          "undetected": 30,
+          "total": 96,
+          "score": 0,
+          "maxScore": 25,
+          "status": "danger",
+          "mandate": "malicious"
         },
         "abuseIPDB": {
           "name": "AbuseIPDB Check",
-          "ip": "219.155.203.153",
+          "ip": "115.55.51.75",
           "abuseConfidenceScore": 5,
-          "totalReports": 1,
+          "totalReports": 2,
           "countryCode": "CN",
-          "isp": "China Unicom IP network",
+          "isp": "China Unicom Henan province network",
           "score": 14,
           "maxScore": 15,
           "status": "safe"
@@ -2009,525 +550,7 @@
         },
         "domainAge": {
           "name": "Domain Analysis (Heuristic)",
-          "domain": "219.155.203.153",
-          "score": 0,
-          "maxScore": 10,
-          "status": "danger",
-          "warnings": [
-            "Hostname is an IP address literal - suspicious"
-          ],
-          "isHeuristic": true
-        },
-        "heuristics": {
-          "name": "Heuristic Rules",
-          "matched": [
-            {
-              "id": "url:ip_literal",
-              "score": 15,
-              "description": "URL uses raw IP instead of domain"
-            },
-            {
-              "id": "ssl:no_https",
-              "score": 30,
-              "description": "URL does not use HTTPS"
-            }
-          ],
-          "totalSuspicion": 45,
-          "score": 0,
-          "maxScore": 25,
-          "status": "danger"
-        }
-      },
-      "verdict": "BLOCK",
-      "score": 45,
-      "totalScore": 52,
-      "maxTotalScore": 115
-    },
-    "timestamp": 1768915702132,
-    "originalUrl": "http://219.155.203.153:44171/i",
-    "canonicalUrl": "http://219.155.203.153:44171/i",
-    "riskLevel": "CRITICAL",
-    "overallStatus": "danger",
-    "sources": [
-      "abuseIPDB",
-      "ssl",
-      "content",
-      "redirects",
-      "securityHeaders",
-      "googleSafeBrowsing",
-      "domainAge",
-      "heuristics"
-    ]
-  },
-  "http://221.14.106.103:51600/i": {
-    "verdict": "MALICIOUS",
-    "confidence": 0.42,
-    "metadata": {
-      "riskLevel": "CRITICAL",
-      "overallStatus": "danger",
-      "sources": [
-        "virusTotal",
-        "abuseIPDB",
-        "ssl",
-        "content",
-        "redirects",
-        "securityHeaders",
-        "googleSafeBrowsing",
-        "domainAge",
-        "heuristics"
-      ],
-      "phases": {
-        "virusTotal": {
-          "name": "VirusTotal Analysis",
-          "error": "VirusTotal analysis not completed",
-          "score": 10,
-          "maxScore": 25,
-          "status": "warning",
-          "partial": true
-        },
-        "abuseIPDB": {
-          "name": "AbuseIPDB Check",
-          "ip": "221.14.106.103",
-          "abuseConfidenceScore": 26,
-          "totalReports": 5,
-          "countryCode": "CN",
-          "isp": "China Unicom Henan Province Network",
-          "score": 11,
-          "maxScore": 15,
-          "status": "warning"
-        },
-        "ssl": {
-          "name": "SSL Certificate",
-          "valid": false,
-          "error": "Not using HTTPS",
-          "score": 0,
-          "maxScore": 15,
-          "status": "danger"
-        },
-        "content": {
-          "name": "Content Analysis",
-          "score": 13,
-          "maxScore": 15,
-          "status": "safe",
-          "findings": [
-            "Potential obfuscated content detected"
-          ]
-        },
-        "redirects": {
-          "name": "Redirect Analysis",
-          "redirectCount": 0,
-          "redirects": [],
-          "score": 10,
-          "maxScore": 10,
-          "status": "safe"
-        },
-        "securityHeaders": {
-          "name": "Security Headers",
-          "score": 0,
-          "maxScore": 10,
-          "status": "danger",
-          "findings": [
-            "✗ Missing strict-transport-security",
-            "✗ Missing x-content-type-options",
-            "✗ Missing x-frame-options",
-            "✗ Missing x-xss-protection",
-            "✗ Missing content-security-policy",
-            "✗ Missing referrer-policy",
-            "✗ Missing permissions-policy"
-          ]
-        },
-        "googleSafeBrowsing": {
-          "name": "Google Safe Browsing",
-          "safe": true,
-          "threats": "none",
-          "matchCount": 0,
-          "score": 15,
-          "maxScore": 15,
-          "status": "safe"
-        },
-        "domainAge": {
-          "name": "Domain Analysis (Heuristic)",
-          "domain": "221.14.106.103",
-          "score": 0,
-          "maxScore": 10,
-          "status": "danger",
-          "warnings": [
-            "Hostname is an IP address literal - suspicious"
-          ],
-          "isHeuristic": true
-        },
-        "heuristics": {
-          "name": "Heuristic Rules",
-          "matched": [
-            {
-              "id": "url:ip_literal",
-              "score": 15,
-              "description": "URL uses raw IP instead of domain"
-            },
-            {
-              "id": "ssl:no_https",
-              "score": 30,
-              "description": "URL does not use HTTPS"
-            }
-          ],
-          "totalSuspicion": 45,
-          "score": 0,
-          "maxScore": 25,
-          "status": "danger"
-        }
-      },
-      "verdict": "BLOCK",
-      "score": 42,
-      "totalScore": 59,
-      "maxTotalScore": 140
-    },
-    "timestamp": 1768915979537,
-    "originalUrl": "http://221.14.106.103:51600/i",
-    "canonicalUrl": "http://221.14.106.103:51600/i",
-    "riskLevel": "CRITICAL",
-    "overallStatus": "danger",
-    "sources": [
-      "virusTotal",
-      "abuseIPDB",
-      "ssl",
-      "content",
-      "redirects",
-      "securityHeaders",
-      "googleSafeBrowsing",
-      "domainAge",
-      "heuristics"
-    ]
-  },
-  "http://59.97.177.2:44592/bin.sh": {
-    "verdict": "MALICIOUS",
-    "confidence": 0.38,
-    "metadata": {
-      "riskLevel": "CRITICAL",
-      "overallStatus": "danger",
-      "sources": [
-        "abuseIPDB",
-        "ssl",
-        "googleSafeBrowsing",
-        "domainAge",
-        "heuristics"
-      ],
-      "phases": {
-        "virusTotal": {
-          "name": "VirusTotal Analysis",
-          "error": "Timeout or failed",
-          "status": "warning"
-        },
-        "abuseIPDB": {
-          "name": "AbuseIPDB Check",
-          "ip": "59.97.177.2",
-          "abuseConfidenceScore": 0,
-          "totalReports": 0,
-          "countryCode": "IN",
-          "isp": "Broadband Multiplay Project, O/o DGM BB, NOC BSNL Bangalore",
-          "score": 15,
-          "maxScore": 15,
-          "status": "safe"
-        },
-        "ssl": {
-          "name": "SSL Certificate",
-          "valid": false,
-          "error": "Not using HTTPS",
-          "score": 0,
-          "maxScore": 15,
-          "status": "danger"
-        },
-        "content": {
-          "name": "Content Analysis",
-          "error": "Timeout or failed",
-          "status": "warning"
-        },
-        "redirects": {
-          "name": "Redirect Analysis",
-          "error": "Timeout or failed",
-          "status": "warning"
-        },
-        "securityHeaders": {
-          "name": "Security Headers",
-          "error": "Timeout or failed",
-          "status": "warning"
-        },
-        "googleSafeBrowsing": {
-          "name": "Google Safe Browsing",
-          "safe": true,
-          "threats": "none",
-          "matchCount": 0,
-          "score": 15,
-          "maxScore": 15,
-          "status": "safe"
-        },
-        "domainAge": {
-          "name": "Domain Analysis (Heuristic)",
-          "domain": "59.97.177.2",
-          "score": 0,
-          "maxScore": 10,
-          "status": "danger",
-          "warnings": [
-            "Hostname is an IP address literal - suspicious"
-          ],
-          "isHeuristic": true
-        },
-        "heuristics": {
-          "name": "Heuristic Rules",
-          "matched": [
-            {
-              "id": "url:ip_literal",
-              "score": 15,
-              "description": "URL uses raw IP instead of domain"
-            },
-            {
-              "id": "ssl:no_https",
-              "score": 30,
-              "description": "URL does not use HTTPS"
-            }
-          ],
-          "totalSuspicion": 45,
-          "score": 0,
-          "maxScore": 25,
-          "status": "danger"
-        }
-      },
-      "verdict": "BLOCK",
-      "score": 38,
-      "totalScore": 30,
-      "maxTotalScore": 80
-    },
-    "timestamp": 1768916015797,
-    "originalUrl": "http://59.97.177.2:44592/bin.sh",
-    "canonicalUrl": "http://59.97.177.2:44592/bin.sh",
-    "riskLevel": "CRITICAL",
-    "overallStatus": "danger",
-    "sources": [
-      "abuseIPDB",
-      "ssl",
-      "googleSafeBrowsing",
-      "domainAge",
-      "heuristics"
-    ]
-  },
-  "http://182.117.117.135:51795/i": {
-    "verdict": "MALICIOUS",
-    "confidence": 0.41,
-    "metadata": {
-      "riskLevel": "CRITICAL",
-      "overallStatus": "danger",
-      "sources": [
-        "virusTotal",
-        "abuseIPDB",
-        "ssl",
-        "content",
-        "redirects",
-        "securityHeaders",
-        "googleSafeBrowsing",
-        "domainAge",
-        "heuristics"
-      ],
-      "phases": {
-        "virusTotal": {
-          "name": "VirusTotal Analysis",
-          "error": "Not completed",
-          "score": 10,
-          "maxScore": 25,
-          "status": "warning",
-          "partial": true
-        },
-        "abuseIPDB": {
-          "name": "AbuseIPDB Check",
-          "ip": "182.117.117.135",
-          "abuseConfidenceScore": 34,
-          "totalReports": 5,
-          "countryCode": "CN",
-          "isp": "China Unicom Henan province network",
-          "score": 10,
-          "maxScore": 15,
-          "status": "warning"
-        },
-        "ssl": {
-          "name": "SSL Certificate",
-          "valid": false,
-          "error": "Not using HTTPS",
-          "score": 0,
-          "maxScore": 15,
-          "status": "danger"
-        },
-        "content": {
-          "name": "Content Analysis",
-          "score": 13,
-          "maxScore": 15,
-          "status": "safe",
-          "findings": [
-            "Potential obfuscated content detected"
-          ]
-        },
-        "redirects": {
-          "name": "Redirect Analysis",
-          "redirectCount": 0,
-          "redirects": [],
-          "score": 10,
-          "maxScore": 10,
-          "status": "safe"
-        },
-        "securityHeaders": {
-          "name": "Security Headers",
-          "score": 0,
-          "maxScore": 10,
-          "status": "danger",
-          "findings": [
-            "✗ Missing strict-transport-security",
-            "✗ Missing x-content-type-options",
-            "✗ Missing x-frame-options",
-            "✗ Missing x-xss-protection",
-            "✗ Missing content-security-policy",
-            "✗ Missing referrer-policy",
-            "✗ Missing permissions-policy"
-          ]
-        },
-        "googleSafeBrowsing": {
-          "name": "Google Safe Browsing",
-          "safe": true,
-          "threats": "none",
-          "matchCount": 0,
-          "score": 15,
-          "maxScore": 15,
-          "status": "safe"
-        },
-        "domainAge": {
-          "name": "Domain Analysis (Heuristic)",
-          "domain": "182.117.117.135",
-          "score": 0,
-          "maxScore": 10,
-          "status": "danger",
-          "warnings": [
-            "Hostname is an IP address literal - suspicious"
-          ],
-          "isHeuristic": true
-        },
-        "heuristics": {
-          "name": "Heuristic Rules",
-          "matched": [
-            {
-              "id": "url:ip_literal",
-              "score": 15,
-              "description": "URL uses raw IP instead of domain"
-            },
-            {
-              "id": "ssl:no_https",
-              "score": 30,
-              "description": "URL does not use HTTPS"
-            }
-          ],
-          "totalSuspicion": 45,
-          "score": 0,
-          "maxScore": 25,
-          "status": "danger"
-        }
-      },
-      "verdict": "BLOCK",
-      "score": 41,
-      "totalScore": 58,
-      "maxTotalScore": 140
-    },
-    "timestamp": 1768916524875,
-    "originalUrl": "http://182.117.117.135:51795/i",
-    "canonicalUrl": "http://182.117.117.135:51795/i",
-    "riskLevel": "CRITICAL",
-    "overallStatus": "danger",
-    "sources": [
-      "virusTotal",
-      "abuseIPDB",
-      "ssl",
-      "content",
-      "redirects",
-      "securityHeaders",
-      "googleSafeBrowsing",
-      "domainAge",
-      "heuristics"
-    ]
-  },
-  "http://61.52.46.138:58668/i": {
-    "verdict": "MALICIOUS",
-    "confidence": 0.37,
-    "metadata": {
-      "riskLevel": "CRITICAL",
-      "overallStatus": "danger",
-      "sources": [
-        "abuseIPDB",
-        "ssl",
-        "redirects",
-        "securityHeaders",
-        "googleSafeBrowsing",
-        "domainAge",
-        "heuristics"
-      ],
-      "phases": {
-        "virusTotal": {
-          "name": "VirusTotal Analysis",
-          "error": "Timeout or failed",
-          "status": "warning"
-        },
-        "abuseIPDB": {
-          "name": "AbuseIPDB Check",
-          "ip": "61.52.46.138",
-          "abuseConfidenceScore": 17,
-          "totalReports": 3,
-          "countryCode": "CN",
-          "isp": "China Unicom Henan province network",
-          "score": 12,
-          "maxScore": 15,
-          "status": "safe"
-        },
-        "ssl": {
-          "name": "SSL Certificate",
-          "valid": false,
-          "error": "Not using HTTPS",
-          "score": 0,
-          "maxScore": 15,
-          "status": "danger"
-        },
-        "content": {
-          "name": "Content Analysis",
-          "error": "Timeout or failed",
-          "status": "warning"
-        },
-        "redirects": {
-          "name": "Redirect Analysis",
-          "redirectCount": 0,
-          "redirects": [],
-          "score": 10,
-          "maxScore": 10,
-          "status": "safe"
-        },
-        "securityHeaders": {
-          "name": "Security Headers",
-          "score": 0,
-          "maxScore": 10,
-          "status": "danger",
-          "findings": [
-            "✗ Missing strict-transport-security",
-            "✗ Missing x-content-type-options",
-            "✗ Missing x-frame-options",
-            "✗ Missing x-xss-protection",
-            "✗ Missing content-security-policy",
-            "✗ Missing referrer-policy",
-            "✗ Missing permissions-policy"
-          ]
-        },
-        "googleSafeBrowsing": {
-          "name": "Google Safe Browsing",
-          "safe": true,
-          "threats": "none",
-          "matchCount": 0,
-          "score": 15,
-          "maxScore": 15,
-          "status": "safe"
-        },
-        "domainAge": {
-          "name": "Domain Analysis (Heuristic)",
-          "domain": "61.52.46.138",
+          "domain": "115.55.51.75",
           "score": 0,
           "maxScore": 10,
           "status": "danger",
@@ -2558,17 +581,19 @@
       },
       "verdict": "BLOCK",
       "score": 37,
-      "totalScore": 37,
-      "maxTotalScore": 100
+      "totalScore": 52,
+      "maxTotalScore": 140
     },
-    "timestamp": 1768916693363,
-    "originalUrl": "http://61.52.46.138:58668/i",
-    "canonicalUrl": "http://61.52.46.138:58668/i",
+    "timestamp": 1769022025197,
+    "originalUrl": "http://115.55.51.75:44601/i",
+    "canonicalUrl": "http://115.55.51.75:44601/i",
     "riskLevel": "CRITICAL",
     "overallStatus": "danger",
     "sources": [
+      "virusTotal",
       "abuseIPDB",
       "ssl",
+      "content",
       "redirects",
       "securityHeaders",
       "googleSafeBrowsing",
@@ -2576,33 +601,39 @@
       "heuristics"
     ]
   },
-  "http://d5j7scejx9.282038dhxl.top/": {
+  "http://ns2.52m3kn4.secured-dns.cc/x86": {
     "verdict": "MALICIOUS",
-    "confidence": 0.42,
+    "confidence": 0.52,
     "metadata": {
-      "riskLevel": "CRITICAL",
-      "overallStatus": "danger",
+      "riskLevel": "MEDIUM",
+      "overallStatus": "warning",
       "sources": [
+        "virusTotal",
         "abuseIPDB",
         "ssl",
+        "content",
+        "redirects",
         "securityHeaders",
         "googleSafeBrowsing",
-        "domainAge",
+        "whois",
         "heuristics"
       ],
       "phases": {
         "virusTotal": {
           "name": "VirusTotal Analysis",
-          "error": "Timeout or failed",
-          "status": "warning"
+          "score": 10,
+          "maxScore": 25,
+          "status": "warning",
+          "partial": true,
+          "reason": "VirusTotal check unavailable"
         },
         "abuseIPDB": {
           "name": "AbuseIPDB Check",
-          "ip": "38.47.248.233",
+          "ip": "158.94.208.251",
           "abuseConfidenceScore": 0,
           "totalReports": 0,
-          "countryCode": "US",
-          "isp": "HONG KONG COMMUNICATIONS INTERNATIONAL CO.,LIMITED",
+          "countryCode": "DE",
+          "isp": "Railnet LLC",
           "score": 15,
           "maxScore": 15,
           "status": "safe"
@@ -2617,13 +648,487 @@
         },
         "content": {
           "name": "Content Analysis",
-          "error": "Timeout or failed",
-          "status": "warning"
+          "score": 15,
+          "maxScore": 15,
+          "status": "safe",
+          "findings": []
         },
         "redirects": {
           "name": "Redirect Analysis",
-          "error": "Timeout or failed",
+          "redirectCount": 0,
+          "redirects": [],
+          "score": 10,
+          "maxScore": 10,
+          "status": "safe"
+        },
+        "securityHeaders": {
+          "name": "Security Headers",
+          "score": 0,
+          "maxScore": 10,
+          "status": "danger",
+          "findings": [
+            "✗ Missing strict-transport-security",
+            "✗ Missing x-content-type-options",
+            "✗ Missing x-frame-options",
+            "✗ Missing x-xss-protection",
+            "✗ Missing content-security-policy",
+            "✗ Missing referrer-policy",
+            "✗ Missing permissions-policy"
+          ]
+        },
+        "googleSafeBrowsing": {
+          "name": "Google Safe Browsing",
+          "safe": true,
+          "threats": "none",
+          "matchCount": 0,
+          "score": 15,
+          "maxScore": 15,
+          "status": "safe"
+        },
+        "whois": {
+          "name": "WHOIS Lookup",
+          "domain": "ns2.52m3kn4.secured-dns.cc",
+          "available": true,
+          "registrar": "CNOBIN INFORMATION TECHNOLOGY LIMITED",
+          "createdDate": "2024-09-24T06:19:25Z",
+          "expiresDate": "2027-09-24T06:19:25Z",
+          "ageInDays": 484,
+          "createdDateTimestamp": 1727158765000,
+          "nameServers": [
+            "MELINA.NS.CLOUDFLARE.COM",
+            "VICK.NS.CLOUDFLARE.COM"
+          ],
+          "hasPrivacy": true,
+          "score": 8,
+          "maxScore": 10,
+          "status": "safe",
+          "warnings": [
+            "WHOIS data is privacy-protected"
+          ],
+          "safeData": {
+            "domain": "ns2.52m3kn4.secured-dns.cc",
+            "ageInDays": 484,
+            "registrar": "CNOBIN INFORMATION TECHNOLOGY LIMITED",
+            "createdDate": "2024-09-24T06:19:25Z",
+            "expiresDate": "2027-09-24T06:19:25Z",
+            "hasPrivacy": true,
+            "tld": "cc"
+          }
+        },
+        "heuristics": {
+          "name": "Heuristic Rules",
+          "matched": [
+            {
+              "id": "url:suspicious_keywords",
+              "score": 10,
+              "description": "URL contains phishing-related keywords"
+            },
+            {
+              "id": "ssl:no_https",
+              "score": 30,
+              "description": "URL does not use HTTPS"
+            }
+          ],
+          "totalSuspicion": 40,
+          "score": 0,
+          "maxScore": 25,
+          "status": "danger"
+        }
+      },
+      "verdict": "WARN",
+      "score": 52,
+      "totalScore": 73,
+      "maxTotalScore": 140
+    },
+    "timestamp": 1769022046983,
+    "originalUrl": "http://ns2.52m3kn4.secured-dns.cc/x86",
+    "canonicalUrl": "http://ns2.52m3kn4.secured-dns.cc/x86",
+    "riskLevel": "MEDIUM",
+    "overallStatus": "warning",
+    "sources": [
+      "virusTotal",
+      "abuseIPDB",
+      "ssl",
+      "content",
+      "redirects",
+      "securityHeaders",
+      "googleSafeBrowsing",
+      "whois",
+      "heuristics"
+    ]
+  },
+  "http://urlhaus.abuse.ch/": {
+    "verdict": "MALICIOUS",
+    "confidence": 0.55,
+    "metadata": {
+      "riskLevel": "MEDIUM",
+      "overallStatus": "warning",
+      "sources": [
+        "virusTotal",
+        "abuseIPDB",
+        "ssl",
+        "content",
+        "redirects",
+        "securityHeaders",
+        "googleSafeBrowsing",
+        "whois",
+        "heuristics"
+      ],
+      "phases": {
+        "virusTotal": {
+          "name": "VirusTotal Analysis",
+          "score": 10,
+          "maxScore": 25,
+          "status": "warning",
+          "partial": true,
+          "reason": "VirusTotal check unavailable"
+        },
+        "abuseIPDB": {
+          "name": "AbuseIPDB Check",
+          "ip": "151.101.2.49",
+          "abuseConfidenceScore": 0,
+          "totalReports": 4,
+          "countryCode": "US",
+          "isp": "Fastly, Inc.",
+          "score": 15,
+          "maxScore": 15,
+          "status": "safe"
+        },
+        "ssl": {
+          "name": "SSL Certificate",
+          "valid": false,
+          "error": "Not using HTTPS",
+          "score": 0,
+          "maxScore": 15,
+          "status": "danger"
+        },
+        "content": {
+          "name": "Content Analysis",
+          "score": 12,
+          "maxScore": 15,
+          "status": "safe",
+          "findings": [
+            "Suspicious phrase: \"login\""
+          ]
+        },
+        "redirects": {
+          "name": "Redirect Analysis",
+          "redirectCount": 1,
+          "redirects": [
+            {
+              "from": "http://urlhaus.abuse.ch/",
+              "to": "https://urlhaus.abuse.ch/",
+              "status": 301
+            }
+          ],
+          "score": 10,
+          "maxScore": 10,
+          "status": "safe"
+        },
+        "securityHeaders": {
+          "name": "Security Headers",
+          "score": 10,
+          "maxScore": 10,
+          "status": "safe",
+          "findings": [
+            "✓ strict-transport-security",
+            "✓ x-content-type-options",
+            "✓ x-frame-options",
+            "✓ x-xss-protection",
+            "✓ content-security-policy",
+            "✓ referrer-policy",
+            "✓ permissions-policy"
+          ]
+        },
+        "googleSafeBrowsing": {
+          "name": "Google Safe Browsing",
+          "safe": true,
+          "threats": "none",
+          "matchCount": 0,
+          "score": 15,
+          "maxScore": 15,
+          "status": "safe"
+        },
+        "whois": {
+          "name": "WHOIS Lookup",
+          "domain": "urlhaus.abuse.ch",
+          "available": true,
+          "ageInDays": null,
+          "createdDateTimestamp": null,
+          "nameServers": [
+            "ns-cloud-d3.googledomains.com",
+            "ns-cloud-d4.googledomains.com",
+            "ns-cloud-d1.googledomains.com",
+            "ns-cloud-d2.googledomains.com"
+          ],
+          "hasPrivacy": false,
+          "score": 5,
+          "maxScore": 10,
+          "status": "warning",
+          "warnings": [
+            "Unable to determine domain age"
+          ],
+          "safeData": {
+            "domain": "urlhaus.abuse.ch",
+            "ageInDays": null,
+            "hasPrivacy": false,
+            "tld": "ch"
+          }
+        },
+        "heuristics": {
+          "name": "Heuristic Rules",
+          "matched": [
+            {
+              "id": "ssl:no_https",
+              "score": 30,
+              "description": "URL does not use HTTPS"
+            },
+            {
+              "id": "page:login_form",
+              "score": 20,
+              "description": "Page contains login form"
+            }
+          ],
+          "totalSuspicion": 50,
+          "score": 0,
+          "maxScore": 25,
+          "status": "danger"
+        }
+      },
+      "verdict": "WARN",
+      "score": 55,
+      "totalScore": 77,
+      "maxTotalScore": 140
+    },
+    "timestamp": 1769022156505,
+    "originalUrl": "http://urlhaus.abuse.ch/",
+    "canonicalUrl": "http://urlhaus.abuse.ch/",
+    "riskLevel": "MEDIUM",
+    "overallStatus": "warning",
+    "sources": [
+      "virusTotal",
+      "abuseIPDB",
+      "ssl",
+      "content",
+      "redirects",
+      "securityHeaders",
+      "googleSafeBrowsing",
+      "whois",
+      "heuristics"
+    ]
+  },
+  "https://urlhaus.abuse.ch/": {
+    "verdict": "MALICIOUS",
+    "confidence": 0.59,
+    "metadata": {
+      "riskLevel": "MEDIUM",
+      "overallStatus": "warning",
+      "sources": [
+        "virusTotal",
+        "abuseIPDB",
+        "ssl",
+        "content",
+        "redirects",
+        "securityHeaders",
+        "googleSafeBrowsing",
+        "whois",
+        "heuristics"
+      ],
+      "phases": {
+        "virusTotal": {
+          "name": "VirusTotal Analysis",
+          "score": 10,
+          "maxScore": 25,
+          "status": "warning",
+          "partial": true,
+          "reason": "VirusTotal check unavailable"
+        },
+        "abuseIPDB": {
+          "name": "AbuseIPDB Check",
+          "ip": "151.101.2.49",
+          "abuseConfidenceScore": 0,
+          "totalReports": 4,
+          "countryCode": "US",
+          "isp": "Fastly, Inc.",
+          "score": 15,
+          "maxScore": 15,
+          "status": "safe"
+        },
+        "ssl": {
+          "name": "SSL Certificate",
+          "valid": false,
+          "error": "No certificate found",
+          "score": 0,
+          "maxScore": 15,
+          "status": "danger"
+        },
+        "content": {
+          "name": "Content Analysis",
+          "score": 12,
+          "maxScore": 15,
+          "status": "safe",
+          "findings": [
+            "Suspicious phrase: \"login\""
+          ]
+        },
+        "redirects": {
+          "name": "Redirect Analysis",
+          "redirectCount": 0,
+          "redirects": [],
+          "score": 10,
+          "maxScore": 10,
+          "status": "safe"
+        },
+        "securityHeaders": {
+          "name": "Security Headers",
+          "score": 10,
+          "maxScore": 10,
+          "status": "safe",
+          "findings": [
+            "✓ strict-transport-security",
+            "✓ x-content-type-options",
+            "✓ x-frame-options",
+            "✓ x-xss-protection",
+            "✓ content-security-policy",
+            "✓ referrer-policy",
+            "✓ permissions-policy"
+          ]
+        },
+        "googleSafeBrowsing": {
+          "name": "Google Safe Browsing",
+          "safe": true,
+          "threats": "none",
+          "matchCount": 0,
+          "score": 15,
+          "maxScore": 15,
+          "status": "safe"
+        },
+        "whois": {
+          "name": "WHOIS Lookup",
+          "domain": "urlhaus.abuse.ch",
+          "available": true,
+          "ageInDays": null,
+          "createdDateTimestamp": null,
+          "nameServers": [
+            "ns-cloud-d3.googledomains.com",
+            "ns-cloud-d4.googledomains.com",
+            "ns-cloud-d1.googledomains.com",
+            "ns-cloud-d2.googledomains.com"
+          ],
+          "hasPrivacy": false,
+          "score": 5,
+          "maxScore": 10,
+          "status": "warning",
+          "warnings": [
+            "Unable to determine domain age"
+          ],
+          "safeData": {
+            "domain": "urlhaus.abuse.ch",
+            "ageInDays": null,
+            "hasPrivacy": false,
+            "tld": "ch"
+          }
+        },
+        "heuristics": {
+          "name": "Heuristic Rules",
+          "matched": [
+            {
+              "id": "page:login_form",
+              "score": 20,
+              "description": "Page contains login form"
+            }
+          ],
+          "totalSuspicion": 20,
+          "score": 5,
+          "maxScore": 25,
           "status": "warning"
+        }
+      },
+      "verdict": "WARN",
+      "score": 59,
+      "totalScore": 82,
+      "maxTotalScore": 140
+    },
+    "timestamp": 1769022165768,
+    "originalUrl": "https://urlhaus.abuse.ch/",
+    "canonicalUrl": "https://urlhaus.abuse.ch/",
+    "riskLevel": "MEDIUM",
+    "overallStatus": "warning",
+    "sources": [
+      "virusTotal",
+      "abuseIPDB",
+      "ssl",
+      "content",
+      "redirects",
+      "securityHeaders",
+      "googleSafeBrowsing",
+      "whois",
+      "heuristics"
+    ]
+  },
+  "http://130.12.180.43/files/meech/random.exe": {
+    "verdict": "MALICIOUS",
+    "confidence": 0.39,
+    "metadata": {
+      "riskLevel": "CRITICAL",
+      "overallStatus": "danger",
+      "sources": [
+        "virusTotal",
+        "abuseIPDB",
+        "ssl",
+        "content",
+        "redirects",
+        "securityHeaders",
+        "googleSafeBrowsing",
+        "domainAge",
+        "heuristics"
+      ],
+      "phases": {
+        "virusTotal": {
+          "name": "VirusTotal Analysis",
+          "malicious": 14,
+          "suspicious": 1,
+          "harmless": 53,
+          "undetected": 28,
+          "total": 96,
+          "score": 0,
+          "maxScore": 25,
+          "status": "danger",
+          "mandate": "malicious"
+        },
+        "abuseIPDB": {
+          "name": "AbuseIPDB Check",
+          "ip": "130.12.180.43",
+          "abuseConfidenceScore": 0,
+          "totalReports": 0,
+          "countryCode": "DE",
+          "isp": "Virtualine Technologies",
+          "score": 15,
+          "maxScore": 15,
+          "status": "safe"
+        },
+        "ssl": {
+          "name": "SSL Certificate",
+          "valid": false,
+          "error": "Not using HTTPS",
+          "score": 0,
+          "maxScore": 15,
+          "status": "danger"
+        },
+        "content": {
+          "name": "Content Analysis",
+          "score": 15,
+          "maxScore": 15,
+          "status": "safe",
+          "findings": []
+        },
+        "redirects": {
+          "name": "Redirect Analysis",
+          "redirectCount": 0,
+          "redirects": [],
+          "score": 10,
+          "maxScore": 10,
+          "status": "safe"
         },
         "securityHeaders": {
           "name": "Security Headers",
@@ -2651,12 +1156,12 @@
         },
         "domainAge": {
           "name": "Domain Analysis (Heuristic)",
-          "domain": "d5j7scejx9.282038dhxl.top",
-          "score": 8,
+          "domain": "130.12.180.43",
+          "score": 0,
           "maxScore": 10,
-          "status": "safe",
+          "status": "danger",
           "warnings": [
-            "Long numeric sequence in domain"
+            "Hostname is an IP address literal - suspicious"
           ],
           "isHeuristic": true
         },
@@ -2664,9 +1169,304 @@
           "name": "Heuristic Rules",
           "matched": [
             {
-              "id": "domain:risky_tld",
+              "id": "url:ip_literal",
+              "score": 15,
+              "description": "URL uses raw IP instead of domain"
+            },
+            {
+              "id": "ssl:no_https",
+              "score": 30,
+              "description": "URL does not use HTTPS"
+            }
+          ],
+          "totalSuspicion": 45,
+          "score": 0,
+          "maxScore": 25,
+          "status": "danger"
+        }
+      },
+      "verdict": "BLOCK",
+      "score": 39,
+      "totalScore": 55,
+      "maxTotalScore": 140
+    },
+    "timestamp": 1769022230947,
+    "originalUrl": "http://130.12.180.43/files/meech/random.exe",
+    "canonicalUrl": "http://130.12.180.43/files/meech/random.exe",
+    "riskLevel": "CRITICAL",
+    "overallStatus": "danger",
+    "sources": [
+      "virusTotal",
+      "abuseIPDB",
+      "ssl",
+      "content",
+      "redirects",
+      "securityHeaders",
+      "googleSafeBrowsing",
+      "domainAge",
+      "heuristics"
+    ]
+  },
+  "http://125.43.124.82:56528/i": {
+    "verdict": "MALICIOUS",
+    "confidence": 0.44,
+    "metadata": {
+      "riskLevel": "CRITICAL",
+      "overallStatus": "danger",
+      "sources": [
+        "virusTotal",
+        "abuseIPDB",
+        "ssl",
+        "content",
+        "redirects",
+        "securityHeaders",
+        "googleSafeBrowsing",
+        "domainAge",
+        "heuristics"
+      ],
+      "phases": {
+        "virusTotal": {
+          "name": "VirusTotal Analysis",
+          "score": 10,
+          "maxScore": 25,
+          "status": "warning",
+          "partial": true,
+          "reason": "VirusTotal check unavailable"
+        },
+        "abuseIPDB": {
+          "name": "AbuseIPDB Check",
+          "ip": "125.43.124.82",
+          "abuseConfidenceScore": 5,
+          "totalReports": 2,
+          "countryCode": "CN",
+          "isp": "China Unicom Henan province network",
+          "score": 14,
+          "maxScore": 15,
+          "status": "safe"
+        },
+        "ssl": {
+          "name": "SSL Certificate",
+          "valid": false,
+          "error": "Not using HTTPS",
+          "score": 0,
+          "maxScore": 15,
+          "status": "danger"
+        },
+        "content": {
+          "name": "Content Analysis",
+          "score": 13,
+          "maxScore": 15,
+          "status": "safe",
+          "findings": [
+            "Potential obfuscated content detected"
+          ]
+        },
+        "redirects": {
+          "name": "Redirect Analysis",
+          "redirectCount": 0,
+          "redirects": [],
+          "score": 10,
+          "maxScore": 10,
+          "status": "safe"
+        },
+        "securityHeaders": {
+          "name": "Security Headers",
+          "score": 0,
+          "maxScore": 10,
+          "status": "danger",
+          "findings": [
+            "✗ Missing strict-transport-security",
+            "✗ Missing x-content-type-options",
+            "✗ Missing x-frame-options",
+            "✗ Missing x-xss-protection",
+            "✗ Missing content-security-policy",
+            "✗ Missing referrer-policy",
+            "✗ Missing permissions-policy"
+          ]
+        },
+        "googleSafeBrowsing": {
+          "name": "Google Safe Browsing",
+          "safe": true,
+          "threats": "none",
+          "matchCount": 0,
+          "score": 15,
+          "maxScore": 15,
+          "status": "safe"
+        },
+        "domainAge": {
+          "name": "Domain Analysis (Heuristic)",
+          "domain": "125.43.124.82",
+          "score": 0,
+          "maxScore": 10,
+          "status": "danger",
+          "warnings": [
+            "Hostname is an IP address literal - suspicious"
+          ],
+          "isHeuristic": true
+        },
+        "heuristics": {
+          "name": "Heuristic Rules",
+          "matched": [
+            {
+              "id": "url:ip_literal",
+              "score": 15,
+              "description": "URL uses raw IP instead of domain"
+            },
+            {
+              "id": "ssl:no_https",
+              "score": 30,
+              "description": "URL does not use HTTPS"
+            }
+          ],
+          "totalSuspicion": 45,
+          "score": 0,
+          "maxScore": 25,
+          "status": "danger"
+        }
+      },
+      "verdict": "BLOCK",
+      "score": 44,
+      "totalScore": 62,
+      "maxTotalScore": 140
+    },
+    "timestamp": 1769024827794,
+    "originalUrl": "http://125.43.124.82:56528/i",
+    "canonicalUrl": "http://125.43.124.82:56528/i",
+    "riskLevel": "CRITICAL",
+    "overallStatus": "danger",
+    "sources": [
+      "virusTotal",
+      "abuseIPDB",
+      "ssl",
+      "content",
+      "redirects",
+      "securityHeaders",
+      "googleSafeBrowsing",
+      "domainAge",
+      "heuristics"
+    ]
+  },
+  "http://ns2.52m3kn4.secured-dns.cc/mpsl": {
+    "verdict": "MALICIOUS",
+    "confidence": 0.52,
+    "metadata": {
+      "riskLevel": "MEDIUM",
+      "overallStatus": "warning",
+      "sources": [
+        "virusTotal",
+        "abuseIPDB",
+        "ssl",
+        "content",
+        "redirects",
+        "securityHeaders",
+        "googleSafeBrowsing",
+        "whois",
+        "heuristics"
+      ],
+      "phases": {
+        "virusTotal": {
+          "name": "VirusTotal Analysis",
+          "score": 10,
+          "maxScore": 25,
+          "status": "warning",
+          "partial": true,
+          "reason": "VirusTotal check unavailable"
+        },
+        "abuseIPDB": {
+          "name": "AbuseIPDB Check",
+          "ip": "158.94.208.251",
+          "abuseConfidenceScore": 0,
+          "totalReports": 0,
+          "countryCode": "DE",
+          "isp": "Railnet LLC",
+          "score": 15,
+          "maxScore": 15,
+          "status": "safe"
+        },
+        "ssl": {
+          "name": "SSL Certificate",
+          "valid": false,
+          "error": "Not using HTTPS",
+          "score": 0,
+          "maxScore": 15,
+          "status": "danger"
+        },
+        "content": {
+          "name": "Content Analysis",
+          "score": 15,
+          "maxScore": 15,
+          "status": "safe",
+          "findings": []
+        },
+        "redirects": {
+          "name": "Redirect Analysis",
+          "redirectCount": 0,
+          "redirects": [],
+          "score": 10,
+          "maxScore": 10,
+          "status": "safe"
+        },
+        "securityHeaders": {
+          "name": "Security Headers",
+          "score": 0,
+          "maxScore": 10,
+          "status": "danger",
+          "findings": [
+            "✗ Missing strict-transport-security",
+            "✗ Missing x-content-type-options",
+            "✗ Missing x-frame-options",
+            "✗ Missing x-xss-protection",
+            "✗ Missing content-security-policy",
+            "✗ Missing referrer-policy",
+            "✗ Missing permissions-policy"
+          ]
+        },
+        "googleSafeBrowsing": {
+          "name": "Google Safe Browsing",
+          "safe": true,
+          "threats": "none",
+          "matchCount": 0,
+          "score": 15,
+          "maxScore": 15,
+          "status": "safe"
+        },
+        "whois": {
+          "name": "WHOIS Lookup",
+          "domain": "ns2.52m3kn4.secured-dns.cc",
+          "available": true,
+          "registrar": "CNOBIN INFORMATION TECHNOLOGY LIMITED",
+          "createdDate": "2024-09-24T06:19:25Z",
+          "expiresDate": "2027-09-24T06:19:25Z",
+          "ageInDays": 484,
+          "createdDateTimestamp": 1727158765000,
+          "nameServers": [
+            "MELINA.NS.CLOUDFLARE.COM",
+            "VICK.NS.CLOUDFLARE.COM"
+          ],
+          "hasPrivacy": true,
+          "score": 8,
+          "maxScore": 10,
+          "status": "safe",
+          "warnings": [
+            "WHOIS data is privacy-protected"
+          ],
+          "safeData": {
+            "domain": "ns2.52m3kn4.secured-dns.cc",
+            "ageInDays": 484,
+            "registrar": "CNOBIN INFORMATION TECHNOLOGY LIMITED",
+            "createdDate": "2024-09-24T06:19:25Z",
+            "expiresDate": "2027-09-24T06:19:25Z",
+            "hasPrivacy": true,
+            "tld": "cc"
+          }
+        },
+        "heuristics": {
+          "name": "Heuristic Rules",
+          "matched": [
+            {
+              "id": "url:suspicious_keywords",
               "score": 10,
-              "description": "Domain uses high-risk TLD"
+              "description": "URL contains phishing-related keywords"
             },
             {
               "id": "ssl:no_https",
@@ -2680,32 +1480,36 @@
           "status": "danger"
         }
       },
-      "verdict": "BLOCK",
-      "score": 42,
-      "totalScore": 38,
-      "maxTotalScore": 90
+      "verdict": "WARN",
+      "score": 52,
+      "totalScore": 73,
+      "maxTotalScore": 140
     },
-    "timestamp": 1768916739305,
-    "originalUrl": "http://d5j7scejx9.282038dhxl.top/",
-    "canonicalUrl": "http://d5j7scejx9.282038dhxl.top/",
-    "riskLevel": "CRITICAL",
-    "overallStatus": "danger",
+    "timestamp": 1769024859344,
+    "originalUrl": "http://ns2.52m3kn4.secured-dns.cc/mpsl",
+    "canonicalUrl": "http://ns2.52m3kn4.secured-dns.cc/mpsl",
+    "riskLevel": "MEDIUM",
+    "overallStatus": "warning",
     "sources": [
+      "virusTotal",
       "abuseIPDB",
       "ssl",
+      "content",
+      "redirects",
       "securityHeaders",
       "googleSafeBrowsing",
-      "domainAge",
+      "whois",
       "heuristics"
     ]
   },
   "https://guardian-link-six.vercel.app/": {
     "verdict": "MALICIOUS",
-    "confidence": 0.71,
+    "confidence": 0.66,
     "metadata": {
       "riskLevel": "MEDIUM",
       "overallStatus": "warning",
       "sources": [
+        "virusTotal",
         "abuseIPDB",
         "ssl",
         "content",
@@ -2718,12 +1522,15 @@
       "phases": {
         "virusTotal": {
           "name": "VirusTotal Analysis",
-          "error": "Timeout or failed",
-          "status": "warning"
+          "score": 10,
+          "maxScore": 25,
+          "status": "warning",
+          "partial": true,
+          "reason": "VirusTotal check unavailable"
         },
         "abuseIPDB": {
           "name": "AbuseIPDB Check",
-          "ip": "64.29.17.67",
+          "ip": "216.198.79.67",
           "abuseConfidenceScore": 0,
           "totalReports": 1,
           "countryCode": "US",
@@ -2738,7 +1545,7 @@
           "issuer": "Google Trust Services",
           "validFrom": "2025-12-26T17:44:01.000Z",
           "validTo": "2026-03-26T17:44:00.000Z",
-          "daysUntilExpiry": 65,
+          "daysUntilExpiry": 63,
           "score": 15,
           "maxScore": 15,
           "status": "safe"
@@ -2807,16 +1614,17 @@
         }
       },
       "verdict": "WARN",
-      "score": 71,
-      "totalScore": 82,
-      "maxTotalScore": 115
+      "score": 66,
+      "totalScore": 92,
+      "maxTotalScore": 140
     },
-    "timestamp": 1768916811394,
+    "timestamp": 1769053792919,
     "originalUrl": "https://guardian-link-six.vercel.app/",
     "canonicalUrl": "https://guardian-link-six.vercel.app/",
     "riskLevel": "MEDIUM",
     "overallStatus": "warning",
     "sources": [
+      "virusTotal",
       "abuseIPDB",
       "ssl",
       "content",
@@ -2827,12 +1635,12 @@
       "heuristics"
     ]
   },
-  "http://158.94.208.251/i486": {
+  "https://www.imageresizeonline.com/convert-image-to-48x48-pixels.php": {
     "verdict": "MALICIOUS",
-    "confidence": 0.46,
+    "confidence": 0.61,
     "metadata": {
-      "riskLevel": "CRITICAL",
-      "overallStatus": "danger",
+      "riskLevel": "MEDIUM",
+      "overallStatus": "warning",
       "sources": [
         "virusTotal",
         "abuseIPDB",
@@ -2855,22 +1663,25 @@
         },
         "abuseIPDB": {
           "name": "AbuseIPDB Check",
-          "ip": "158.94.208.251",
+          "ip": "166.62.10.189",
           "abuseConfidenceScore": 0,
           "totalReports": 0,
-          "countryCode": "DE",
-          "isp": "Railnet LLC",
+          "countryCode": "SG",
+          "isp": "GoDaddy.com, LLC",
           "score": 15,
           "maxScore": 15,
           "status": "safe"
         },
         "ssl": {
           "name": "SSL Certificate",
-          "valid": false,
-          "error": "Not using HTTPS",
-          "score": 0,
+          "valid": true,
+          "issuer": "SSL Corporation",
+          "validFrom": "2025-02-06T16:17:54.000Z",
+          "validTo": "2026-02-06T16:17:54.000Z",
+          "daysUntilExpiry": 15,
+          "score": 10,
           "maxScore": 15,
-          "status": "danger"
+          "status": "warning"
         },
         "content": {
           "name": "Content Analysis",
@@ -2913,7 +1724,567 @@
         },
         "domainAge": {
           "name": "Domain Analysis (Heuristic)",
-          "domain": "158.94.208.251",
+          "domain": "www.imageresizeonline.com",
+          "score": 10,
+          "maxScore": 10,
+          "status": "safe",
+          "warnings": [],
+          "isHeuristic": true
+        },
+        "heuristics": {
+          "name": "Heuristic Rules",
+          "matched": [
+            {
+              "id": "ssl:domain_mismatch",
+              "score": 30,
+              "description": "Certificate domain does not match URL"
+            }
+          ],
+          "totalSuspicion": 30,
+          "score": 0,
+          "maxScore": 25,
+          "status": "danger"
+        }
+      },
+      "verdict": "WARN",
+      "score": 61,
+      "totalScore": 85,
+      "maxTotalScore": 140
+    },
+    "timestamp": 1769054177314,
+    "originalUrl": "https://www.imageresizeonline.com/convert-image-to-48x48-pixels.php",
+    "canonicalUrl": "https://www.imageresizeonline.com/convert-image-to-48x48-pixels.php",
+    "riskLevel": "MEDIUM",
+    "overallStatus": "warning",
+    "sources": [
+      "virusTotal",
+      "abuseIPDB",
+      "ssl",
+      "content",
+      "redirects",
+      "securityHeaders",
+      "googleSafeBrowsing",
+      "domainAge",
+      "heuristics"
+    ]
+  },
+  "https://www.cutout.pro/photo-enhancer-sharpener-upscaler": {
+    "verdict": "MALICIOUS",
+    "confidence": 0.59,
+    "metadata": {
+      "riskLevel": "MEDIUM",
+      "overallStatus": "warning",
+      "sources": [
+        "virusTotal",
+        "abuseIPDB",
+        "ssl",
+        "content",
+        "redirects",
+        "securityHeaders",
+        "googleSafeBrowsing",
+        "whois",
+        "heuristics"
+      ],
+      "phases": {
+        "virusTotal": {
+          "name": "VirusTotal Analysis",
+          "score": 10,
+          "maxScore": 25,
+          "status": "warning",
+          "partial": true,
+          "reason": "VirusTotal check unavailable"
+        },
+        "abuseIPDB": {
+          "name": "AbuseIPDB Check",
+          "ip": "15.197.155.154",
+          "abuseConfidenceScore": 0,
+          "totalReports": 0,
+          "countryCode": "US",
+          "isp": "Amazon Technologies Inc.",
+          "score": 15,
+          "maxScore": 15,
+          "status": "safe"
+        },
+        "ssl": {
+          "name": "SSL Certificate",
+          "valid": true,
+          "issuer": "Amazon",
+          "validFrom": "2026-01-20T00:00:00.000Z",
+          "validTo": "2027-02-18T23:59:59.000Z",
+          "daysUntilExpiry": 392,
+          "score": 15,
+          "maxScore": 15,
+          "status": "safe"
+        },
+        "content": {
+          "name": "Content Analysis",
+          "score": 10,
+          "maxScore": 15,
+          "status": "safe",
+          "findings": [
+            "Suspicious phrase: \"login\"",
+            "Potential obfuscated content detected"
+          ]
+        },
+        "redirects": {
+          "name": "Redirect Analysis",
+          "redirectCount": 0,
+          "redirects": [],
+          "score": 10,
+          "maxScore": 10,
+          "status": "safe"
+        },
+        "securityHeaders": {
+          "name": "Security Headers",
+          "score": 0,
+          "maxScore": 10,
+          "status": "danger",
+          "findings": [
+            "✗ Missing strict-transport-security",
+            "✗ Missing x-content-type-options",
+            "✗ Missing x-frame-options",
+            "✗ Missing x-xss-protection",
+            "✗ Missing content-security-policy",
+            "✗ Missing referrer-policy",
+            "✗ Missing permissions-policy"
+          ]
+        },
+        "googleSafeBrowsing": {
+          "name": "Google Safe Browsing",
+          "safe": true,
+          "threats": "none",
+          "matchCount": 0,
+          "score": 15,
+          "maxScore": 15,
+          "status": "safe"
+        },
+        "whois": {
+          "name": "WHOIS Lookup",
+          "domain": "www.cutout.pro",
+          "available": true,
+          "registrar": "Amazon Registrar, Inc.",
+          "createdDate": "2020-08-24T02:54:53.037Z",
+          "expiresDate": "2027-08-24T02:54:53.037Z",
+          "ageInDays": 1977,
+          "createdDateTimestamp": 1598237693037,
+          "nameServers": [
+            "ns-1185.awsdns-20.org",
+            "ns-586.awsdns-09.net",
+            "ns-1922.awsdns-48.co.uk",
+            "ns-196.awsdns-24.com"
+          ],
+          "hasPrivacy": true,
+          "score": 8,
+          "maxScore": 10,
+          "status": "safe",
+          "warnings": [
+            "WHOIS data is privacy-protected"
+          ],
+          "safeData": {
+            "domain": "www.cutout.pro",
+            "ageInDays": 1977,
+            "registrar": "Amazon Registrar, Inc.",
+            "createdDate": "2020-08-24T02:54:53.037Z",
+            "expiresDate": "2027-08-24T02:54:53.037Z",
+            "hasPrivacy": true,
+            "tld": "pro"
+          }
+        },
+        "heuristics": {
+          "name": "Heuristic Rules",
+          "matched": [
+            {
+              "id": "ssl:domain_mismatch",
+              "score": 30,
+              "description": "Certificate domain does not match URL"
+            },
+            {
+              "id": "page:login_form",
+              "score": 20,
+              "description": "Page contains login form"
+            }
+          ],
+          "totalSuspicion": 50,
+          "score": 0,
+          "maxScore": 25,
+          "status": "danger"
+        }
+      },
+      "verdict": "WARN",
+      "score": 59,
+      "totalScore": 83,
+      "maxTotalScore": 140
+    },
+    "timestamp": 1769054390939,
+    "originalUrl": "https://www.cutout.pro/photo-enhancer-sharpener-upscaler",
+    "canonicalUrl": "https://www.cutout.pro/photo-enhancer-sharpener-upscaler",
+    "riskLevel": "MEDIUM",
+    "overallStatus": "warning",
+    "sources": [
+      "virusTotal",
+      "abuseIPDB",
+      "ssl",
+      "content",
+      "redirects",
+      "securityHeaders",
+      "googleSafeBrowsing",
+      "whois",
+      "heuristics"
+    ]
+  },
+  "https://urlhaus.abuse.ch/url/3761541": {
+    "verdict": "MALICIOUS",
+    "confidence": 0.66,
+    "metadata": {
+      "riskLevel": "MEDIUM",
+      "overallStatus": "warning",
+      "sources": [
+        "virusTotal",
+        "abuseIPDB",
+        "ssl",
+        "content",
+        "redirects",
+        "securityHeaders",
+        "googleSafeBrowsing",
+        "whois",
+        "heuristics"
+      ],
+      "phases": {
+        "virusTotal": {
+          "name": "VirusTotal Analysis",
+          "score": 10,
+          "maxScore": 25,
+          "status": "warning",
+          "partial": true,
+          "reason": "VirusTotal check unavailable"
+        },
+        "abuseIPDB": {
+          "name": "AbuseIPDB Check",
+          "ip": "151.101.2.49",
+          "abuseConfidenceScore": 0,
+          "totalReports": 4,
+          "countryCode": "US",
+          "isp": "Fastly, Inc.",
+          "score": 15,
+          "maxScore": 15,
+          "status": "safe"
+        },
+        "ssl": {
+          "name": "SSL Certificate",
+          "valid": true,
+          "issuer": "GlobalSign nv-sa",
+          "validFrom": "2025-12-09T19:10:16.000Z",
+          "validTo": "2027-01-10T19:10:15.000Z",
+          "daysUntilExpiry": 353,
+          "score": 15,
+          "maxScore": 15,
+          "status": "safe"
+        },
+        "content": {
+          "name": "Content Analysis",
+          "score": 12,
+          "maxScore": 15,
+          "status": "safe",
+          "findings": [
+            "Suspicious phrase: \"login\""
+          ]
+        },
+        "redirects": {
+          "name": "Redirect Analysis",
+          "redirectCount": 1,
+          "redirects": [
+            {
+              "from": "https://urlhaus.abuse.ch/url/3761541/",
+              "to": "https://urlhaus.abuse.ch/verify-ua/",
+              "status": 307
+            }
+          ],
+          "score": 10,
+          "maxScore": 10,
+          "status": "safe"
+        },
+        "securityHeaders": {
+          "name": "Security Headers",
+          "score": 10,
+          "maxScore": 10,
+          "status": "safe",
+          "findings": [
+            "✓ strict-transport-security",
+            "✓ x-content-type-options",
+            "✓ x-frame-options",
+            "✓ x-xss-protection",
+            "✓ content-security-policy",
+            "✓ referrer-policy",
+            "✓ permissions-policy"
+          ]
+        },
+        "googleSafeBrowsing": {
+          "name": "Google Safe Browsing",
+          "safe": true,
+          "threats": "none",
+          "matchCount": 0,
+          "score": 15,
+          "maxScore": 15,
+          "status": "safe"
+        },
+        "whois": {
+          "name": "WHOIS Lookup",
+          "domain": "urlhaus.abuse.ch",
+          "available": true,
+          "ageInDays": null,
+          "createdDateTimestamp": null,
+          "nameServers": [
+            "ns-cloud-d3.googledomains.com",
+            "ns-cloud-d4.googledomains.com",
+            "ns-cloud-d1.googledomains.com",
+            "ns-cloud-d2.googledomains.com"
+          ],
+          "hasPrivacy": false,
+          "score": 5,
+          "maxScore": 10,
+          "status": "warning",
+          "warnings": [
+            "Unable to determine domain age"
+          ],
+          "safeData": {
+            "domain": "urlhaus.abuse.ch",
+            "ageInDays": null,
+            "hasPrivacy": false,
+            "tld": "ch"
+          }
+        },
+        "heuristics": {
+          "name": "Heuristic Rules",
+          "matched": [
+            {
+              "id": "ssl:domain_mismatch",
+              "score": 30,
+              "description": "Certificate domain does not match URL"
+            },
+            {
+              "id": "page:login_form",
+              "score": 20,
+              "description": "Page contains login form"
+            }
+          ],
+          "totalSuspicion": 50,
+          "score": 0,
+          "maxScore": 25,
+          "status": "danger"
+        }
+      },
+      "verdict": "WARN",
+      "score": 66,
+      "totalScore": 92,
+      "maxTotalScore": 140
+    },
+    "timestamp": 1769063839450,
+    "originalUrl": "https://urlhaus.abuse.ch/url/3761541/",
+    "canonicalUrl": "https://urlhaus.abuse.ch/url/3761541",
+    "riskLevel": "MEDIUM",
+    "overallStatus": "warning",
+    "sources": [
+      "virusTotal",
+      "abuseIPDB",
+      "ssl",
+      "content",
+      "redirects",
+      "securityHeaders",
+      "googleSafeBrowsing",
+      "whois",
+      "heuristics"
+    ]
+  },
+  "https://urlhaus.abuse.ch/url/3761540": {
+    "verdict": "MALICIOUS",
+    "confidence": 0.77,
+    "metadata": {
+      "riskLevel": "MEDIUM",
+      "overallStatus": "warning",
+      "sources": [
+        "virusTotal",
+        "abuseIPDB",
+        "ssl",
+        "content",
+        "redirects",
+        "securityHeaders",
+        "googleSafeBrowsing",
+        "domainAge",
+        "heuristics"
+      ],
+      "phases": {
+        "virusTotal": {
+          "name": "VirusTotal Analysis",
+          "error": "Request timeout after 2500ms",
+          "score": 10,
+          "maxScore": 25,
+          "status": "warning",
+          "partial": true
+        },
+        "abuseIPDB": {
+          "name": "AbuseIPDB Check",
+          "error": "Could not resolve domain",
+          "score": 15,
+          "maxScore": 15,
+          "status": "warning"
+        },
+        "ssl": {
+          "name": "SSL Certificate",
+          "score": 8,
+          "maxScore": 15,
+          "status": "warning",
+          "partial": true,
+          "reason": "SSL check unavailable"
+        },
+        "content": {
+          "name": "Content Analysis",
+          "score": 12,
+          "maxScore": 15,
+          "status": "safe",
+          "partial": true,
+          "reason": "Content analysis unavailable"
+        },
+        "redirects": {
+          "name": "Redirect Analysis",
+          "score": 10,
+          "maxScore": 10,
+          "status": "safe",
+          "partial": true,
+          "reason": "Redirect analysis unavailable"
+        },
+        "securityHeaders": {
+          "name": "Security Headers",
+          "score": 5,
+          "maxScore": 10,
+          "status": "warning",
+          "partial": true,
+          "reason": "Security headers check unavailable"
+        },
+        "googleSafeBrowsing": {
+          "name": "Google Safe Browsing",
+          "score": 13,
+          "maxScore": 15,
+          "status": "safe",
+          "partial": true,
+          "reason": "Google Safe Browsing check unavailable"
+        },
+        "domainAge": {
+          "name": "Domain Analysis (Heuristic)",
+          "domain": "urlhaus.abuse.ch",
+          "score": 10,
+          "maxScore": 10,
+          "status": "safe",
+          "warnings": [],
+          "isHeuristic": true
+        },
+        "heuristics": {
+          "name": "Heuristic Rules",
+          "matched": [],
+          "totalSuspicion": 0,
+          "score": 25,
+          "maxScore": 25,
+          "status": "safe"
+        }
+      },
+      "verdict": "WARN",
+      "score": 77,
+      "totalScore": 108,
+      "maxTotalScore": 140
+    },
+    "timestamp": 1769063988871,
+    "originalUrl": "https://urlhaus.abuse.ch/url/3761540/",
+    "canonicalUrl": "https://urlhaus.abuse.ch/url/3761540",
+    "riskLevel": "MEDIUM",
+    "overallStatus": "warning",
+    "sources": [
+      "virusTotal",
+      "abuseIPDB",
+      "ssl",
+      "content",
+      "redirects",
+      "securityHeaders",
+      "googleSafeBrowsing",
+      "domainAge",
+      "heuristics"
+    ]
+  },
+  "http://125.41.74.253:47923/bin.sh": {
+    "verdict": "MALICIOUS",
+    "confidence": 0.44,
+    "metadata": {
+      "riskLevel": "CRITICAL",
+      "overallStatus": "danger",
+      "sources": [
+        "virusTotal",
+        "abuseIPDB",
+        "ssl",
+        "content",
+        "redirects",
+        "securityHeaders",
+        "googleSafeBrowsing",
+        "domainAge",
+        "heuristics"
+      ],
+      "phases": {
+        "virusTotal": {
+          "name": "VirusTotal Analysis",
+          "error": "Request timeout after 2500ms",
+          "score": 10,
+          "maxScore": 25,
+          "status": "warning",
+          "partial": true
+        },
+        "abuseIPDB": {
+          "name": "AbuseIPDB Check",
+          "score": 12,
+          "maxScore": 15,
+          "status": "safe",
+          "partial": true,
+          "reason": "IP reputation check unavailable"
+        },
+        "ssl": {
+          "name": "SSL Certificate",
+          "valid": false,
+          "error": "Not using HTTPS",
+          "score": 0,
+          "maxScore": 15,
+          "status": "danger"
+        },
+        "content": {
+          "name": "Content Analysis",
+          "score": 12,
+          "maxScore": 15,
+          "status": "safe",
+          "partial": true,
+          "reason": "Content analysis unavailable"
+        },
+        "redirects": {
+          "name": "Redirect Analysis",
+          "score": 10,
+          "maxScore": 10,
+          "status": "safe",
+          "partial": true,
+          "reason": "Redirect analysis unavailable"
+        },
+        "securityHeaders": {
+          "name": "Security Headers",
+          "score": 5,
+          "maxScore": 10,
+          "status": "warning",
+          "partial": true,
+          "reason": "Security headers check unavailable"
+        },
+        "googleSafeBrowsing": {
+          "name": "Google Safe Browsing",
+          "score": 13,
+          "maxScore": 15,
+          "status": "safe",
+          "partial": true,
+          "reason": "Google Safe Browsing check unavailable"
+        },
+        "domainAge": {
+          "name": "Domain Analysis (Heuristic)",
+          "domain": "125.41.74.253",
           "score": 0,
           "maxScore": 10,
           "status": "danger",
@@ -2943,13 +2314,13 @@
         }
       },
       "verdict": "BLOCK",
-      "score": 46,
-      "totalScore": 65,
+      "score": 44,
+      "totalScore": 62,
       "maxTotalScore": 140
     },
-    "timestamp": 1768917167607,
-    "originalUrl": "http://158.94.208.251/i486",
-    "canonicalUrl": "http://158.94.208.251/i486",
+    "timestamp": 1769064676892,
+    "originalUrl": "http://125.41.74.253:47923/bin.sh",
+    "canonicalUrl": "http://125.41.74.253:47923/bin.sh",
     "riskLevel": "CRITICAL",
     "overallStatus": "danger",
     "sources": [
@@ -2964,9 +2335,743 @@
       "heuristics"
     ]
   },
-  "http://158.94.208.251/x86": {
+  "https://urlhaus.abuse.ch/url/3761789": {
     "verdict": "MALICIOUS",
-    "confidence": 0.46,
+    "confidence": 0.77,
+    "metadata": {
+      "riskLevel": "MEDIUM",
+      "overallStatus": "warning",
+      "sources": [
+        "virusTotal",
+        "abuseIPDB",
+        "ssl",
+        "content",
+        "redirects",
+        "securityHeaders",
+        "googleSafeBrowsing",
+        "domainAge",
+        "heuristics"
+      ],
+      "phases": {
+        "virusTotal": {
+          "name": "VirusTotal Analysis",
+          "error": "Request timeout after 2500ms",
+          "score": 10,
+          "maxScore": 25,
+          "status": "warning",
+          "partial": true
+        },
+        "abuseIPDB": {
+          "name": "AbuseIPDB Check",
+          "error": "Could not resolve domain",
+          "score": 15,
+          "maxScore": 15,
+          "status": "warning"
+        },
+        "ssl": {
+          "name": "SSL Certificate",
+          "score": 8,
+          "maxScore": 15,
+          "status": "warning",
+          "partial": true,
+          "reason": "SSL check unavailable"
+        },
+        "content": {
+          "name": "Content Analysis",
+          "score": 12,
+          "maxScore": 15,
+          "status": "safe",
+          "partial": true,
+          "reason": "Content analysis unavailable"
+        },
+        "redirects": {
+          "name": "Redirect Analysis",
+          "score": 10,
+          "maxScore": 10,
+          "status": "safe",
+          "partial": true,
+          "reason": "Redirect analysis unavailable"
+        },
+        "securityHeaders": {
+          "name": "Security Headers",
+          "score": 5,
+          "maxScore": 10,
+          "status": "warning",
+          "partial": true,
+          "reason": "Security headers check unavailable"
+        },
+        "googleSafeBrowsing": {
+          "name": "Google Safe Browsing",
+          "score": 13,
+          "maxScore": 15,
+          "status": "safe",
+          "partial": true,
+          "reason": "Google Safe Browsing check unavailable"
+        },
+        "domainAge": {
+          "name": "Domain Analysis (Heuristic)",
+          "domain": "urlhaus.abuse.ch",
+          "score": 10,
+          "maxScore": 10,
+          "status": "safe",
+          "warnings": [],
+          "isHeuristic": true
+        },
+        "heuristics": {
+          "name": "Heuristic Rules",
+          "matched": [],
+          "totalSuspicion": 0,
+          "score": 25,
+          "maxScore": 25,
+          "status": "safe"
+        }
+      },
+      "verdict": "WARN",
+      "score": 77,
+      "totalScore": 108,
+      "maxTotalScore": 140
+    },
+    "timestamp": 1769065078107,
+    "originalUrl": "https://urlhaus.abuse.ch/url/3761789/",
+    "canonicalUrl": "https://urlhaus.abuse.ch/url/3761789",
+    "riskLevel": "MEDIUM",
+    "overallStatus": "warning",
+    "sources": [
+      "virusTotal",
+      "abuseIPDB",
+      "ssl",
+      "content",
+      "redirects",
+      "securityHeaders",
+      "googleSafeBrowsing",
+      "domainAge",
+      "heuristics"
+    ]
+  },
+  "http://59.88.232.89:45131/i": {
+    "verdict": "MALICIOUS",
+    "confidence": 0.44,
+    "metadata": {
+      "riskLevel": "CRITICAL",
+      "overallStatus": "danger",
+      "sources": [
+        "virusTotal",
+        "abuseIPDB",
+        "ssl",
+        "content",
+        "redirects",
+        "securityHeaders",
+        "googleSafeBrowsing",
+        "domainAge",
+        "heuristics"
+      ],
+      "phases": {
+        "virusTotal": {
+          "name": "VirusTotal Analysis",
+          "error": "Request timeout after 2500ms",
+          "score": 10,
+          "maxScore": 25,
+          "status": "warning",
+          "partial": true
+        },
+        "abuseIPDB": {
+          "name": "AbuseIPDB Check",
+          "score": 12,
+          "maxScore": 15,
+          "status": "safe",
+          "partial": true,
+          "reason": "IP reputation check unavailable"
+        },
+        "ssl": {
+          "name": "SSL Certificate",
+          "valid": false,
+          "error": "Not using HTTPS",
+          "score": 0,
+          "maxScore": 15,
+          "status": "danger"
+        },
+        "content": {
+          "name": "Content Analysis",
+          "score": 12,
+          "maxScore": 15,
+          "status": "safe",
+          "partial": true,
+          "reason": "Content analysis unavailable"
+        },
+        "redirects": {
+          "name": "Redirect Analysis",
+          "score": 10,
+          "maxScore": 10,
+          "status": "safe",
+          "partial": true,
+          "reason": "Redirect analysis unavailable"
+        },
+        "securityHeaders": {
+          "name": "Security Headers",
+          "score": 5,
+          "maxScore": 10,
+          "status": "warning",
+          "partial": true,
+          "reason": "Security headers check unavailable"
+        },
+        "googleSafeBrowsing": {
+          "name": "Google Safe Browsing",
+          "score": 13,
+          "maxScore": 15,
+          "status": "safe",
+          "partial": true,
+          "reason": "Google Safe Browsing check unavailable"
+        },
+        "domainAge": {
+          "name": "Domain Analysis (Heuristic)",
+          "domain": "59.88.232.89",
+          "score": 0,
+          "maxScore": 10,
+          "status": "danger",
+          "warnings": [
+            "Hostname is an IP address literal - suspicious"
+          ],
+          "isHeuristic": true
+        },
+        "heuristics": {
+          "name": "Heuristic Rules",
+          "matched": [
+            {
+              "id": "url:ip_literal",
+              "score": 15,
+              "description": "URL uses raw IP instead of domain"
+            },
+            {
+              "id": "ssl:no_https",
+              "score": 30,
+              "description": "URL does not use HTTPS"
+            }
+          ],
+          "totalSuspicion": 45,
+          "score": 0,
+          "maxScore": 25,
+          "status": "danger"
+        }
+      },
+      "verdict": "BLOCK",
+      "score": 44,
+      "totalScore": 62,
+      "maxTotalScore": 140
+    },
+    "timestamp": 1769065273509,
+    "originalUrl": "http://59.88.232.89:45131/i",
+    "canonicalUrl": "http://59.88.232.89:45131/i",
+    "riskLevel": "CRITICAL",
+    "overallStatus": "danger",
+    "sources": [
+      "virusTotal",
+      "abuseIPDB",
+      "ssl",
+      "content",
+      "redirects",
+      "securityHeaders",
+      "googleSafeBrowsing",
+      "domainAge",
+      "heuristics"
+    ]
+  },
+  "https://canyoucheat.live/": {
+    "verdict": "MALICIOUS",
+    "confidence": 0.77,
+    "metadata": {
+      "riskLevel": "MEDIUM",
+      "overallStatus": "warning",
+      "sources": [
+        "virusTotal",
+        "abuseIPDB",
+        "ssl",
+        "content",
+        "redirects",
+        "securityHeaders",
+        "googleSafeBrowsing",
+        "domainAge",
+        "heuristics"
+      ],
+      "phases": {
+        "virusTotal": {
+          "name": "VirusTotal Analysis",
+          "error": "Request timeout after 2500ms",
+          "score": 10,
+          "maxScore": 25,
+          "status": "warning",
+          "partial": true
+        },
+        "abuseIPDB": {
+          "name": "AbuseIPDB Check",
+          "error": "Could not resolve domain",
+          "score": 15,
+          "maxScore": 15,
+          "status": "warning"
+        },
+        "ssl": {
+          "name": "SSL Certificate",
+          "score": 8,
+          "maxScore": 15,
+          "status": "warning",
+          "partial": true,
+          "reason": "SSL check unavailable"
+        },
+        "content": {
+          "name": "Content Analysis",
+          "score": 12,
+          "maxScore": 15,
+          "status": "safe",
+          "partial": true,
+          "reason": "Content analysis unavailable"
+        },
+        "redirects": {
+          "name": "Redirect Analysis",
+          "score": 10,
+          "maxScore": 10,
+          "status": "safe",
+          "partial": true,
+          "reason": "Redirect analysis unavailable"
+        },
+        "securityHeaders": {
+          "name": "Security Headers",
+          "score": 5,
+          "maxScore": 10,
+          "status": "warning",
+          "partial": true,
+          "reason": "Security headers check unavailable"
+        },
+        "googleSafeBrowsing": {
+          "name": "Google Safe Browsing",
+          "score": 13,
+          "maxScore": 15,
+          "status": "safe",
+          "partial": true,
+          "reason": "Google Safe Browsing check unavailable"
+        },
+        "domainAge": {
+          "name": "Domain Analysis (Heuristic)",
+          "domain": "canyoucheat.live",
+          "score": 10,
+          "maxScore": 10,
+          "status": "safe",
+          "warnings": [],
+          "isHeuristic": true
+        },
+        "heuristics": {
+          "name": "Heuristic Rules",
+          "matched": [],
+          "totalSuspicion": 0,
+          "score": 25,
+          "maxScore": 25,
+          "status": "safe"
+        }
+      },
+      "verdict": "WARN",
+      "score": 77,
+      "totalScore": 108,
+      "maxTotalScore": 140
+    },
+    "timestamp": 1769065468603,
+    "originalUrl": "https://canyoucheat.live/",
+    "canonicalUrl": "https://canyoucheat.live/",
+    "riskLevel": "MEDIUM",
+    "overallStatus": "warning",
+    "sources": [
+      "virusTotal",
+      "abuseIPDB",
+      "ssl",
+      "content",
+      "redirects",
+      "securityHeaders",
+      "googleSafeBrowsing",
+      "domainAge",
+      "heuristics"
+    ]
+  },
+  "http://103.28.38.18/m68k": {
+    "verdict": "MALICIOUS",
+    "confidence": 0.44,
+    "metadata": {
+      "riskLevel": "CRITICAL",
+      "overallStatus": "danger",
+      "sources": [
+        "virusTotal",
+        "abuseIPDB",
+        "ssl",
+        "content",
+        "redirects",
+        "securityHeaders",
+        "googleSafeBrowsing",
+        "domainAge",
+        "heuristics"
+      ],
+      "phases": {
+        "virusTotal": {
+          "name": "VirusTotal Analysis",
+          "error": "Request timeout after 2500ms",
+          "score": 10,
+          "maxScore": 25,
+          "status": "warning",
+          "partial": true
+        },
+        "abuseIPDB": {
+          "name": "AbuseIPDB Check",
+          "score": 12,
+          "maxScore": 15,
+          "status": "safe",
+          "partial": true,
+          "reason": "IP reputation check unavailable"
+        },
+        "ssl": {
+          "name": "SSL Certificate",
+          "valid": false,
+          "error": "Not using HTTPS",
+          "score": 0,
+          "maxScore": 15,
+          "status": "danger"
+        },
+        "content": {
+          "name": "Content Analysis",
+          "score": 12,
+          "maxScore": 15,
+          "status": "safe",
+          "partial": true,
+          "reason": "Content analysis unavailable"
+        },
+        "redirects": {
+          "name": "Redirect Analysis",
+          "score": 10,
+          "maxScore": 10,
+          "status": "safe",
+          "partial": true,
+          "reason": "Redirect analysis unavailable"
+        },
+        "securityHeaders": {
+          "name": "Security Headers",
+          "score": 5,
+          "maxScore": 10,
+          "status": "warning",
+          "partial": true,
+          "reason": "Security headers check unavailable"
+        },
+        "googleSafeBrowsing": {
+          "name": "Google Safe Browsing",
+          "score": 13,
+          "maxScore": 15,
+          "status": "safe",
+          "partial": true,
+          "reason": "Google Safe Browsing check unavailable"
+        },
+        "domainAge": {
+          "name": "Domain Analysis (Heuristic)",
+          "domain": "103.28.38.18",
+          "score": 0,
+          "maxScore": 10,
+          "status": "danger",
+          "warnings": [
+            "Hostname is an IP address literal - suspicious"
+          ],
+          "isHeuristic": true
+        },
+        "heuristics": {
+          "name": "Heuristic Rules",
+          "matched": [
+            {
+              "id": "url:ip_literal",
+              "score": 15,
+              "description": "URL uses raw IP instead of domain"
+            },
+            {
+              "id": "ssl:no_https",
+              "score": 30,
+              "description": "URL does not use HTTPS"
+            }
+          ],
+          "totalSuspicion": 45,
+          "score": 0,
+          "maxScore": 25,
+          "status": "danger"
+        }
+      },
+      "verdict": "BLOCK",
+      "score": 44,
+      "totalScore": 62,
+      "maxTotalScore": 140
+    },
+    "timestamp": 1769065503810,
+    "originalUrl": "http://103.28.38.18/m68k",
+    "canonicalUrl": "http://103.28.38.18/m68k",
+    "riskLevel": "CRITICAL",
+    "overallStatus": "danger",
+    "sources": [
+      "virusTotal",
+      "abuseIPDB",
+      "ssl",
+      "content",
+      "redirects",
+      "securityHeaders",
+      "googleSafeBrowsing",
+      "domainAge",
+      "heuristics"
+    ]
+  },
+  "http://112.242.31.95:37519/bin.sh": {
+    "verdict": "MALICIOUS",
+    "confidence": 0.44,
+    "metadata": {
+      "riskLevel": "CRITICAL",
+      "overallStatus": "danger",
+      "sources": [
+        "virusTotal",
+        "abuseIPDB",
+        "ssl",
+        "content",
+        "redirects",
+        "securityHeaders",
+        "googleSafeBrowsing",
+        "domainAge",
+        "heuristics"
+      ],
+      "phases": {
+        "virusTotal": {
+          "name": "VirusTotal Analysis",
+          "error": "Request timeout after 2500ms",
+          "score": 10,
+          "maxScore": 25,
+          "status": "warning",
+          "partial": true
+        },
+        "abuseIPDB": {
+          "name": "AbuseIPDB Check",
+          "score": 12,
+          "maxScore": 15,
+          "status": "safe",
+          "partial": true,
+          "reason": "IP reputation check unavailable"
+        },
+        "ssl": {
+          "name": "SSL Certificate",
+          "valid": false,
+          "error": "Not using HTTPS",
+          "score": 0,
+          "maxScore": 15,
+          "status": "danger"
+        },
+        "content": {
+          "name": "Content Analysis",
+          "score": 12,
+          "maxScore": 15,
+          "status": "safe",
+          "partial": true,
+          "reason": "Content analysis unavailable"
+        },
+        "redirects": {
+          "name": "Redirect Analysis",
+          "score": 10,
+          "maxScore": 10,
+          "status": "safe",
+          "partial": true,
+          "reason": "Redirect analysis unavailable"
+        },
+        "securityHeaders": {
+          "name": "Security Headers",
+          "score": 5,
+          "maxScore": 10,
+          "status": "warning",
+          "partial": true,
+          "reason": "Security headers check unavailable"
+        },
+        "googleSafeBrowsing": {
+          "name": "Google Safe Browsing",
+          "score": 13,
+          "maxScore": 15,
+          "status": "safe",
+          "partial": true,
+          "reason": "Google Safe Browsing check unavailable"
+        },
+        "domainAge": {
+          "name": "Domain Analysis (Heuristic)",
+          "domain": "112.242.31.95",
+          "score": 0,
+          "maxScore": 10,
+          "status": "danger",
+          "warnings": [
+            "Hostname is an IP address literal - suspicious"
+          ],
+          "isHeuristic": true
+        },
+        "heuristics": {
+          "name": "Heuristic Rules",
+          "matched": [
+            {
+              "id": "url:ip_literal",
+              "score": 15,
+              "description": "URL uses raw IP instead of domain"
+            },
+            {
+              "id": "ssl:no_https",
+              "score": 30,
+              "description": "URL does not use HTTPS"
+            }
+          ],
+          "totalSuspicion": 45,
+          "score": 0,
+          "maxScore": 25,
+          "status": "danger"
+        }
+      },
+      "verdict": "BLOCK",
+      "score": 44,
+      "totalScore": 62,
+      "maxTotalScore": 140
+    },
+    "timestamp": 1769065880904,
+    "originalUrl": "http://112.242.31.95:37519/bin.sh",
+    "canonicalUrl": "http://112.242.31.95:37519/bin.sh",
+    "riskLevel": "CRITICAL",
+    "overallStatus": "danger",
+    "sources": [
+      "virusTotal",
+      "abuseIPDB",
+      "ssl",
+      "content",
+      "redirects",
+      "securityHeaders",
+      "googleSafeBrowsing",
+      "domainAge",
+      "heuristics"
+    ]
+  },
+  "http://115.57.82.213:54072/i": {
+    "verdict": "MALICIOUS",
+    "confidence": 0.44,
+    "metadata": {
+      "riskLevel": "CRITICAL",
+      "overallStatus": "danger",
+      "sources": [
+        "virusTotal",
+        "abuseIPDB",
+        "ssl",
+        "content",
+        "redirects",
+        "securityHeaders",
+        "googleSafeBrowsing",
+        "domainAge",
+        "heuristics"
+      ],
+      "phases": {
+        "virusTotal": {
+          "name": "VirusTotal Analysis",
+          "error": "Request timeout after 2500ms",
+          "score": 10,
+          "maxScore": 25,
+          "status": "warning",
+          "partial": true
+        },
+        "abuseIPDB": {
+          "name": "AbuseIPDB Check",
+          "score": 12,
+          "maxScore": 15,
+          "status": "safe",
+          "partial": true,
+          "reason": "IP reputation check unavailable"
+        },
+        "ssl": {
+          "name": "SSL Certificate",
+          "valid": false,
+          "error": "Not using HTTPS",
+          "score": 0,
+          "maxScore": 15,
+          "status": "danger"
+        },
+        "content": {
+          "name": "Content Analysis",
+          "score": 12,
+          "maxScore": 15,
+          "status": "safe",
+          "partial": true,
+          "reason": "Content analysis unavailable"
+        },
+        "redirects": {
+          "name": "Redirect Analysis",
+          "score": 10,
+          "maxScore": 10,
+          "status": "safe",
+          "partial": true,
+          "reason": "Redirect analysis unavailable"
+        },
+        "securityHeaders": {
+          "name": "Security Headers",
+          "score": 5,
+          "maxScore": 10,
+          "status": "warning",
+          "partial": true,
+          "reason": "Security headers check unavailable"
+        },
+        "googleSafeBrowsing": {
+          "name": "Google Safe Browsing",
+          "score": 13,
+          "maxScore": 15,
+          "status": "safe",
+          "partial": true,
+          "reason": "Google Safe Browsing check unavailable"
+        },
+        "domainAge": {
+          "name": "Domain Analysis (Heuristic)",
+          "domain": "115.57.82.213",
+          "score": 0,
+          "maxScore": 10,
+          "status": "danger",
+          "warnings": [
+            "Hostname is an IP address literal - suspicious"
+          ],
+          "isHeuristic": true
+        },
+        "heuristics": {
+          "name": "Heuristic Rules",
+          "matched": [
+            {
+              "id": "url:ip_literal",
+              "score": 15,
+              "description": "URL uses raw IP instead of domain"
+            },
+            {
+              "id": "ssl:no_https",
+              "score": 30,
+              "description": "URL does not use HTTPS"
+            }
+          ],
+          "totalSuspicion": 45,
+          "score": 0,
+          "maxScore": 25,
+          "status": "danger"
+        }
+      },
+      "verdict": "BLOCK",
+      "score": 44,
+      "totalScore": 62,
+      "maxTotalScore": 140
+    },
+    "timestamp": 1769066377443,
+    "originalUrl": "http://115.57.82.213:54072/i",
+    "canonicalUrl": "http://115.57.82.213:54072/i",
+    "riskLevel": "CRITICAL",
+    "overallStatus": "danger",
+    "sources": [
+      "virusTotal",
+      "abuseIPDB",
+      "ssl",
+      "content",
+      "redirects",
+      "securityHeaders",
+      "googleSafeBrowsing",
+      "domainAge",
+      "heuristics"
+    ]
+  },
+  "http://125.41.74.253:47923/i": {
+    "verdict": "MALICIOUS",
+    "confidence": 0.41,
     "metadata": {
       "riskLevel": "CRITICAL",
       "overallStatus": "danger",
@@ -2992,11 +3097,290 @@
         },
         "abuseIPDB": {
           "name": "AbuseIPDB Check",
-          "ip": "158.94.208.251",
+          "ip": "125.41.74.253",
+          "abuseConfidenceScore": 26,
+          "totalReports": 7,
+          "countryCode": "CN",
+          "isp": "China Unicom Henan province network",
+          "score": 11,
+          "maxScore": 15,
+          "status": "warning"
+        },
+        "ssl": {
+          "name": "SSL Certificate",
+          "valid": false,
+          "error": "Not using HTTPS",
+          "score": 0,
+          "maxScore": 15,
+          "status": "danger"
+        },
+        "content": {
+          "name": "Content Analysis",
+          "score": 12,
+          "maxScore": 15,
+          "status": "safe",
+          "partial": true,
+          "reason": "Content analysis unavailable"
+        },
+        "redirects": {
+          "name": "Redirect Analysis",
+          "score": 10,
+          "maxScore": 10,
+          "status": "safe",
+          "partial": true,
+          "reason": "Redirect analysis unavailable"
+        },
+        "securityHeaders": {
+          "name": "Security Headers",
+          "score": 0,
+          "maxScore": 10,
+          "status": "danger",
+          "findings": [
+            "✗ Missing strict-transport-security",
+            "✗ Missing x-content-type-options",
+            "✗ Missing x-frame-options",
+            "✗ Missing x-xss-protection",
+            "✗ Missing content-security-policy",
+            "✗ Missing referrer-policy",
+            "✗ Missing permissions-policy"
+          ]
+        },
+        "googleSafeBrowsing": {
+          "name": "Google Safe Browsing",
+          "safe": true,
+          "threats": "none",
+          "matchCount": 0,
+          "score": 15,
+          "maxScore": 15,
+          "status": "safe"
+        },
+        "domainAge": {
+          "name": "Domain Analysis (Heuristic)",
+          "domain": "125.41.74.253",
+          "score": 0,
+          "maxScore": 10,
+          "status": "danger",
+          "warnings": [
+            "Hostname is an IP address literal - suspicious"
+          ],
+          "isHeuristic": true
+        },
+        "heuristics": {
+          "name": "Heuristic Rules",
+          "matched": [
+            {
+              "id": "url:ip_literal",
+              "score": 15,
+              "description": "URL uses raw IP instead of domain"
+            },
+            {
+              "id": "ssl:no_https",
+              "score": 30,
+              "description": "URL does not use HTTPS"
+            }
+          ],
+          "totalSuspicion": 45,
+          "score": 0,
+          "maxScore": 25,
+          "status": "danger"
+        }
+      },
+      "verdict": "BLOCK",
+      "score": 41,
+      "totalScore": 58,
+      "maxTotalScore": 140
+    },
+    "timestamp": 1769087027141,
+    "originalUrl": "http://125.41.74.253:47923/i",
+    "canonicalUrl": "http://125.41.74.253:47923/i",
+    "riskLevel": "CRITICAL",
+    "overallStatus": "danger",
+    "sources": [
+      "virusTotal",
+      "abuseIPDB",
+      "ssl",
+      "content",
+      "redirects",
+      "securityHeaders",
+      "googleSafeBrowsing",
+      "domainAge",
+      "heuristics"
+    ]
+  },
+  "http://42.229.146.154:53919/bin.sh": {
+    "verdict": "MALICIOUS",
+    "confidence": 0.44,
+    "metadata": {
+      "riskLevel": "CRITICAL",
+      "overallStatus": "danger",
+      "sources": [
+        "virusTotal",
+        "abuseIPDB",
+        "ssl",
+        "content",
+        "redirects",
+        "securityHeaders",
+        "googleSafeBrowsing",
+        "domainAge",
+        "heuristics"
+      ],
+      "phases": {
+        "virusTotal": {
+          "name": "VirusTotal Analysis",
+          "score": 10,
+          "maxScore": 25,
+          "status": "warning",
+          "partial": true,
+          "available": false,
+          "reason": "VirusTotal check unavailable - timeout or network error"
+        },
+        "abuseIPDB": {
+          "name": "AbuseIPDB Check",
+          "ip": "42.229.146.154",
+          "abuseConfidenceScore": 16,
+          "totalReports": 2,
+          "countryCode": "CN",
+          "isp": "China Unicom Henan province network",
+          "score": 13,
+          "maxScore": 15,
+          "status": "safe"
+        },
+        "ssl": {
+          "name": "SSL Certificate",
+          "valid": false,
+          "error": "Not using HTTPS",
+          "score": 0,
+          "maxScore": 15,
+          "status": "danger"
+        },
+        "content": {
+          "name": "Content Analysis",
+          "score": 13,
+          "maxScore": 15,
+          "status": "safe",
+          "findings": [
+            "Potential obfuscated content detected"
+          ]
+        },
+        "redirects": {
+          "name": "Redirect Analysis",
+          "score": 10,
+          "maxScore": 10,
+          "status": "safe",
+          "partial": true,
+          "reason": "Redirect analysis unavailable"
+        },
+        "securityHeaders": {
+          "name": "Security Headers",
+          "score": 0,
+          "maxScore": 10,
+          "status": "danger",
+          "findings": [
+            "✗ Missing strict-transport-security",
+            "✗ Missing x-content-type-options",
+            "✗ Missing x-frame-options",
+            "✗ Missing x-xss-protection",
+            "✗ Missing content-security-policy",
+            "✗ Missing referrer-policy",
+            "✗ Missing permissions-policy"
+          ]
+        },
+        "googleSafeBrowsing": {
+          "name": "Google Safe Browsing",
+          "safe": true,
+          "threats": "none",
+          "matchCount": 0,
+          "score": 15,
+          "maxScore": 15,
+          "status": "safe"
+        },
+        "domainAge": {
+          "name": "Domain Analysis (Heuristic)",
+          "domain": "42.229.146.154",
+          "score": 0,
+          "maxScore": 10,
+          "status": "danger",
+          "warnings": [
+            "Hostname is an IP address literal - suspicious"
+          ],
+          "isHeuristic": true
+        },
+        "heuristics": {
+          "name": "Heuristic Rules",
+          "matched": [
+            {
+              "id": "url:ip_literal",
+              "score": 15,
+              "description": "URL uses raw IP instead of domain"
+            },
+            {
+              "id": "ssl:no_https",
+              "score": 30,
+              "description": "URL does not use HTTPS"
+            }
+          ],
+          "totalSuspicion": 45,
+          "score": 0,
+          "maxScore": 25,
+          "status": "danger"
+        }
+      },
+      "verdict": "BLOCK",
+      "score": 44,
+      "totalScore": 61,
+      "maxTotalScore": 140
+    },
+    "timestamp": 1769087358908,
+    "originalUrl": "http://42.229.146.154:53919/bin.sh",
+    "canonicalUrl": "http://42.229.146.154:53919/bin.sh",
+    "riskLevel": "CRITICAL",
+    "overallStatus": "danger",
+    "sources": [
+      "virusTotal",
+      "abuseIPDB",
+      "ssl",
+      "content",
+      "redirects",
+      "securityHeaders",
+      "googleSafeBrowsing",
+      "domainAge",
+      "heuristics"
+    ]
+  },
+  "http://46.38.156.31/payload.sh": {
+    "verdict": "MALICIOUS",
+    "confidence": 0.46,
+    "metadata": {
+      "riskLevel": "CRITICAL",
+      "overallStatus": "danger",
+      "sources": [
+        "virusTotal",
+        "abuseIPDB",
+        "ssl",
+        "content",
+        "redirects",
+        "securityHeaders",
+        "googleSafeBrowsing",
+        "domainAge",
+        "heuristics"
+      ],
+      "phases": {
+        "virusTotal": {
+          "name": "VirusTotal Analysis",
+          "score": 10,
+          "maxScore": 25,
+          "status": "warning",
+          "partial": true,
+          "available": false,
+          "reason": "VirusTotal check unavailable - timeout or network error"
+        },
+        "abuseIPDB": {
+          "name": "AbuseIPDB Check",
+          "ip": "46.38.156.31",
           "abuseConfidenceScore": 0,
           "totalReports": 0,
-          "countryCode": "DE",
-          "isp": "Railnet LLC",
+          "countryCode": "FI",
+          "isp": "Individual Entrepreneur Anton Levin",
           "score": 15,
           "maxScore": 15,
           "status": "safe"
@@ -3050,7 +3434,7 @@
         },
         "domainAge": {
           "name": "Domain Analysis (Heuristic)",
-          "domain": "158.94.208.251",
+          "domain": "46.38.156.31",
           "score": 0,
           "maxScore": 10,
           "status": "danger",
@@ -3084,11 +3468,694 @@
       "totalScore": 65,
       "maxTotalScore": 140
     },
-    "timestamp": 1768918355324,
-    "originalUrl": "http://158.94.208.251/x86",
-    "canonicalUrl": "http://158.94.208.251/x86",
+    "timestamp": 1769087446240,
+    "originalUrl": "http://46.38.156.31/payload.sh",
+    "canonicalUrl": "http://46.38.156.31/payload.sh",
     "riskLevel": "CRITICAL",
     "overallStatus": "danger",
+    "sources": [
+      "virusTotal",
+      "abuseIPDB",
+      "ssl",
+      "content",
+      "redirects",
+      "securityHeaders",
+      "googleSafeBrowsing",
+      "domainAge",
+      "heuristics"
+    ]
+  },
+  "https://threatcenter.crdf.fr/": {
+    "verdict": "MALICIOUS",
+    "confidence": 0.66,
+    "metadata": {
+      "riskLevel": "MEDIUM",
+      "overallStatus": "warning",
+      "sources": [
+        "virusTotal",
+        "abuseIPDB",
+        "ssl",
+        "content",
+        "redirects",
+        "securityHeaders",
+        "googleSafeBrowsing",
+        "domainAge",
+        "heuristics"
+      ],
+      "phases": {
+        "virusTotal": {
+          "name": "VirusTotal Analysis",
+          "score": 10,
+          "maxScore": 25,
+          "status": "warning",
+          "partial": true,
+          "available": false,
+          "reason": "VirusTotal check unavailable - timeout or network error"
+        },
+        "abuseIPDB": {
+          "name": "AbuseIPDB Check",
+          "ip": "172.67.207.97",
+          "abuseConfidenceScore": 0,
+          "totalReports": 0,
+          "countryCode": "US",
+          "isp": "Cloudflare, Inc.",
+          "score": 15,
+          "maxScore": 15,
+          "status": "safe"
+        },
+        "ssl": {
+          "name": "SSL Certificate",
+          "valid": true,
+          "issuer": "Google Trust Services",
+          "validFrom": "2025-11-25T22:44:34.000Z",
+          "validTo": "2026-02-23T23:39:22.000Z",
+          "daysUntilExpiry": 32,
+          "score": 15,
+          "maxScore": 15,
+          "status": "safe"
+        },
+        "content": {
+          "name": "Content Analysis",
+          "score": 12,
+          "maxScore": 15,
+          "status": "safe",
+          "partial": true,
+          "reason": "Content analysis unavailable"
+        },
+        "redirects": {
+          "name": "Redirect Analysis",
+          "score": 10,
+          "maxScore": 10,
+          "status": "safe",
+          "partial": true,
+          "reason": "Redirect analysis unavailable"
+        },
+        "securityHeaders": {
+          "name": "Security Headers",
+          "score": 6,
+          "maxScore": 10,
+          "status": "warning",
+          "findings": [
+            "✓ strict-transport-security",
+            "✓ x-content-type-options",
+            "✓ x-frame-options",
+            "✓ x-xss-protection",
+            "✗ Missing content-security-policy",
+            "✓ referrer-policy",
+            "✗ Missing permissions-policy"
+          ]
+        },
+        "googleSafeBrowsing": {
+          "name": "Google Safe Browsing",
+          "safe": true,
+          "threats": "none",
+          "matchCount": 0,
+          "score": 15,
+          "maxScore": 15,
+          "status": "safe"
+        },
+        "domainAge": {
+          "name": "Domain Analysis (Heuristic)",
+          "domain": "threatcenter.crdf.fr",
+          "score": 10,
+          "maxScore": 10,
+          "status": "safe",
+          "warnings": [],
+          "isHeuristic": true
+        },
+        "heuristics": {
+          "name": "Heuristic Rules",
+          "matched": [
+            {
+              "id": "ssl:domain_mismatch",
+              "score": 30,
+              "description": "Certificate domain does not match URL"
+            }
+          ],
+          "totalSuspicion": 30,
+          "score": 0,
+          "maxScore": 25,
+          "status": "danger"
+        }
+      },
+      "verdict": "WARN",
+      "score": 66,
+      "totalScore": 93,
+      "maxTotalScore": 140
+    },
+    "timestamp": 1769087543659,
+    "originalUrl": "https://threatcenter.crdf.fr/?Domains",
+    "canonicalUrl": "https://threatcenter.crdf.fr/",
+    "riskLevel": "MEDIUM",
+    "overallStatus": "warning",
+    "sources": [
+      "virusTotal",
+      "abuseIPDB",
+      "ssl",
+      "content",
+      "redirects",
+      "securityHeaders",
+      "googleSafeBrowsing",
+      "domainAge",
+      "heuristics"
+    ]
+  },
+  "http://drts.valucity.net/": {
+    "verdict": "MALICIOUS",
+    "confidence": 0.49,
+    "metadata": {
+      "riskLevel": "CRITICAL",
+      "overallStatus": "danger",
+      "sources": [
+        "virusTotal",
+        "abuseIPDB",
+        "ssl",
+        "content",
+        "redirects",
+        "securityHeaders",
+        "googleSafeBrowsing",
+        "domainAge",
+        "heuristics"
+      ],
+      "phases": {
+        "virusTotal": {
+          "name": "VirusTotal Analysis",
+          "score": 10,
+          "maxScore": 25,
+          "status": "warning",
+          "partial": true,
+          "available": false,
+          "reason": "VirusTotal check unavailable - timeout or network error"
+        },
+        "abuseIPDB": {
+          "name": "AbuseIPDB Check",
+          "ip": "146.112.61.108",
+          "abuseConfidenceScore": 0,
+          "totalReports": 0,
+          "countryCode": "US",
+          "isp": "OpenDNS",
+          "score": 15,
+          "maxScore": 15,
+          "status": "safe"
+        },
+        "ssl": {
+          "name": "SSL Certificate",
+          "valid": false,
+          "error": "Not using HTTPS",
+          "score": 0,
+          "maxScore": 15,
+          "status": "danger"
+        },
+        "content": {
+          "name": "Content Analysis",
+          "score": 12,
+          "maxScore": 15,
+          "status": "safe",
+          "findings": [
+            "JavaScript redirect detected"
+          ]
+        },
+        "redirects": {
+          "name": "Redirect Analysis",
+          "redirectCount": 0,
+          "redirects": [],
+          "score": 7,
+          "maxScore": 10,
+          "status": "safe"
+        },
+        "securityHeaders": {
+          "name": "Security Headers",
+          "score": 0,
+          "maxScore": 10,
+          "status": "danger",
+          "findings": [
+            "✗ Missing strict-transport-security",
+            "✗ Missing x-content-type-options",
+            "✗ Missing x-frame-options",
+            "✗ Missing x-xss-protection",
+            "✗ Missing content-security-policy",
+            "✗ Missing referrer-policy",
+            "✗ Missing permissions-policy"
+          ]
+        },
+        "googleSafeBrowsing": {
+          "name": "Google Safe Browsing",
+          "safe": true,
+          "threats": "none",
+          "matchCount": 0,
+          "score": 15,
+          "maxScore": 15,
+          "status": "safe"
+        },
+        "domainAge": {
+          "name": "Domain Analysis (Heuristic)",
+          "domain": "drts.valucity.net",
+          "score": 10,
+          "maxScore": 10,
+          "status": "safe",
+          "warnings": [],
+          "isHeuristic": true
+        },
+        "heuristics": {
+          "name": "Heuristic Rules",
+          "matched": [
+            {
+              "id": "ssl:no_https",
+              "score": 30,
+              "description": "URL does not use HTTPS"
+            }
+          ],
+          "totalSuspicion": 30,
+          "score": 0,
+          "maxScore": 25,
+          "status": "danger"
+        }
+      },
+      "verdict": "BLOCK",
+      "score": 49,
+      "totalScore": 69,
+      "maxTotalScore": 140
+    },
+    "timestamp": 1769087602938,
+    "originalUrl": "http://drts.valucity.net/",
+    "canonicalUrl": "http://drts.valucity.net/",
+    "riskLevel": "CRITICAL",
+    "overallStatus": "danger",
+    "sources": [
+      "virusTotal",
+      "abuseIPDB",
+      "ssl",
+      "content",
+      "redirects",
+      "securityHeaders",
+      "googleSafeBrowsing",
+      "domainAge",
+      "heuristics"
+    ]
+  },
+  "https://post.urgentmq.help/": {
+    "verdict": "MALICIOUS",
+    "confidence": 0.62,
+    "metadata": {
+      "riskLevel": "MEDIUM",
+      "overallStatus": "warning",
+      "sources": [
+        "virusTotal",
+        "abuseIPDB",
+        "ssl",
+        "content",
+        "redirects",
+        "securityHeaders",
+        "googleSafeBrowsing",
+        "domainAge",
+        "heuristics"
+      ],
+      "phases": {
+        "virusTotal": {
+          "name": "VirusTotal Analysis",
+          "score": 10,
+          "maxScore": 25,
+          "status": "warning",
+          "partial": true,
+          "available": false,
+          "reason": "VirusTotal check unavailable - timeout or network error"
+        },
+        "abuseIPDB": {
+          "name": "AbuseIPDB Check",
+          "ip": "146.112.61.108",
+          "abuseConfidenceScore": 0,
+          "totalReports": 0,
+          "countryCode": "US",
+          "isp": "OpenDNS",
+          "score": 15,
+          "maxScore": 15,
+          "status": "safe"
+        },
+        "ssl": {
+          "name": "SSL Certificate",
+          "valid": false,
+          "error": "unable to get local issuer certificate",
+          "score": 0,
+          "maxScore": 15,
+          "status": "danger"
+        },
+        "content": {
+          "name": "Content Analysis",
+          "score": 12,
+          "maxScore": 15,
+          "status": "safe",
+          "partial": true,
+          "reason": "Content analysis unavailable",
+          "findings": []
+        },
+        "redirects": {
+          "name": "Redirect Analysis",
+          "score": 10,
+          "maxScore": 10,
+          "status": "safe",
+          "partial": true,
+          "reason": "Redirect analysis unavailable",
+          "redirects": []
+        },
+        "securityHeaders": {
+          "name": "Security Headers",
+          "score": 5,
+          "maxScore": 10,
+          "status": "warning",
+          "partial": true,
+          "reason": "Security headers check unavailable",
+          "findings": []
+        },
+        "googleSafeBrowsing": {
+          "name": "Google Safe Browsing",
+          "safe": false,
+          "threats": "SOCIAL_ENGINEERING",
+          "matchCount": 1,
+          "score": 0,
+          "maxScore": 15,
+          "status": "danger",
+          "details": [
+            {
+              "threatType": "SOCIAL_ENGINEERING",
+              "platformType": "ANY_PLATFORM",
+              "threat": {
+                "url": "https://post.urgentmq.help/"
+              },
+              "cacheDuration": "300s",
+              "threatEntryType": "URL"
+            }
+          ]
+        },
+        "domainAge": {
+          "name": "Domain Analysis (Heuristic)",
+          "domain": "post.urgentmq.help",
+          "score": 10,
+          "maxScore": 10,
+          "status": "safe",
+          "warnings": [],
+          "isHeuristic": true
+        },
+        "heuristics": {
+          "name": "Heuristic Rules",
+          "matched": [],
+          "totalSuspicion": 0,
+          "score": 25,
+          "maxScore": 25,
+          "status": "safe"
+        }
+      },
+      "verdict": "WARN",
+      "score": 62,
+      "totalScore": 87,
+      "maxTotalScore": 140
+    },
+    "timestamp": 1769088109837,
+    "originalUrl": "https://post.urgentmq.help/",
+    "canonicalUrl": "https://post.urgentmq.help/",
+    "riskLevel": "MEDIUM",
+    "overallStatus": "warning",
+    "sources": [
+      "virusTotal",
+      "abuseIPDB",
+      "ssl",
+      "content",
+      "redirects",
+      "securityHeaders",
+      "googleSafeBrowsing",
+      "domainAge",
+      "heuristics"
+    ]
+  },
+  "http://post.urgentmq.help/": {
+    "verdict": "MALICIOUS",
+    "confidence": 0.43,
+    "metadata": {
+      "riskLevel": "CRITICAL",
+      "overallStatus": "danger",
+      "sources": [
+        "virusTotal",
+        "abuseIPDB",
+        "ssl",
+        "content",
+        "redirects",
+        "securityHeaders",
+        "googleSafeBrowsing",
+        "whois",
+        "heuristics"
+      ],
+      "phases": {
+        "virusTotal": {
+          "name": "VirusTotal Analysis",
+          "error": "Request timeout after 2500ms",
+          "score": 10,
+          "maxScore": 25,
+          "status": "warning",
+          "partial": true,
+          "available": false
+        },
+        "abuseIPDB": {
+          "name": "AbuseIPDB Check",
+          "ip": "146.112.61.108",
+          "abuseConfidenceScore": 0,
+          "totalReports": 0,
+          "countryCode": "US",
+          "isp": "OpenDNS",
+          "score": 15,
+          "maxScore": 15,
+          "status": "safe"
+        },
+        "ssl": {
+          "name": "SSL Certificate",
+          "valid": false,
+          "error": "Not using HTTPS",
+          "score": 0,
+          "maxScore": 15,
+          "status": "danger"
+        },
+        "content": {
+          "name": "Content Analysis",
+          "score": 12,
+          "maxScore": 15,
+          "status": "safe",
+          "partial": true,
+          "reason": "Content analysis unavailable"
+        },
+        "redirects": {
+          "name": "Redirect Analysis",
+          "redirectCount": 0,
+          "redirects": [],
+          "score": 7,
+          "maxScore": 10,
+          "status": "safe"
+        },
+        "securityHeaders": {
+          "name": "Security Headers",
+          "score": 0,
+          "maxScore": 10,
+          "status": "danger",
+          "findings": [
+            "✗ Missing strict-transport-security",
+            "✗ Missing x-content-type-options",
+            "✗ Missing x-frame-options",
+            "✗ Missing x-xss-protection",
+            "✗ Missing content-security-policy",
+            "✗ Missing referrer-policy",
+            "✗ Missing permissions-policy"
+          ]
+        },
+        "googleSafeBrowsing": {
+          "name": "Google Safe Browsing",
+          "score": 13,
+          "maxScore": 15,
+          "status": "safe",
+          "partial": true,
+          "reason": "Google Safe Browsing check unavailable"
+        },
+        "whois": {
+          "name": "WHOIS Lookup",
+          "domain": "post.urgentmq.help",
+          "available": true,
+          "registrar": "NameSilo, LLC",
+          "createdDate": "2026-01-22T00:46:20.0Z",
+          "expiresDate": "2027-01-22T23:59:59.0Z",
+          "ageInDays": 0,
+          "createdDateTimestamp": 1769042780000,
+          "nameServers": [
+            "JOCELYN.NS.CLOUDFLARE.COM",
+            "GABRIEL.NS.CLOUDFLARE.COM"
+          ],
+          "hasPrivacy": false,
+          "score": 3,
+          "maxScore": 10,
+          "status": "danger",
+          "warnings": [
+            "New domain (< 30 days): 0 days old"
+          ],
+          "safeData": {
+            "domain": "post.urgentmq.help",
+            "ageInDays": 0,
+            "registrar": "NameSilo, LLC",
+            "createdDate": "2026-01-22T00:46:20.0Z",
+            "expiresDate": "2027-01-22T23:59:59.0Z",
+            "hasPrivacy": false,
+            "tld": "help"
+          }
+        },
+        "heuristics": {
+          "name": "Heuristic Rules",
+          "matched": [
+            {
+              "id": "domain:age_lt_7d",
+              "score": 30,
+              "description": "Domain registered less than 7 days ago"
+            },
+            {
+              "id": "domain:age_7_30d",
+              "score": 20,
+              "description": "Domain registered within last 30 days"
+            },
+            {
+              "id": "domain:age_30_180d",
+              "score": 10,
+              "description": "Domain younger than 6 months"
+            },
+            {
+              "id": "ssl:no_https",
+              "score": 30,
+              "description": "URL does not use HTTPS"
+            }
+          ],
+          "totalSuspicion": 90,
+          "score": 0,
+          "maxScore": 25,
+          "status": "danger"
+        }
+      },
+      "verdict": "BLOCK",
+      "score": 43,
+      "totalScore": 60,
+      "maxTotalScore": 140
+    },
+    "timestamp": 1769088262829,
+    "originalUrl": "http://post.urgentmq.help/",
+    "canonicalUrl": "http://post.urgentmq.help/",
+    "riskLevel": "CRITICAL",
+    "overallStatus": "danger",
+    "sources": [
+      "virusTotal",
+      "abuseIPDB",
+      "ssl",
+      "content",
+      "redirects",
+      "securityHeaders",
+      "googleSafeBrowsing",
+      "whois",
+      "heuristics"
+    ]
+  },
+  "https://www.awnbh.cn/": {
+    "verdict": "MALICIOUS",
+    "confidence": 0.75,
+    "metadata": {
+      "riskLevel": "MEDIUM",
+      "overallStatus": "warning",
+      "sources": [
+        "virusTotal",
+        "abuseIPDB",
+        "ssl",
+        "content",
+        "redirects",
+        "securityHeaders",
+        "googleSafeBrowsing",
+        "domainAge",
+        "heuristics"
+      ],
+      "phases": {
+        "virusTotal": {
+          "name": "VirusTotal Analysis",
+          "score": 10,
+          "maxScore": 25,
+          "status": "warning",
+          "partial": true,
+          "available": false,
+          "reason": "VirusTotal check unavailable - timeout or network error"
+        },
+        "abuseIPDB": {
+          "name": "AbuseIPDB Check",
+          "score": 12,
+          "maxScore": 15,
+          "status": "safe",
+          "partial": true,
+          "reason": "IP reputation check unavailable"
+        },
+        "ssl": {
+          "name": "SSL Certificate",
+          "score": 8,
+          "maxScore": 15,
+          "status": "warning",
+          "partial": true,
+          "reason": "SSL check unavailable"
+        },
+        "content": {
+          "name": "Content Analysis",
+          "score": 12,
+          "maxScore": 15,
+          "status": "safe",
+          "partial": true,
+          "reason": "Content analysis unavailable"
+        },
+        "redirects": {
+          "name": "Redirect Analysis",
+          "score": 10,
+          "maxScore": 10,
+          "status": "safe",
+          "partial": true,
+          "reason": "Redirect analysis unavailable"
+        },
+        "securityHeaders": {
+          "name": "Security Headers",
+          "score": 5,
+          "maxScore": 10,
+          "status": "warning",
+          "partial": true,
+          "reason": "Security headers check unavailable"
+        },
+        "googleSafeBrowsing": {
+          "name": "Google Safe Browsing",
+          "score": 13,
+          "maxScore": 15,
+          "status": "safe",
+          "partial": true,
+          "reason": "Google Safe Browsing check unavailable"
+        },
+        "domainAge": {
+          "name": "Domain Analysis (Heuristic)",
+          "domain": "www.awnbh.cn",
+          "score": 10,
+          "maxScore": 10,
+          "status": "safe",
+          "warnings": [],
+          "isHeuristic": true
+        },
+        "heuristics": {
+          "name": "Heuristic Rules",
+          "matched": [],
+          "totalSuspicion": 0,
+          "score": 25,
+          "maxScore": 25,
+          "status": "safe"
+        }
+      },
+      "verdict": "WARN",
+      "score": 75,
+      "totalScore": 105,
+      "maxTotalScore": 140
+    },
+    "timestamp": 1769088578142,
+    "originalUrl": "https://www.awnbh.cn/",
+    "canonicalUrl": "https://www.awnbh.cn/",
+    "riskLevel": "MEDIUM",
+    "overallStatus": "warning",
     "sources": [
       "virusTotal",
       "abuseIPDB",

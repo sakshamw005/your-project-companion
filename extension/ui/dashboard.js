@@ -30,12 +30,14 @@ function injectModalIconStyles() {
 }
 
 // Initialize when DOM is ready
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     console.log('[GuardianLink] Dashboard loaded');
     injectModalIconStyles();
     setupEventListeners();
     setupFilterListener();
-    loadLogs();
+    await loadLogs();
+    setupStorageListener();
+    console.log('[GuardianLink] Dashboard initialization complete');
 });
 
 // Setup event listeners
@@ -81,6 +83,16 @@ function setupFilterListener() {
     }
 }
 
+// Listen for storage changes (new logs)
+function setupStorageListener() {
+    browser.storage.onChanged.addListener((changes, areaName) => {
+        if (areaName === 'local' && changes.guardianlink_logs) {
+            console.log('[GuardianLink] Storage changed - reloading logs');
+            loadLogs();
+        }
+    });
+}
+
 // Load logs from storage
 async function loadLogs() {
     try {
@@ -88,17 +100,27 @@ async function loadLogs() {
         const logs = data.guardianlink_logs || [];
         
         console.log('[GuardianLink] Loaded logs:', logs.length);
+        console.log('[GuardianLink] Full data:', data);
         
-        allLogs = logs.sort((a, b) => {
-            const timeA = new Date(a.timestamp || 0).getTime();
-            const timeB = new Date(b.timestamp || 0).getTime();
-            return timeB - timeA;
-        });
+        if (!logs || logs.length === 0) {
+            console.warn('[GuardianLink] No logs found in storage');
+            allLogs = [];
+        } else {
+            allLogs = logs.sort((a, b) => {
+                const timeA = new Date(a.timestamp || 0).getTime();
+                const timeB = new Date(b.timestamp || 0).getTime();
+                return timeB - timeA;
+            });
+        }
         
+        console.log('[GuardianLink] Updated allLogs:', allLogs.length);
         updateUI(allLogs);
         displayLogs(allLogs);
     } catch (error) {
-        console.error('Error loading logs:', error);
+        console.error('[GuardianLink] Error loading logs:', error);
+        console.error('[GuardianLink] Error details:', error.message, error.stack);
+        allLogs = [];
+        updateUI([]);
     }
 }
 
@@ -108,7 +130,17 @@ function updateUI(logs) {
     const warnedCount = document.getElementById('warnedCount');
     const analyzedCount = document.getElementById('analyzedCount');
     
-    if (!blockedCount || !warnedCount || !analyzedCount) return;
+    console.log('[GuardianLink] updateUI called with logs:', logs.length);
+    console.log('[GuardianLink] Elements found:', {
+        blockedCount: !!blockedCount,
+        warnedCount: !!warnedCount,
+        analyzedCount: !!analyzedCount
+    });
+    
+    if (!blockedCount || !warnedCount || !analyzedCount) {
+        console.error('[GuardianLink] Missing stat card elements!');
+        return;
+    }
     
     const counts = {
         BLOCK: logs.filter(l => l.verdict === 'BLOCK').length,
@@ -116,11 +148,15 @@ function updateUI(logs) {
         ALLOW: logs.filter(l => l.verdict === 'ALLOW').length
     };
     
+    console.log('[GuardianLink] Verdict counts:', counts);
+    
     const totalAnalyzed = counts.BLOCK + counts.WARN + counts.ALLOW;
     
     blockedCount.textContent = counts.BLOCK;
     warnedCount.textContent = counts.WARN;
     analyzedCount.textContent = totalAnalyzed;
+    
+    console.log('[GuardianLink] Stats updated - Blocked:', counts.BLOCK, 'Warned:', counts.WARN, 'Analyzed:', totalAnalyzed);
 }
 
 // Display logs in table

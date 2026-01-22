@@ -1,4 +1,3 @@
-report.html:-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,10 +5,19 @@ report.html:-
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GuardianLink Security Analysis Report</title>
     <style>
+        @page {
+            size: A4;
+            margin: 20mm 15mm 20mm 15mm;
+        }
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
         }
 
         :root {
@@ -34,6 +42,7 @@ report.html:-
             color: var(--text-primary);
             line-height: 1.6;
             -webkit-font-smoothing: antialiased;
+            scroll-behavior: smooth;
         }
 
         .report-wrapper {
@@ -41,17 +50,119 @@ report.html:-
             margin: 0 auto;
             background: var(--bg-primary);
             box-shadow: 0 0 60px rgba(0,0,0,0.08);
+            overflow: hidden;
         }
 
-        /* Header - Academic Style */
-        .report-header {
+        /* PDF Page Structure */
+        .pdf-page {
+            width: 100%;
+            min-height: 297mm;
+            padding: 0;
+            box-sizing: border-box;
+            page-break-after: always;
+            position: relative;
+            background: white;
+            display: none;
+        }
+
+        .pdf-page.active {
+            display: block;
+        }
+
+        .pdf-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 80px;
             background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
             color: white;
-            padding: 60px 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            font-weight: 600;
+            opacity: 1 !important;
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .pdf-header img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+            padding: 10px 20px;
+        }
+
+        .pdf-content {
+            margin-top: 100px;
+            padding: 40px;
+        }
+
+        .pdf-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 40px;
+            background: linear-gradient(90deg, #60a5fa, #3b82f6, #1e3a8a);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            opacity: 1 !important;
+            z-index: 1000;
+        }
+
+        /* Header - Image Style */
+        .report-header {
+            background: #070707;
+            padding: 0;
             position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            border-bottom: 3px solid #1e3a8a;
+            overflow: hidden;
         }
 
         .report-header::after {
+            display: none;
+        }
+
+        .header-image {
+            width: 100%;
+            height: auto;
+            min-height: 280px;
+            background-color: #070707;
+            object-fit: cover;
+            display: block;
+        }
+
+        .header-institution {
+            display: none;
+        }
+
+        .header-title {
+            display: none;
+        }
+
+        .header-subtitle {
+            display: none;
+        }
+
+        /* Report Metadata Section */
+        .report-metadata {
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+            color: white;
+            padding: 40px 80px;
+            position: relative;
+        }
+
+        .report-metadata::after {
             content: '';
             position: absolute;
             bottom: 0;
@@ -61,27 +172,10 @@ report.html:-
             background: linear-gradient(90deg, #60a5fa, #3b82f6, #1e3a8a);
         }
 
-        .header-institution {
-            font-size: 0.9em;
-            font-weight: 500;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            opacity: 0.9;
-            margin-bottom: 20px;
-        }
-
-        .header-title {
-            font-size: 2.5em;
-            font-weight: 800;
-            margin-bottom: 15px;
-            letter-spacing: -0.5px;
-        }
-
-        .header-subtitle {
-            font-size: 1.2em;
-            font-weight: 400;
-            opacity: 0.95;
-            margin-bottom: 30px;
+        .report-metadata .header-meta {
+            margin: 0;
+            padding: 0;
+            border-top: none;
         }
 
         .header-meta {
@@ -117,12 +211,20 @@ report.html:-
 
         .section {
             margin-bottom: 60px;
+            page-break-inside: avoid;
+        }
+
+        .page-break {
+            page-break-before: always;
+            margin: 0;
+            padding: 0;
         }
 
         .section-header {
             margin-bottom: 30px;
             padding-bottom: 15px;
             border-bottom: 2px solid var(--border);
+            page-break-inside: avoid;
         }
 
         .section-number {
@@ -286,11 +388,21 @@ report.html:-
             margin: 30px 0;
             overflow: hidden;
             box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            page-break-inside: avoid;
+            position: relative;
         }
 
         .chart-container:hover {
             box-shadow: 0 8px 24px rgba(0,0,0,0.1);
             transition: box-shadow 0.3s ease;
+        }
+
+        .chart-block {
+            width: 100%;
+            height: 320px;
+            page-break-inside: avoid;
+            margin-bottom: 24px;
+            position: relative;
         }
 
         .chart-title {
@@ -313,10 +425,13 @@ report.html:-
             position: relative;
             width: 100%;
             padding: 10px 30px 30px 30px;
+            height: 400px;
         }
 
         .chart-wrapper.small {
-            min-height: 400px;
+            min-height: 350px;
+            height: auto;
+            page-break-inside: avoid;
         }
 
         /* Analysis Cards */
@@ -744,19 +859,151 @@ report.html:-
 
         /* Print Styles */
         @media print {
-            .action-buttons, .btn { display: none; }
-            .report-wrapper { box-shadow: none; }
-            .section { page-break-inside: avoid; }
-        }
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                color-adjust: exact !important;
+            }
 
-        /* Responsive */
-        @media (max-width: 768px) {
-            .report-header, .report-content, .report-footer {
-                padding: 40px 30px;
+            html, body {
+                width: 100%;
+                height: 100%;
+                margin: 0;
+                padding: 0;
+                background: white;
+            }
+
+            .action-buttons, .btn { 
+                display: none !important; 
+            }
+
+            .report-wrapper { 
+                box-shadow: none !important;
+                max-width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
             }
             
-            .header-title {
-                font-size: 1.8em;
+            .report-header {
+                page-break-inside: avoid;
+                background: white;
+                border-bottom: 2px solid #1e3a8a;
+                position: static;
+                margin-bottom: 20px;
+                min-height: 200px;
+            }
+
+            .header-image {
+                min-height: 200px !important;
+                max-height: 220px !important;
+            }
+            
+            .report-metadata {
+                page-break-inside: avoid;
+            }
+
+            .report-content {
+                padding: 40px 20px;
+            }
+
+            .section {
+                page-break-inside: avoid;
+                margin-bottom: 30px;
+            }
+
+            .chart-container {
+                page-break-inside: avoid;
+                box-shadow: none;
+                border: 1px solid #e2e8f0;
+            }
+
+            .chart-block {
+                page-break-inside: avoid;
+                height: 320px;
+            }
+
+            .metric-card {
+                page-break-inside: avoid;
+            }
+
+            .analysis-card {
+                page-break-inside: avoid;
+            }
+
+            .threat-row {
+                page-break-inside: avoid;
+            }
+
+            .recommendation-item {
+                page-break-inside: avoid;
+            }
+
+            .methodology-step {
+                page-break-inside: avoid;
+            }
+
+            h1, h2, h3, h4, h5, h6 {
+                page-break-after: avoid;
+                page-break-inside: avoid;
+                orphans: 3;
+                widows: 3;
+            }
+
+            p {
+                margin-bottom: 10px;
+                line-height: 1.6;
+                orphans: 3;
+                widows: 3;
+            }
+
+            .executive-summary {
+                page-break-inside: avoid;
+            }
+
+            .metrics-grid {
+                page-break-inside: avoid;
+            }
+
+            .analysis-grid {
+                page-break-inside: avoid;
+            }
+
+            table {
+                border-collapse: collapse;
+                page-break-inside: avoid;
+            }
+
+            thead {
+                display: table-header-group;
+            }
+
+            tbody {
+                display: table-row-group;
+            }
+
+            tr {
+                page-break-inside: avoid;
+            }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1200px) {
+            .report-header, .report-metadata, .report-content, .report-footer {
+                padding: 40px 30px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .report-header, .report-metadata, .report-content, .report-footer {
+                padding: 30px 20px;
+            }
+            
+            .report-header {
+                min-height: 200px;
+            }
+            
+            .header-image {
+                max-height: 180px;
             }
             
             .metrics-grid, .analysis-grid {
@@ -775,6 +1022,36 @@ report.html:-
             .methodology-step {
                 grid-template-columns: 1fr;
             }
+
+            .header-meta {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .chart-wrapper {
+                height: 300px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .report-header, .report-metadata, .report-content, .report-footer {
+                padding: 20px 15px;
+            }
+
+            .header-image {
+                max-height: 150px;
+            }
+
+            .header-meta {
+                grid-template-columns: 1fr;
+            }
+
+            .metrics-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .chart-wrapper {
+                height: 250px;
+            }
         }
     </style>
 </head>
@@ -782,10 +1059,11 @@ report.html:-
     <div class="report-wrapper">
         <!-- Header -->
         <div class="report-header">
-            <div class="header-institution">🛡️ GuardianLink Security Research</div>
-            <h1 class="header-title">Comprehensive URL Security Analysis Report</h1>
-            <p class="header-subtitle">Threat Intelligence & Risk Assessment Analysis</p>
-            
+            <img src="../assets/header-image.png" alt="GuardianLink Security Analysis" class="header-image" />
+        </div>
+
+        <!-- Report Metadata -->
+        <div class="report-metadata">
             <div class="header-meta">
                 <div class="meta-item">
                     <span class="meta-label">Report Period</span>

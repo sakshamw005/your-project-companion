@@ -369,6 +369,8 @@ async function scanWithVirusTotal(url) {
     };
   }
   
+  console.log(`🔍 Submitting to VirusTotal: ${url}`);
+  
   try {
     // First, submit the URL for scanning with timeout
     const submitResponse = await withTimeout(
@@ -380,7 +382,7 @@ async function scanWithVirusTotal(url) {
         },
         body: `url=${encodeURIComponent(url)}`
       }),
-      2500
+      5000  // Increased from 2500ms to 5000ms
     );
     
     const submitData = await submitResponse.json();
@@ -390,6 +392,7 @@ async function scanWithVirusTotal(url) {
       const errorMsg = submitData.error.message || JSON.stringify(submitData.error);
       if (errorMsg.includes('API key') || errorMsg.includes('Invalid') || errorMsg.includes('Unauthorized')) {
         console.error('❌ VirusTotal API key error:', errorMsg);
+        console.error('❌ Check your VIRUSTOTAL_API_KEY in .env - it may be rate-limited or invalid');
         return { 
           error: 'Invalid or expired API key', 
           score: 0, 
@@ -398,7 +401,8 @@ async function scanWithVirusTotal(url) {
           available: false 
         };
       }
-      console.error('VirusTotal submit error:', submitData.error);
+      console.error('❌ VirusTotal submit error:', submitData.error);
+      console.error('❌ Response status:', submitResponse.status, submitResponse.statusText);
       return { error: submitData.error.message, score: 0, maxScore: 25, status: 'warning' };
     }
     
@@ -406,33 +410,41 @@ async function scanWithVirusTotal(url) {
     const analysisId = submitData.data?.id;
     
     if (!analysisId) {
+      console.error('❌ No analysis ID returned from VirusTotal');
+      console.error('Response data:', JSON.stringify(submitData, null, 2));
       return { error: 'No analysis ID returned', score: 0, maxScore: 25, status: 'warning' };
     }
     
+    console.log(`✅ VirusTotal analysis created: ${analysisId}`);
+    
     let analysisData;
     let attempts = 0;
-    const maxAttempts = 3; // Reduced from 4 to 3 (300ms-800ms total polling)
-    const initialWaitMs = 300; // Start with 300ms
-    const maxWaitMs = 800; // Cap at 800ms
+    const maxAttempts = 8; // Increased from 3 to 8 attempts
+    const initialWaitMs = 500; // Start with 500ms (was 300ms)
+    const maxWaitMs = 2000; // Cap at 2000ms (was 800ms)
 
     while (attempts < maxAttempts) {
       try {
+        console.log(`🔄 VirusTotal polling attempt ${attempts + 1}/${maxAttempts} for ${analysisId}`);
         const res = await fetch(
           `https://www.virustotal.com/api/v3/analyses/${analysisId}`,
           { 
             headers: { 'x-apikey': apiKey }, 
-            signal: AbortSignal.timeout(2000) 
+            signal: AbortSignal.timeout(3000)  // Increased from 2000ms to 3000ms
           }
         );
 
         if (!res.ok) {
+          console.error(`❌ VirusTotal poll failed: HTTP ${res.status}`);
           throw new Error(`HTTP ${res.status}: ${res.statusText}`);
         }
 
         analysisData = await res.json();
         const status = analysisData?.data?.attributes?.status;
+        console.log(`📊 VirusTotal analysis status: ${status}`);
 
         if (status === 'completed') {
+          console.log(`✅ VirusTotal analysis completed`);
           break;
         }
 
@@ -453,8 +465,10 @@ async function scanWithVirusTotal(url) {
       }
     }
 
-    if (!analysisData?.data?.attributes?.status === 'completed') {
+    if (analysisData?.data?.attributes?.status !== 'completed') {
       // Return partial result instead of error - graceful degradation
+      console.warn(`⚠️ VirusTotal analysis not completed after ${maxAttempts} attempts`);
+      console.warn(`   Status: ${analysisData?.data?.attributes?.status}`);
       return {
         error: 'VirusTotal analysis timeout',
         score: 10,
@@ -515,14 +529,24 @@ async function scanWithVirusTotal(url) {
       status: malicious > 0 ? 'danger' : suspicious > 0 ? 'warning' : 'safe'
     };
   } catch (error) {
-    console.error('VirusTotal error:', error.message);
+    console.error('❌ VirusTotal error:', error.message);
+    console.error('❌ Error type:', error.name);
+    if (error.message.includes('timeout') || error.message.includes('TimeoutError')) {
+      console.error('❌ VirusTotal API request timed out - check network connectivity');
+      console.error('   - Possible causes: Firewall blocking virustotal.com, VPN/Proxy issues, DNS resolution failure');
+    } else if (error.message.includes('DNS') || error.message.includes('ENOTFOUND')) {
+      console.error('❌ Cannot reach virustotal.com - check firewall/VPN/DNS settings');
+    } else if (error.message.includes('ECONNREFUSED') || error.message.includes('EHOSTUNREACH')) {
+      console.error('❌ Network unreachable - check your internet connection');
+    }
     // Graceful degradation instead of total failure
     return { 
       error: error.message, 
       score: 10, 
       maxScore: 25, 
       status: 'warning',
-      partial: true 
+      partial: true,
+      available: false 
     };
   }
 }
@@ -1733,7 +1757,7 @@ async function processScanInBackground(url, scanId, source) {
       withTimeout(checkWithGoogleSafeBrowsing(url), 3000)
     ]);
     
-    const virusTotal = results[0].status === 'fulfilled' ? results[0].value : { score: 10, maxScore: 25, status: 'warning', partial: true, reason: 'VirusTotal check unavailable' };
+    const virusTotal = results[0].status === 'fulfilled' ? results[0].value : { score: 10, maxScore: 25, status: 'warning', partial: true, available: false, reason: 'VirusTotal check unavailable - timeout or network error' };
     const abuseIPDB = results[1].status === 'fulfilled' ? results[1].value : { score: 12, maxScore: 15, status: 'safe', partial: true, reason: 'IP reputation check unavailable' };
     const ssl = results[2].status === 'fulfilled' ? results[2].value : { score: 8, maxScore: 15, status: 'warning', partial: true, reason: 'SSL check unavailable' };
     const content = results[3].status === 'fulfilled' ? results[3].value : { score: 12, maxScore: 15, status: 'safe', partial: true, reason: 'Content analysis unavailable' };

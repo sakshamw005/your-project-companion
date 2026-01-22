@@ -28,7 +28,7 @@
     "default_title": "GuardianLink Dashboard"
   },
   "icons": {
-    "48": "assets/icon-48.png",
+    "48": "assets/cropped.jpg",
     "128": "assets/icon-128.png"
   },
   "web_accessible_resources": [
